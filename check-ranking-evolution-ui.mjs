@@ -21,7 +21,7 @@ assert.match(html,/up to 3 additional AVM rounds/i,'the authorized automatic rou
 assert.match(html,/New unknown cells per enabled route/i);
 assert.match(html,/both initially and in later rounds/i);
 assert.match(html,/Run one Manual round/i);
-assert.match(html,/Each exact plan starts automatically after a short pause if your settings stay unchanged/i);
+assert.match(html,/Select Run one Manual round after editing route inclusion\. Its exact plan starts after a short pause if your settings stay unchanged/i);
 assert.match(css,/\.pool-evolution-controls/);
 assert.match(css,/\.route-quota-toggle/);
 assert.match(app,/function poolAttemptedCellIds\(\)/,'prior failed or uncertain cells remain excluded from future retries');
