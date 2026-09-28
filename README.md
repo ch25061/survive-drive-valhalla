@@ -10,7 +10,7 @@ Valhalla routing, Escape Gate cross-product searches, and route evaluation are i
 
 - Edit the source files in `dist/` and `server/`. `node build.mjs` copies browser assets into `dist/client/` and regenerates `dist/server/index.js` for publishing.
 - Keep the Escape Gate mechanism unless the user explicitly approves changing it. Preserve the full start/destination cross product, including the no-gate pair.
-- Round 0 aims to INCLUDE `ceil(N/3)` of the original `N` routes, while protecting all routes under 20% known coverage even if that exceeds the nominal quota. Each completed evidence round advances the cull, with nominal quotas `ceil(N/9)`, `ceil(N/27)`, and so on. The best candidates from the full current ranking fill the slots, so previously EXCLUDED routes can return.
+- Round 0 excludes the bottom one-third (rounded up) of the original `N` routes, while protecting all routes under 20% known coverage even if that exceeds the nominal quota. Each completed evidence round excludes the bottom one-third of the previous nominal quota again (for 27 routes: 18, then 12, then 8 INCLUDED). The best candidates from the full current ranking fill the slots, so previously EXCLUDED routes can return.
 - Run relevant offline checks before publishing. `check-round-zero-initial.mjs`, `check-shrinking-route-quota.mjs`, `check-ranking-evolution.mjs`, `check-route-quota.mjs`, and `check-pool-quota-server.mjs` cover the current Round 0, reranking, and AVM quota behavior.
 - Do not use live Valhalla, Census, or RentCast requests as tests. Provider attempts, including failures, consume their stated budgets.
 

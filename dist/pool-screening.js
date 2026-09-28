@@ -45,7 +45,9 @@
   }
   function routeQuotaForCullRound(candidateCount,cullRound){
     if(!Number.isInteger(candidateCount)||candidateCount<1||candidateCount>292||!Number.isInteger(cullRound)||cullRound<1)throw Error('A cull quota needs the original candidate count and a positive cull round.');
-    return Math.max(1,Math.ceil(candidateCount/Math.pow(3,cullRound)));
+    let survivors=candidateCount;
+    for(let round=0;round<cullRound&&survivors>1;round++)survivors=Math.max(1,survivors-Math.ceil(survivors/3));
+    return survivors;
   }
   function selectRoutesForCullRound(results,candidateRouteIds,previousEnabledRouteIds,cullRound,protectedRouteIds=[]){
     if(!Array.isArray(results)||!Array.isArray(candidateRouteIds)||!Array.isArray(previousEnabledRouteIds)||!Array.isArray(protectedRouteIds))throw Error('A cull needs ranked candidates, previous inclusion, and protected route IDs.');
@@ -62,7 +64,7 @@
     const byId=new Map(results.map(row=>[row.route_id,row])),coverage=row=>Number.isFinite(row.coverage_pct)?row.coverage_pct:0;
     if(candidateRouteIds.some(id=>!byId.has(id)))throw Error('Round 0 needs known coverage for every candidate.');
     const protectedRouteIds=candidateRouteIds.filter(id=>coverage(byId.get(id))<20),selection=selectRoutesForCullRound(results,candidateRouteIds,candidateRouteIds,1,protectedRouteIds);
-    return{...selection,considered_route_ids:candidateRouteIds.slice(),unprotected_route_ids:candidateRouteIds.filter(id=>!protectedRouteIds.includes(id)),known_coverage:candidateRouteIds.map(id=>({route_id:id,coverage_pct:coverage(byId.get(id)),protected:protectedRouteIds.includes(id),culled:selection.disabled_route_ids.includes(id)})),protection_threshold_pct:20,rule:'Round 0 includes the best ranked routes up to ceil(original candidates / 3), keeping every route under 20% known coverage even when protection exceeds the nominal quota.'};
+    return{...selection,considered_route_ids:candidateRouteIds.slice(),unprotected_route_ids:candidateRouteIds.filter(id=>!protectedRouteIds.includes(id)),known_coverage:candidateRouteIds.map(id=>({route_id:id,coverage_pct:coverage(byId.get(id)),protected:protectedRouteIds.includes(id),culled:selection.disabled_route_ids.includes(id)})),protection_threshold_pct:20,rule:'Round 0 excludes the bottom one-third (rounded up) and fills the remaining slots from the current ranking, keeping every route under 20% known coverage even when protection exceeds the nominal quota.'};
   }
   function evolve(routes,context,cap,seed,generation){
     if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');

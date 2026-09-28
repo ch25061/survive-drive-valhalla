@@ -16,7 +16,7 @@ assert.match(html,/id="hide-disabled-routes" type="checkbox"/,'the ranking filte
 assert.doesNotMatch(html,/id="manual-route-mode" type="radio" name="ranking-round-mode" checked/,'The user chooses a ranking mode before another paid round');
 assert.match(app,/const cards=rankedCandidateCards\(\),hasRankings=[\s\S]*?visibleCards=hideDisabled\?cards\.filter/,'hide disabled filters rendered cards without changing route eligibility');
 assert.match(css,/\.ranking-mode-cards\{/,'manual and automatic choices have separate cards');
-assert.match(html,/ceil\(N\/9\), then ceil\(N\/27\)/i,'shrinking next-round quotas are disclosed');
+assert.match(html,/nominal INCLUDED counts are 18, then 12, then 8/i,'shrinking next-round quotas are disclosed');
 assert.match(html,/up to 3 additional AVM rounds/i,'the authorized automatic round count is explicit');
 assert.match(html,/New unknown cells per enabled route/i);
 assert.match(html,/both initially and in later rounds/i);
@@ -41,7 +41,7 @@ assert.doesNotMatch(app,/evolution_algorithm:/,'session export must not identify
 assert.match(app,/\$\('prepare-pool-evolution-ranking'\)\.addEventListener\('click',prepareManualRankingRound\)/,'the ranking banner enters Manual before preparing one reviewed round');
 assert.match(app,/purpose:'automatic_route_evolution'/,'auto evolution uses its separately bounded authorization purpose');
 assert.match(app,/fingerprintValid=plan\.candidate_pool_fingerprint===await poolSha256\(plan\.candidate_pool_snapshot\)/,'the exact candidate allowlist is fingerprinted before authorization');
-assert.match(app,/screenRoundZeroWithQuota\(screen\.results,state\.routes\.map\(route=>route\.id\)\)/,'the first pool screen protects under-20% coverage within its one-third quota');
+assert.match(app,/screenRoundZeroWithQuota\(screen\.results,state\.routes\.map\(route=>route\.id\)\)/,'the first pool screen protects under-20% coverage while excluding the bottom third');
 assert.match(app,/if\(screen\.generation===0\|\|!screen\.round_zero\)completeRoundZeroSelection\(\)/,'the automatic cycle uses the same Round 0 inclusion');
 assert.match(app,/activeAfterRoundZero=enabledPoolRouteIds\(\)\.filter/,'the automatic first round uses the INCLUDED routes with eligible cells');
 assert.match(app,/automaticRouteQuotaWorstCase\(routeCells,activeAfterRoundZero,state\.routes\.length,screen\.cull_round,perRoute\)/,'the paid ceiling uses shrinking full-pool quotas');
