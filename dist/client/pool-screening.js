@@ -43,6 +43,27 @@
     const count=Math.max(1,Math.ceil(candidateRouteIds.length*fraction)),included=ranked.slice(0,count),includedSet=new Set(included);
     return{enabled_route_ids:included,disabled_route_ids:ranked.filter(id=>!includedSet.has(id)),ranked_route_ids:ranked,promoted_route_ids:included.filter(id=>!prior.has(id)),demoted_route_ids:candidateRouteIds.filter(id=>prior.has(id)&&!includedSet.has(id)),fraction,rounding:'ceil',candidate_count:candidateRouteIds.length};
   }
+  function routeQuotaForCullRound(candidateCount,cullRound){
+    if(!Number.isInteger(candidateCount)||candidateCount<1||candidateCount>292||!Number.isInteger(cullRound)||cullRound<1)throw Error('A cull quota needs the original candidate count and a positive cull round.');
+    return Math.max(1,Math.ceil(candidateCount/Math.pow(3,cullRound)));
+  }
+  function selectRoutesForCullRound(results,candidateRouteIds,previousEnabledRouteIds,cullRound,protectedRouteIds=[]){
+    if(!Array.isArray(results)||!Array.isArray(candidateRouteIds)||!Array.isArray(previousEnabledRouteIds)||!Array.isArray(protectedRouteIds))throw Error('A cull needs ranked candidates, previous inclusion, and protected route IDs.');
+    const byId=new Map(results.map(row=>[row.route_id,row])),position=new Map(candidateRouteIds.map((id,index)=>[id,index]));
+    if(new Set(candidateRouteIds).size!==candidateRouteIds.length||candidateRouteIds.some(id=>!byId.has(id))||new Set(protectedRouteIds).size!==protectedRouteIds.length||protectedRouteIds.some(id=>!position.has(id)))throw Error('Every candidate and protected route needs one unique ranking result.');
+    const quota=routeQuotaForCullRound(candidateRouteIds.length,cullRound),protectedSet=new Set(protectedRouteIds),prior=new Set(previousEnabledRouteIds);
+    const ranked=candidateRouteIds.slice().sort((a,b)=>{const ar=byId.get(a).rank,br=byId.get(b).rank,aRanked=Number.isInteger(ar),bRanked=Number.isInteger(br);if(aRanked!==bRanked)return aRanked?-1:1;if(aRanked&&ar!==br)return ar-br;return position.get(a)-position.get(b);});
+    const selected=new Set(ranked.filter(id=>protectedSet.has(id)));
+    for(const id of ranked){if(selected.size>=quota)break;selected.add(id);}
+    const included=ranked.filter(id=>selected.has(id));
+    return{enabled_route_ids:included,disabled_route_ids:ranked.filter(id=>!selected.has(id)),ranked_route_ids:ranked,promoted_route_ids:included.filter(id=>!prior.has(id)),demoted_route_ids:candidateRouteIds.filter(id=>prior.has(id)&&!selected.has(id)),candidate_count:candidateRouteIds.length,cull_round:cullRound,cull_fraction:1/3,quota,protected_route_ids:protectedRouteIds.slice(),protected_over_quota:Math.max(0,protectedRouteIds.length-quota)};
+  }
+  function screenRoundZeroWithQuota(results,candidateRouteIds){
+    const byId=new Map(results.map(row=>[row.route_id,row])),coverage=row=>Number.isFinite(row.coverage_pct)?row.coverage_pct:0;
+    if(candidateRouteIds.some(id=>!byId.has(id)))throw Error('Round 0 needs known coverage for every candidate.');
+    const protectedRouteIds=candidateRouteIds.filter(id=>coverage(byId.get(id))<20),selection=selectRoutesForCullRound(results,candidateRouteIds,candidateRouteIds,1,protectedRouteIds);
+    return{...selection,considered_route_ids:candidateRouteIds.slice(),unprotected_route_ids:candidateRouteIds.filter(id=>!protectedRouteIds.includes(id)),known_coverage:candidateRouteIds.map(id=>({route_id:id,coverage_pct:coverage(byId.get(id)),protected:protectedRouteIds.includes(id),culled:selection.disabled_route_ids.includes(id)})),protection_threshold_pct:20,rule:'Round 0 includes the best ranked routes up to ceil(original candidates / 3), keeping every route under 20% known coverage even when protection exceeds the nominal quota.'};
+  }
   function evolve(routes,context,cap,seed,generation){
     if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');
     if(!Number.isInteger(cap)||cap<0||cap>100)throw Error('Use a whole-number evolution ceiling from 0 to 100.');
@@ -184,5 +205,5 @@
     if(selected.length>10000)throw Error('The route evidence-gap plan contains '+selected.length+' unique cells, above the 10,000-cell candidate-pool capacity. Narrow the candidate pool, then prepare again.');
     const route_sampling=routeRows.map(row=>{const count=row.enabled?(selectedByRoute.get(row.route.id)?.length??0):0;return{route_id:row.route.id,route_name:row.route.name,enabled:row.enabled,requested_per_route:row.enabled?perRoute:0,available_unique_cells:row.available.length,selected_cells:count,incidental_shared_cells:row.incidental.size,shortfall:row.enabled?Math.max(0,perRoute-count):0,selection_status:!row.enabled?'excluded by user':row.available.length===0?'no eligible unknown cells':row.available.length<perRoute?'fewer eligible cells than requested':row.incidental.size?'quota met; additional shared cells disclosed separately':'quota met'};});
     return{algorithm:'known_anchor_route_gap_quota_v3',requested_per_enabled_route:perRoute,enabled_route_ids:enabledRows.map(row=>row.route.id),enabled_route_count:enabledRows.length,maximum_unique_calls:selected.length,selected_count:selected.length,unique_missing_cells:missingCellIds.size,selected_cells:selected,route_sampling,provider_calls:0};
-  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes,pruneLeastCoveredUnprotectedRoutesBeforeSampling,selectTopRankedRoutesForNextRound};
+  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes,pruneLeastCoveredUnprotectedRoutesBeforeSampling,selectTopRankedRoutesForNextRound,routeQuotaForCullRound,selectRoutesForCullRound,screenRoundZeroWithQuota};
 })(typeof window!=='undefined'?window:globalThis);
