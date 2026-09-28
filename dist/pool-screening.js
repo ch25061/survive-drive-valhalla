@@ -17,6 +17,18 @@
     const disabled=ranked.slice(0,count).map(row=>row.route_id),disabledSet=new Set(disabled);
     return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,considered_route_ids:ranked.map(row=>row.route_id),fraction,minimum_survivors:ranked.length?1:0};
   }
+  function pruneMostCoveredRoutesBeforeSampling(results,enabledRouteIds,fraction=0.4){
+    if(!Array.isArray(results)||!Array.isArray(enabledRouteIds)||!Number.isFinite(fraction)||fraction<0||fraction>=1)throw Error('Round 0 needs known coverage, enabled route IDs, and a fraction from 0 to less than 1.');
+    const byId=new Map(results.map(row=>[row.route_id,row]));
+    if(new Set(enabledRouteIds).size!==enabledRouteIds.length||enabledRouteIds.some(id=>!byId.has(id)))throw Error('Round 0 requires one coverage result for every enabled route.');
+    const coverage=row=>Number.isFinite(row.coverage_pct)?row.coverage_pct:0;
+    const ranked=enabledRouteIds.map(id=>byId.get(id)).sort((a,b)=>coverage(b)-coverage(a)||String(a.route_id).localeCompare(String(b.route_id)));
+    const target=Math.min(Math.max(0,ranked.length-1),Math.ceil(ranked.length*fraction));
+    const disabled=[];
+    for(let start=0;start<ranked.length;){let end=start+1;while(end<ranked.length&&Math.abs(coverage(ranked[end])-coverage(ranked[start]))<1e-6)end++;if(end>target)break;disabled.push(...ranked.slice(start,end).map(row=>row.route_id));start=end;}
+    const disabledSet=new Set(disabled);
+    return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,considered_route_ids:ranked.map(row=>row.route_id),known_coverage:ranked.map(row=>({route_id:row.route_id,coverage_pct:row.coverage_pct??0})),fraction,rule:'Cull up to ceil(40%) of the best-covered routes; preserve coverage ties and at least one survivor.'};
+  }
   function evolve(routes,context,cap,seed,generation){
     if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');
     if(!Number.isInteger(cap)||cap<0||cap>100)throw Error('Use a whole-number evolution ceiling from 0 to 100.');
@@ -158,5 +170,5 @@
     if(selected.length>100)throw Error('The route evidence-gap plan contains '+selected.length+' unique cells, above the 100-call maximum. Lower the per-route count or disable routes, then prepare again.');
     const route_sampling=routeRows.map(row=>{const count=row.enabled?(selectedByRoute.get(row.route.id)?.length??0):0;return{route_id:row.route.id,route_name:row.route.name,enabled:row.enabled,requested_per_route:row.enabled?perRoute:0,available_unique_cells:row.available.length,selected_cells:count,incidental_shared_cells:row.incidental.size,shortfall:row.enabled?Math.max(0,perRoute-count):0,selection_status:!row.enabled?'excluded by user':row.available.length===0?'no eligible unknown cells':row.available.length<perRoute?'fewer eligible cells than requested':row.incidental.size?'quota met; additional shared cells disclosed separately':'quota met'};});
     return{algorithm:'known_anchor_route_gap_quota_v3',requested_per_enabled_route:perRoute,enabled_route_ids:enabledRows.map(row=>row.route.id),enabled_route_count:enabledRows.length,maximum_unique_calls:selected.length,selected_count:selected.length,unique_missing_cells:missingCellIds.size,selected_cells:selected,route_sampling,provider_calls:0};
-  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes};
+  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes,pruneMostCoveredRoutesBeforeSampling};
 })(typeof window!=='undefined'?window:globalThis);

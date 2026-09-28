@@ -70,4 +70,18 @@ assert.deepEqual(Array.from(context.SurvivePool.pruneLowestRankedRoutes([{route_
 assert.deepEqual(Array.from(context.SurvivePool.pruneLowestRankedRoutes(Array.from({length:7},(_,i)=>({route_id:'r'+i,rank:i+1})),Array.from({length:7},(_,i)=>'r'+i)).disabled_route_ids).length,3,'ceil(40%) pruning maps seven enabled routes to four survivors');
 assert.throws(()=>context.SurvivePool.pruneLowestRankedRoutes([],['a'],1),/fraction/);
 
+const roundZero=context.SurvivePool.pruneMostCoveredRoutesBeforeSampling([
+  {route_id:'unknown-a',coverage_pct:0},{route_id:'covered',coverage_pct:90},
+  {route_id:'unknown-b',coverage_pct:0},{route_id:'mostly-covered',coverage_pct:70},
+  {route_id:'partly-known',coverage_pct:20}
+],['unknown-a','covered','unknown-b','mostly-covered','partly-known']);
+assert.deepEqual(Array.from(roundZero.disabled_route_ids),['covered','mostly-covered'],'Round 0 culls the best-covered 40% before paid sampling');
+assert.deepEqual(Array.from(roundZero.enabled_route_ids),['unknown-a','unknown-b','partly-known'],'routes with too little known coverage survive Round 0');
+assert.deepEqual(Array.from(context.SurvivePool.pruneMostCoveredRoutesBeforeSampling([
+  {route_id:'a',coverage_pct:0},{route_id:'b',coverage_pct:0},{route_id:'c',coverage_pct:0}
+],['a','b','c']).disabled_route_ids),[],'tied low-coverage routes are not arbitrarily culled');
+assert.deepEqual(Array.from(context.SurvivePool.pruneMostCoveredRoutesBeforeSampling([
+  {route_id:'a',coverage_pct:90},{route_id:'b',coverage_pct:90},{route_id:'c',coverage_pct:90},{route_id:'d',coverage_pct:0}
+],['a','b','c','d']).disabled_route_ids),[],'a tied high-coverage group is preserved if it cannot be culled whole');
+
 console.log('Automatic ranking evolution selector checks passed.');
