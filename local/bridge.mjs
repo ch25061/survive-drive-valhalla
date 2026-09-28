@@ -10,6 +10,13 @@ const claimsPath=resolve(process.env.VALHALLA_CLAIMS_PATH??'./local-round-claims
 const origins=new Set([
   'https://survive-drive-valhalla.choppy777.chatgpt.site',
   'https://valhalla.choppy.fans',
+  'http://127.0.0.1:8003',
+]);
+const pageFiles=new Map([
+  ['/', ['planner.html','text/html; charset=utf-8']],
+  ['/planner.js', ['planner.js','text/javascript; charset=utf-8']],
+  ['/planner.css', ['planner.css','text/css; charset=utf-8']],
+  ['/valhalla-decoder.js', ['../dist/valhalla-decoder.js','text/javascript; charset=utf-8']],
 ]);
 mkdirSync(dirname(claimsPath),{recursive:true});
 const spent=new Set();
@@ -46,11 +53,16 @@ async function boundedJson(response){
 }
 
 const server=createServer(async(request,response)=>{
+  if(request.headers.host!=='127.0.0.1:8003'){send(response,403,{error:'Use the local address 127.0.0.1.'});return;}
   const origin=request.headers.origin;
   if(origin&&!origins.has(origin)){send(response,403,{error:'Origin is not allowed.'});return;}
   if(request.method==='OPTIONS'){
     response.writeHead(204,{'Access-Control-Allow-Origin':origin??'null','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Private-Network':'true','Vary':'Origin'});
     response.end();return;
+  }
+  if(request.method==='GET'&&pageFiles.has(request.url)){
+    const [file,contentType]=pageFiles.get(request.url);
+    try{response.writeHead(200,{'Content-Type':contentType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});response.end(readFileSync(resolve(import.meta.dirname,file)));}catch{send(response,500,{error:'Local page is unavailable.'},origin);}return;
   }
   if(request.url==='/status'&&request.method==='GET'){
     try{const check=await fetch(engine+'/status',{signal:AbortSignal.timeout(3000),redirect:'error'});send(response,200,{valhalla_ready:check.ok,mode:'local',map_area:'Illinois and Indiana'},origin);}catch{send(response,200,{valhalla_ready:false,mode:'local',map_area:'Illinois and Indiana'},origin);}return;

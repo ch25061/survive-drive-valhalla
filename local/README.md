@@ -1,9 +1,11 @@
-# Local Valhalla for Survive Drive
+# Survive Drive · Local Valhalla
 
-The routing engine and browser bridge run only on this Windows computer. The graph was built from the Illinois and Indiana OpenStreetMap extracts in the adjacent `work/valhalla-local/data` folder. Those files currently use about 1.75 GB and do not cover routes outside those states.
+Double-click **Open Local Valhalla.cmd**. It starts the routing engine and opens [the local route page](http://127.0.0.1:8003/) in your default browser. The engine and page listen only on this computer. After a Windows restart, run the launcher again.
 
-Run `start-local-valhalla.ps1` to start both background services after restarting Windows. Check `http://127.0.0.1:8002/status` for Valhalla and `http://127.0.0.1:8003/status` for the bridge. The bridge allows requests only from the private Survive Drive Valhalla Site, its pending custom subdomain, or a local command without an Origin header. It keeps a durable record of attempted route IDs to prevent automatic retries after a restart.
+The local page lets you set a start, destination, and optional fuzzy waypoints on a map or by coordinates. Each waypoint is visited in order with a 200 meter road search radius. Without waypoints, Valhalla may return up to four alternatives. Every **Search routes** click sends one local request. It never retries automatically. The page is for routing only; AVM evaluation and the full review workflow remain in the separate published offshoot.
 
-In the Site, select **Check local Valhalla connection**, review the prepared batch and call budget, then select **Search these routes with Valhalla**. If the browser asks whether the Site may reach a service on this computer, allow it to use the local routing service. No external tunnel or cloud Valhalla server is configured.
+The Illinois and Indiana road graph is in the sibling `work/valhalla-local` folder and uses about 1.75 GB. Routing outside the included states is not supported. The service uses the `pyvalhalla` 3.9.0 Windows package and [Geofabrik Illinois](https://download.geofabrik.de/north-america/us/illinois.html) and [Indiana](https://download.geofabrik.de/north-america/us/indiana.html) OpenStreetMap extracts.
 
-Map data: [Geofabrik Illinois](https://download.geofabrik.de/north-america/us/illinois.html), [Geofabrik Indiana](https://download.geofabrik.de/north-america/us/indiana.html). Valhalla package: `pyvalhalla` 3.9.0 from PyPI.
+The [published offshoot](https://survive-drive-valhalla.choppy777.chatgpt.site/) also has a local connection check. Its private sign-in and the browser's local network controls may prevent that hosted page from reaching this computer. The local page avoids that connection boundary.
+
+For diagnostics, `http://127.0.0.1:8002/status` checks Valhalla and `http://127.0.0.1:8003/status` checks the local page and bridge. Request IDs are recorded in `work/valhalla-local/claims.jsonl` to prevent a repeated attempt after a restart.

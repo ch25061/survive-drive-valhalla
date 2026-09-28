@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survive Drive · Local Valhalla</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="/planner.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+<script src="/valhalla-decoder.js" defer></script><script src="/planner.js" defer></script>
+</head>
+<body>
+<header><div><small>SURVIVE DRIVE · LOCAL OFFSHOOT</small><h1>Valhalla route search</h1><p>Illinois and Indiana routing on this computer. Traffic is not included.</p></div><span id="status" role="status">Checking local service…</span></header>
+<main>
+<section class="controls">
+<h2>Set your trip</h2><p>Choose a point button, then click the map. You can also enter latitude, longitude.</p>
+<div class="point"><label for="origin">Start</label><input id="origin" placeholder="41.8781, -87.6298"><button type="button" data-pick="origin">Set on map</button></div>
+<div class="point"><label for="destination">Destination</label><input id="destination" placeholder="41.6348, -84.9994"><button type="button" data-pick="destination">Set on map</button></div>
+<h2>Optional fuzzy waypoints</h2><p>Each waypoint is a through point with a 200 meter road search radius. Routes visit them in the order shown.</p>
+<div class="point"><input id="waypoint" placeholder="Latitude, longitude"><button id="add-waypoint" type="button">Add</button><button type="button" data-pick="waypoint">Set on map</button></div>
+<ol id="waypoints"></ol>
+<div class="settings"><label>Route preference<select id="mode"><option value="fast">Faster travel</option><option value="short">Shorter distance</option></select></label><label>Baseline routes<select id="count"><option value="1">1 route</option><option value="2">Up to 2</option><option value="3">Up to 3</option><option value="4" selected>Up to 4</option></select></label></div>
+<p class="hint">Waypoint searches return one route. Each click on Search sends one request to your local Valhalla service; failed requests count and are never retried automatically.</p>
+<button id="search" class="primary" type="button">Search routes</button><p id="message" role="status"></p>
+<h2>Routes</h2><div id="routes">No search yet.</div>
+<p class="hint">This local planner covers routing only. The separate published Survive Drive page retains its full review workflow.</p>
+</section>
+<section class="map-panel"><div id="map" aria-label="Trip map"></div><p>Click a route to highlight it. Start, destination, and waypoint markers stay visible.</p></section>
+</main>
+</body>
+</html>
