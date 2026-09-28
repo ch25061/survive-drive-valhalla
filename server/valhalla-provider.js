@@ -1,6 +1,18 @@
 // Provider boundary for the separate Valhalla offshoot. The Shotgun gate
 // generator still emits its established request shape; only this adapter
 // translates it to Valhalla's ordered locations.
+export function validatedRouteOptions(value) {
+  if (value === undefined) return {highways:0.5,tolls:0.5,ferries:0.5,exclude_unpaved:false,exclude_cash_only_tolls:false,hov_occupants:0};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Choose valid Valhalla road preferences.');
+  const allowed = ['highways','tolls','ferries','exclude_unpaved','exclude_cash_only_tolls','hov_occupants'];
+  if (Object.keys(value).some(key => !allowed.includes(key))) throw Error('Unsupported Valhalla road preference.');
+  const options = {highways:0.5,tolls:0.5,ferries:0.5,exclude_unpaved:false,exclude_cash_only_tolls:false,hov_occupants:0,...value};
+  for (const key of ['highways','tolls','ferries']) if (![0,0.5,1].includes(options[key])) throw Error('Choose a supported '+key+' preference.');
+  for (const key of ['exclude_unpaved','exclude_cash_only_tolls']) if (typeof options[key] !== 'boolean') throw Error('Choose a valid '+key+' setting.');
+  if (![0,2,3].includes(options.hov_occupants)) throw Error('Choose 0, 2, or 3 HOV occupants.');
+  return options;
+}
+
 export function valhallaPayload(params) {
   const features = String(params['avoid[features]'] ?? '').split(',').filter(Boolean);
   if (features.length) throw Error('Avoid-road preferences are not yet mapped to equivalent Valhalla behavior. Clear them before routing.');
@@ -15,10 +27,20 @@ export function valhallaPayload(params) {
   const via = params.via ?? [];
   const locations = [point(params.origin, 'break'), ...via.map(value => point(value, 'through')), point(params.destination, 'break')];
   const alternates = via.length ? 0 : Math.min(params.alternatives, 3);
+  const options = validatedRouteOptions(params.routeOptions);
   return {
     locations,
     costing: 'auto',
-    costing_options: { auto: { ...(params.routingMode === 'short' ? { shortest: true } : {}) } },
+    costing_options: { auto: {
+      ...(params.routingMode === 'short' ? { use_distance: 0.5 } : {}),
+      use_highways: options.highways,
+      use_tolls: options.tolls,
+      use_ferry: options.ferries,
+      exclude_unpaved: options.exclude_unpaved,
+      exclude_cash_only_tolls: options.exclude_cash_only_tolls,
+      include_hov2: options.hov_occupants >= 2,
+      include_hov3: options.hov_occupants >= 3
+    } },
     alternates,
     units: 'kilometers',
     directions_type: 'instructions',

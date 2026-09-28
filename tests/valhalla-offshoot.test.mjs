@@ -13,9 +13,22 @@ const gated=valhallaPayload({...baseline,via:['41.91,-87.61;radius=200','41.99,-
 assert.deepEqual(gated.locations.map(p=>p.type),['break','through','through','break']);
 assert.equal(gated.locations[1].radius,200);
 assert.equal(gated.alternates,0);
-assert.equal(valhallaPayload({...baseline,routingMode:'short'}).costing_options.auto.shortest,true);
+assert.equal(valhallaPayload({...baseline,routingMode:'short'}).costing_options.auto.use_distance,0.5);
 assert.throws(()=>valhallaPayload({...baseline,departureTime:'now'}));
 assert.throws(()=>valhallaPayload({...baseline,'avoid[features]':'tollRoad'}));
+const preferences={highways:0,tolls:0,ferries:0,exclude_unpaved:true,exclude_cash_only_tolls:true,hov_occupants:3};
+const preferred=valhallaPayload({...baseline,routeOptions:preferences}).costing_options.auto;
+assert.equal(preferred.use_highways,0);
+assert.equal(preferred.use_tolls,0);
+assert.equal(preferred.use_ferry,0);
+assert.equal(preferred.exclude_unpaved,true);
+assert.equal(preferred.exclude_cash_only_tolls,true);
+assert.equal(preferred.include_hov2,true);
+assert.equal(preferred.include_hov3,true);
+assert.equal(valhallaPayload({...baseline,routingMode:'short',routeOptions:preferences}).costing_options.auto.use_highways,0);
+assert.throws(()=>valhallaPayload({...baseline,routeOptions:{highways:-1}}));
+assert.throws(()=>valhallaPayload({...baseline,routeOptions:{tolls:'0'}}));
+assert.throws(()=>valhallaPayload({...baseline,routeOptions:{unexpected:true}}));
 assert.equal(valhallaEndpoint('https://routing.example.com').href,'https://routing.example.com/route');
 assert.throws(()=>valhallaEndpoint('http://routing.example.com'));
 assert.throws(()=>valhallaEndpoint('https://routing.example.com/other'));
@@ -50,7 +63,7 @@ vm.runInNewContext(await readFile(new URL('../dist/shotgun-gates.js',import.meta
 const gates=Array.from({length:16},(_,i)=>({id:`gate-${i+1}`,gate_number:i+1,name:`Gate ${i+1}`,latitude:41.9+i*.001,longitude:-87.6,bearing_deg:i*22.5}));
 const destinations=gates.map((gate,i)=>({...gate,id:`destination-${i+1}`,latitude:42+i*.001}));
 let serial=0;
-const batch=shotgunContext.SurviveShotgun.buildBatch({here:{maximum_candidates:4,params:baseline}},gates,destinations,()=>`request-${++serial}`);
+const batch=shotgunContext.SurviveShotgun.buildBatch({here:{maximum_candidates:4,params:{...baseline,routeOptions:preferences}}},gates,destinations,()=>`request-${++serial}`);
 assert.equal(batch.maximum_requests,289);
 assert.equal(batch.maximum_candidates,292);
 assert.equal(batch.gate_request_count,288);
@@ -69,6 +82,8 @@ for(const request of batch.requests.slice(1)){
   const translated=valhallaPayload({...baseline,...request.params});
   assert.equal(translated.locations.length,2+request.params.via.length);
   assert.equal(translated.alternates,0);
+  assert.equal(translated.costing_options.auto.use_highways,0);
+  assert.equal(translated.costing_options.auto.use_tolls,0);
 }
 const sameGeometry=batch.requests.map((request,index)=>({route:{id:`route-${index}`,route_number:1,geometry:[[-87.6,41.9],[-87.7,42]],cells:[]},request_kind:request.request_kind,pair_number:request.pair_number,start_gate:request.start_gate,destination_gate:request.destination_gate}));
 const deduplicated=shotgunContext.SurviveShotgun.deduplicateRoutes(sameGeometry);

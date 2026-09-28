@@ -123,14 +123,15 @@ async function sha256Hex(value){const bytes=new TextEncoder().encode(typeof valu
 async function boundedText(response,limit){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let size=0;while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw Error('Response is too large.');}chunks.push(value);}const all=new Uint8Array(size);let offset=0;for(const chunk of chunks){all.set(chunk,offset);offset+=chunk.byteLength;}return new TextDecoder().decode(all);}
 function routingParams(input){
   if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Review valid route settings.');
-  const allowed=['transportMode','origin','destination','routingMode','departureTime','alternatives','return','spans','avoid[features]','via'];
+  const allowed=['transportMode','origin','destination','routingMode','departureTime','alternatives','return','spans','avoid[features]','routeOptions','via'];
   if(Object.keys(input).some(k=>!allowed.includes(k)))throw Error('Unsupported route setting.');
   function point(value){if(typeof value!=='string'||!value.trim())throw Error('Use latitude, longitude coordinates.');const parts=value.split(',');if(parts.length!==2||parts.some(x=>!x.trim()))throw Error('Use latitude, longitude coordinates.');const pair=parts.map(Number);if(!pair.every(Number.isFinite)||Math.abs(pair[0])>90||Math.abs(pair[1])>180)throw Error('Invalid HERE coordinates.');return pair.join(',');}
   if(input.transportMode!=='car'||!['fast','short'].includes(input.routingMode)||!Number.isInteger(input.alternatives)||input.alternatives<0||input.alternatives>3)throw Error('Use car routing and between 0 and 3 alternatives.');
   if(input.departureTime!==undefined&&(typeof input.departureTime!=='string'||!(input.departureTime==='any'||/^\d{4}-\d{2}-\d{2}T/.test(input.departureTime)&&Number.isFinite(Date.parse(input.departureTime)))))throw Error('Use any, a scheduled timestamp, or omit departureTime for now.');
   if(input.return!=='polyline,summary,turnByTurnActions,routeLabels'||input.spans!=='streetAttributes,names,routeNumbers,functionalClass')throw Error('Use the reviewed geometry and span settings.');
   const result={transportMode:'car',origin:point(input.origin),destination:point(input.destination),routingMode:input.routingMode,...(input.departureTime!==undefined?{departureTime:input.departureTime}:{}),alternatives:input.alternatives,return:input.return,spans:input.spans};
-  if(input['avoid[features]']!==undefined){const features=typeof input['avoid[features]']==='string'?input['avoid[features]'].split(','):[];if(!features.length||features.some(f=>!['tollRoad','controlledAccessHighway','ferry','tunnel','dirtRoad'].includes(f)))throw Error('Invalid avoidance settings.');result['avoid[features]']=features.join(',');}
+  if(input['avoid[features]']!==undefined)throw Error('Old HERE road preferences are unsupported. Choose Valhalla road preferences instead.');
+  result.routeOptions=validatedRouteOptions(input.routeOptions);
   if(input.via!==undefined){if(!Array.isArray(input.via)||input.via.length>20)throw Error('Use at most 20 waypoints.');result.via=input.via.map(value=>{const radius=';radius=200';return typeof value==='string'&&value.endsWith(radius)?point(value.slice(0,-radius.length))+radius:point(value);});}
   return result;
 }
