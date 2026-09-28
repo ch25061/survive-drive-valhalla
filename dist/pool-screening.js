@@ -18,7 +18,7 @@
     return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,considered_route_ids:ranked.map(row=>row.route_id),fraction,minimum_survivors:ranked.length?1:0};
   }
   function evolve(routes,context,cap,seed,generation){
-    if(!Array.isArray(routes)||!routes.length||routes.length>119)throw Error('Ranking evolution needs 1–119 candidate routes.');
+    if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');
     if(!Number.isInteger(cap)||cap<0||cap>100)throw Error('Use a whole-number evolution ceiling from 0 to 100.');
     if(typeof seed!=='string'||!seed.trim()||seed.length>128)throw Error('Enter a reproducible seed with 1–128 characters.');
     if(!Number.isInteger(generation)||generation<1||generation>1000)throw Error('Use a generation number from 1 to 1,000.');
@@ -71,7 +71,7 @@
     return 2*6371008.8*Math.asin(Math.min(1,Math.sqrt(h)));
   }
   function plan(routes,cap,seed,endpointOptions={},selectionContext={}){
-    if(!Array.isArray(routes)||!routes.length||routes.length>119)throw Error('Pool screening needs 1–119 candidate routes.');
+    if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Pool screening needs 1–292 candidate routes.');
     if(!Number.isInteger(cap)||cap<0||cap>100)throw Error('Use a whole-number pool screening ceiling from 0 to 100.');
     if(typeof seed!=='string'||!seed.trim()||seed.length>128)throw Error('Enter a reproducible seed with 1–128 characters.');
     const endpointOf=(route,side)=>{const point=Array.isArray(route?.geometry)&&route.geometry.length?(side==='start'?route.geometry[0]:route.geometry.at(-1)):null;return Array.isArray(point)&&point.length===2&&point.every(Number.isFinite)&&Math.abs(point[0])<=180&&Math.abs(point[1])<=90?[point[1],point[0]]:null;};
@@ -103,7 +103,7 @@
     return{algorithm:ALGORITHM,seed,maximum_attempts:cap,source_missing_cells:sourceCells,unique_missing_cells:byKey.size,selected_count:selected.length,stopping_reason:selected.length<cap?'useful_evidence_exhausted':'ceiling_reached',endpoint_sampling:endpointSampling,weakest_coverage_count:selected.filter(x=>x.utility_components.lowest_representation_routes_helped.length>0).length,route_discrimination_count:selected.filter(x=>x.utility_components.route_pair_discrimination>0).length,selected_cells:selected,route_sampling:routeSampling,provider_calls:0};
   }
   function routeQuotaPlan(routes,perRoute,enabledRouteIds,selectionContext={}){
-    if(!Array.isArray(routes)||!routes.length||routes.length>119)throw Error('Route-quota sampling needs 1–119 candidate routes.');
+    if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Route-quota sampling needs 1–292 candidate routes.');
     if(!Number.isInteger(perRoute)||perRoute<0||perRoute>100)throw Error('Use a whole-number cell count from 0 to 100 per enabled route.');
     const routeIds=new Set(routes.map(route=>route.id));
     const enabled=Array.isArray(enabledRouteIds)?new Set(enabledRouteIds.filter(id=>routeIds.has(id))):new Set(routeIds);
