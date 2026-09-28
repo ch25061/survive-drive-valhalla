@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+const source=readFileSync('dist/app.js','utf8');
+const html=readFileSync('dist/index.html','utf8');
+assert.match(html,/<div id="http-error-advisory"[^>]*hidden>[\s\S]*role="alertdialog"/);
+assert.doesNotMatch(source,/(?<![\w.])fetch\(/,'every direct browser fetch should use the shared HTTP error advisory');
+
+const wrapper=source.match(/async function appFetch\(input,options\)\{[^\n]*\}/)?.[0];
+const advisory=source.match(/let httpErrorAdvisoryReturnFocus=null;[\s\S]*?\n(?=const workingCounts=)/)?.[0];
+const binding=source.match(/function bindHttpErrorAdvisory\(\)\{[^\n]*\}/)?.[0];
+assert.ok(wrapper&&advisory&&binding);
+
+const handlers=new Map();
+const nodes=new Map();
+const active={focus(){document.activeElement=this;}};
+function node(id){return {id,hidden:id==='http-error-advisory',children:[],listeners:new Map(),replaceChildren(...children){this.children=[...children];},append(child){this.children.push(child);},addEventListener(type,callback){this.listeners.set(type,callback);},focus(){document.activeElement=this;}};}
+for(const id of ['http-error-advisory','http-error-advisory-list','close-http-error-advisory'])nodes.set(id,node(id));
+const document={activeElement:active,getElementById:id=>nodes.get(id),createElement:()=>({textContent:''}),addEventListener:(type,callback)=>handlers.set(type,callback)};
+let requests=0,status=200;
+const context={document,fetch:async()=>{requests++;return {status,ok:status<400};}};
+vm.createContext(context);
+vm.runInContext("const $=id=>document.getElementById(id);"+wrapper+advisory+binding+"globalThis.test={appFetch,bindHttpErrorAdvisory,closeHttpErrorAdvisory};",context);
+const {appFetch,bindHttpErrorAdvisory}=context.test;
+bindHttpErrorAdvisory();
+const popup=nodes.get('http-error-advisory'),list=nodes.get('http-error-advisory-list'),close=nodes.get('close-http-error-advisory');
+await appFetch('/api/providers/status');
+assert.equal(popup.hidden,true,'successful requests remain silent');
+status=429;
+await appFetch('/api/providers/avm/lookup?token=private');
+assert.equal(popup.hidden,false,'HTTP errors open an advisory');
+assert.equal(document.activeElement,close,'the advisory receives keyboard focus');
+assert.match(list.children[0].textContent,/RentCast value request returned HTTP 429/);
+assert.doesNotMatch(list.children[0].textContent,/private/,'query data is never displayed');
+await appFetch('/api/providers/avm/lookup');
+assert.match(list.children[0].textContent,/2 times/,'parallel repeated failures aggregate');
+status=502;
+await appFetch('/api/providers/here');
+assert.equal(list.children.length,2,'different failures stay distinct');
+assert.equal(requests,4,'the advisory makes no extra request');
+const tab={key:'Tab',preventDefault(){this.prevented=true;}};
+document.activeElement=active;handlers.get('keydown')(tab);
+assert.equal(tab.prevented,true);assert.equal(document.activeElement,close,'Tab stays within the alert dialog');
+const escape={key:'Escape',preventDefault(){this.prevented=true;}};
+handlers.get('keydown')(escape);
+assert.equal(escape.prevented,true);assert.equal(popup.hidden,true);assert.equal(document.activeElement,active,'closing returns focus');
+assert.equal(list.children.length,2,'the error evidence remains visible until the next alert');
+status=404;
+await appFetch('reference.json');
+assert.equal(list.children.length,1,'a new advisory starts with only the new failure');
+close.listeners.get('click')();
+assert.equal(popup.hidden,true);
+console.log('Passed HTTP error advisory: every failed response opens a focused popup, repeated failures aggregate, success is silent, and no extra request is sent.');

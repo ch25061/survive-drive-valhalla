@@ -1,0 +1,296 @@
+{
+  "source": "saved Route 5 HERE response, 2026-09-17, section offsets and street attributes only",
+  "sections": [
+    {
+      "spans": [
+        {
+          "offset": 0,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 2,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 77,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 79,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 83,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 96,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 98,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 99,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 103,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 123,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 126,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 127,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 129,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 137,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 139,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 140,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 142,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 144,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 146,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 153,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 160,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "dividedRoad",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 162,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 166,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "ramp",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 169,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 179,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 192,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 198,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 237,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "tunnel",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 244,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 278,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 295,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "bridge",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 359,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "motorway",
+            "controlledAccessHighway",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 421,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "ramp",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 427,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 432,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        },
+        {
+          "offset": 530,
+          "streetAttributes": [
+            "rightDrivingSide",
+            "builtUpArea"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "survive_drive_intersection_catalog_v1",
+  "version": "chicago-starter-v1",
+  "source": "Survive Drive curated Chicago starter catalog; approximate intersection centers for user review",
+  "intersections": [
+    {"id":"chi-devon-western","name":"Devon Ave & Western Ave","latitude":41.9978,"longitude":-87.6879,"major_rank":1,"connected_roads":4},
+    {"id":"chi-devon-broadway","name":"Devon Ave & Broadway","latitude":41.9978,"longitude":-87.6600,"major_rank":1,"connected_roads":4},
+    {"id":"chi-lawrence-sheridan","name":"Lawrence Ave & Sheridan Rd","latitude":41.9683,"longitude":-87.6540,"major_rank":1,"connected_roads":4},
+    {"id":"chi-belmont-sheridan","name":"Belmont Ave & Sheridan Rd","latitude":41.9397,"longitude":-87.6535,"major_rank":1,"connected_roads":4},
+    {"id":"chi-belmont-western","name":"Belmont Ave & Western Ave","latitude":41.9397,"longitude":-87.6879,"major_rank":1,"connected_roads":4},
+    {"id":"chi-addison-pulaski","name":"Addison St & Pulaski Rd","latitude":41.9474,"longitude":-87.7272,"major_rank":1,"connected_roads":4},
+    {"id":"chi-lawrence-pulaski","name":"Lawrence Ave & Pulaski Rd","latitude":41.9683,"longitude":-87.7272,"major_rank":1,"connected_roads":4},
+    {"id":"chi-peterson-pulaski","name":"Peterson Ave & Pulaski Rd","latitude":41.9905,"longitude":-87.7272,"major_rank":1,"connected_roads":4},
+    {"id":"chi-brynmawr-kedzie","name":"Bryn Mawr Ave & Kedzie Ave","latitude":41.9831,"longitude":-87.7084,"major_rank":2,"connected_roads":4},
+    {"id":"chi-irvingpark-ashland","name":"Irving Park Rd & Ashland Ave","latitude":41.9542,"longitude":-87.6686,"major_rank":1,"connected_roads":4},
+    {"id":"chi-diversey-damen","name":"Diversey Ave & Damen Ave","latitude":41.9328,"longitude":-87.6777,"major_rank":2,"connected_roads":4},
+    {"id":"chi-foster-cicero","name":"Foster Ave & Cicero Ave","latitude":41.9758,"longitude":-87.7460,"major_rank":1,"connected_roads":4}
+  ]
+}

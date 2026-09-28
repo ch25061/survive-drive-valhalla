@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const html=readFileSync('dist/index.html','utf8');
+const css=readFileSync('dist/style.css','utf8');
+const app=readFileSync('dist/app.js','utf8');
+const section=html.match(/<section id="pool-screening-section"[\s\S]*?<template id="pool-screening-candidate-status-template"[^>]*>/);
+assert.ok(section,'required pool-screening section should be always visible in Evaluate');
+const block=section[0];
+assert.match(block,/^<section id="pool-screening-section"/,'required pool screening must be a visible section, not a disclosure wrapper');
+assert.doesNotMatch(block,/optional/i,'pool screening must not be labelled optional');
+assert.doesNotMatch(html,/<h3><span>1<\/span> Check available evidence[\s\S]*?Evaluate selected route/i,
+  'there must be no selected-route evidence-only shortcut');
+assert.doesNotMatch(html,/id="evaluate"[^>]*>Evaluate selected route/i,
+  'the selected-route Evaluate button must be removed');
+assert.match(block,/whole-pool shotgun screen is required/i,'the visible section should explain the required workflow');
+for(const id of ['pool-screening-controls','pool-screening-budget','prepare-pool-screening','pool-screening-summary','pool-screening-plan-details','pool-screening-plan-intro','pool-screening-plan','approve-pool-screening','pool-screening-status','pool-round-accounting','pool-round-accounting-body','pool-screening-candidate-status-template'])assert.match(block,new RegExp('id="'+id+'"'),`missing ${id}`);
+assert.doesNotMatch(block,/pool-screening-results-wrap|pool-screening-results/,'the duplicate narrow-column ranking table must be absent');
+assert.match(block,/id="pool-screening-budget" type="number" min="0" max="100" step="1" value="0"/);
+assert.doesNotMatch(block,/id="pool-screening-seed"/,'fixed route-distance targets do not expose the retired adaptive seed');
+assert.match(block,/id="prepare-pool-screening"[^>]*disabled/);
+assert.match(block,/id="approve-pool-screening"[^>]*disabled/);
+assert.match(block,/every missing or failed lookup stays unknown/i);
+assert.match(block,/New unknown cells per enabled route/i,'the control must expose a per-route quota rather than a shared call ceiling');
+assert.match(block,/auto-approves the frozen exact plan after a short pause/i,'positive quotas should submit automatically after a brief stable-input window');
+assert.match(block,/capped at 100 calls; failures count and no retries occur/i,'the visible authorization copy must disclose its exact-call ceiling and failure policy');
+assert.match(block,/Manual — choose routes and auto-submit one quota round at a time/i,'Manual mode should explain its automatic single-round behavior');
+assert.match(block,/prioritizing the positions farthest from known and already selected AVM cells/i,'the route quota must avoid already represented sections');
+assert.match(block,/both initially and in later rounds/i,'the same quota rule must govern initial and follow-up screens');
+assert.match(block,/Toggle route eligibility on each ranking card/i,'the UI must identify where routes are enabled or excluded');
+assert.match(html,/Run one Manual round/i,'the manual action must clearly run one additional round');
+assert.match(app,/purpose:'candidate_pool_quota'/,'current UI plans must use the exact route-quota authorization path');
+assert.match(app,/body:JSON\.stringify\(\{plan_id:plan\.plan_id,attempt_index:remoteIndex\}\)/,'AVM calls must use only the server-frozen exact plan index');
+assert.match(app,/schedulePoolQuotaAutoApproval\(preparedPlanId\)/,'each prepared exact quota plan should enter the guarded automatic approval pause');
+assert.match(app,/setTimeout\(\(\)=>\{poolQuotaAutoApprovalTimer=null/,'automatic approval must wait for the short idle interval');
+assert.match(app,/autoApprovalToken!==poolQuotaAutoApprovalToken/,'ordinary clicks cannot bypass the one-shot automatic approval token');
+assert.match(app,/plan\.maximum_attempts!==plan\.cells\.length/,'the server approval ceiling must equal the exact frozen unique-cell count');
+assert.match(app,/event\.stopPropagation\?\.\(\);setPoolRouteEnabled/,'the route eligibility button must not activate its route card');
+assert.match(app,/route_quota_per_enabled_route:screen\.budget,enabled_route_ids:enabledPoolRouteIds\(\)/,'session export must preserve the quota and enabled route set');
+assert.match(app,/Array\.isArray\(saved\?\.enabled_route_ids\)\?saved\.enabled_route_ids\.filter/,'session import must restore valid route eligibility');
+assert.match(app,/window\.SurvivePool\.routeQuotaPlan\(state\.routes,perRoute,enabled,\{excluded_cell_ids:/,'initial and later screens must use the deterministic route-quota planner without an adaptive seed');
+assert.match(app,/cache_hits_before_plan:preplanCacheHits/,'round accounting must retain preparatory shared-cache hits that avoided paid calls');
+assert.match(app,/records\.filter\(record=>record\.provider_attempted===true\)\.length/,'round accounting must derive new RentCast attempts from confirmed provider attempts');
+assert.match(block,/AVM calls by evidence round/,'the evaluation workflow must display per-round AVM accounting');
+assert.match(block,/Cache hits \/ zero-call reuse/,'the accounting table must separate cache reuse from paid attempts');
+assert.match(css,/\.pool-round-accounting \{?[^}]*max-width:100%|\.pool-round-accounting\{[^}]*max-width:100%/,'the accounting table must stay contained on narrow screens');
+assert.match(app,/The exact reviewed cell list changed\. Prepare a fresh plan\./,'the reviewed exact list must be checked before approval');
+assert.match(block,/failed attempts count against the route quota/i);
+assert.match(block,/bounded plan with no retries/i);
+assert.match(block,/Red means below <span data-red-cutoff>\$250<\/span> PPSQFT/i);
+assert.match(block,/you still inspect the routes and choose/i);
+assert.match(html,/After the required shotgun screen, you may request more evidence for a promising route/i,
+  'selected-route follow-up should be framed as evidence after the whole-pool screen');
+assert.match(app,/if\(!poolScreenReady\(\)\)\{notice\('Complete the required whole-pool shotgun screen before requesting selected-route follow-up AVM evidence\.'/,
+  'the paid selected-route follow-up must enforce whole-pool readiness');
+assert.match(app,/\['inspect','choose'\]\.includes\(stage\)&&!poolScreenReady\(\)/,
+  'inspection and route choice must be gated until pool screening is complete');
+assert.match(html,/<div id="primary-ranking" class="primary-ranking">[\s\S]*id="pool-ranking-review"[\s\S]*id="candidate-list"/,'one authoritative ranking must live above the map');
+assert.match(html,/id="red-cutoff"[^>]*value="250"/,'the configurable Red cutoff should default to $250 PPSQFT');
+assert.ok(html.indexOf('id="red-cutoff-group"')>html.indexOf('data-panel="evaluate"'),'the Red cutoff decision should appear at Route Ranking time');
+assert.ok(html.indexOf('id="red-cutoff-group"')>html.indexOf('id="pool-screening-section"'),'the Red cutoff should be inside the whole-pool ranking section');
+assert.match(html,/Try different values to see how the ranking changes/,'the ranking control should explicitly invite cutoff comparison');
+assert.match(app,/function renderRedThreshold\(\)[\s\S]*?node\.textContent='\$'\+redThreshold\(\)/,'cutoff labels should follow the confirmed threshold');
+assert.match(css,/\.pool-screening-controls/);
+assert.match(css,/\.pool-screening-candidate-status/);
+for(const detail of ['Pool rank ','screening.screening_status','known_cell_count','knownAvmLabel','Known coverage ','Known overland cell Red percent ','redSignal'])assert.ok(app.includes(detail),`primary candidate cards must include ${detail}`);
+assert.match(app,/known_red_share:Number\.isFinite\(x\.known_red_share\).*?x\.known_red_share:null/,'imported screening results should preserve the red-distance share that assigned the rank');
+assert.match(app,/if\(state\.poolScreening\.results\.length\)candidates\.sort/,'candidate list should switch to screening-rank order when results exist');
+assert.match(app,/if\(aRanked!==bRanked\)return aRanked\?-1:1/,'ranked candidates should precede unranked candidates');
+assert.match(app,/if\(aRanked&&ar!==br\)return ar-br/,'rank 1 should precede rank 2');
+assert.match(app,/button\.addEventListener\('click',\(\)=>handleCandidateCardClick\(i\)\)/,'sorted cards should retain their original route selection index and share the deliberate activation flow');
+assert.match(app,/function rerankPoolAfterSelectedAvm\(route,completed\)/,'selected-route AVM evidence should refresh existing pool ranks');
+assert.match(app,/rerankPoolAfterSelectedAvm\(route,completed\)/,'selected-route AVM completion should invoke pool reranking');
+console.log('Passed static pool-screening UI contract: rank-ordered candidates, zero-budget default, frozen-plan auto-approval copy and guards, and responsive styling. No application or provider calls.');
