@@ -73,7 +73,7 @@ assert.equal(limited.route_sampling[0].selection_status,'fewer eligible cells th
 assert.equal(limited.selected_cells[0].cell_id,'CHI1K-V1-Q+1-R+0');
 
 // Cross-route deduplication keeps actual calls below 100 even when N times
-// enabled routes is greater than 100; the final unique count is enforced.
+// enabled routes can exceed 100 total cells while each route has its own quota.
 const commonTen=Array.from({length:10},(_,i)=>cell(i,{id:`CHI1K-V1-Q+${i}-R+0`}));
 const twelveShared=Array.from({length:12},(_,i)=>route(`r${String(i).padStart(2,'0')}`,commonTen.map(item=>({...item}))));
 const deduped=sampler(twelveShared,10,twelveShared.map(item=>item.id));
@@ -81,7 +81,9 @@ assert.equal(deduped.selected_count,10);
 assert.ok(deduped.enabled_route_count*10>100);
 assert.ok(deduped.selected_count<=100);
 const manyRoutes=Array.from({length:11},(_,r)=>route(`unique-${r}`,Array.from({length:10},(_,i)=>cell(r*10+i))));
-assert.throws(()=>sampler(manyRoutes,10,manyRoutes.map(item=>item.id)),/above the 100-call maximum/);
+const largePlan=sampler(manyRoutes,10,manyRoutes.map(item=>item.id));
+assert.equal(largePlan.selected_count,110,'the first paid round retains ten cells per route across more than 100 unique cells');
+assert.ok(largePlan.route_sampling.every(row=>row.selected_cells===10),'each route receives its own quota');
 
 // Cache-only zero-quota operation remains valid with every route disabled.
 const cacheOnly=sampler([route('off',[cell(1)])],0,[]);
@@ -89,4 +91,4 @@ assert.equal(cacheOnly.selected_count,0);
 assert.equal(cacheOnly.enabled_route_count,0);
 assert.equal(cacheOnly.provider_calls,0);
 
-console.log('Passed deterministic route-distance maximin selection, known-anchor avoidance, uncovered endpoint behavior, shared-cell deduplication/credit, disabled-route disclosure, shortfall/exclusions, 100-call cap, and zero-provider-call tests.');
+console.log('Passed deterministic route-distance maximin selection, known-anchor avoidance, uncovered endpoint behavior, shared-cell deduplication/credit, disabled-route disclosure, per-route quota above 100 total cells, and zero-provider-call tests.');

@@ -40,8 +40,9 @@ assert.doesNotMatch(app,/evolution_algorithm:/,'session export must not identify
 assert.match(app,/\$\('prepare-pool-evolution-ranking'\)\.addEventListener\('click',prepareManualRankingRound\)/,'the ranking banner enters Manual before preparing one reviewed round');
 assert.match(app,/purpose:'automatic_route_evolution'/,'auto evolution uses its separately bounded authorization purpose');
 assert.match(app,/fingerprintValid=plan\.candidate_pool_fingerprint===await poolSha256\(plan\.candidate_pool_snapshot\)/,'the exact candidate allowlist is fingerprinted before authorization');
-assert.match(app,/pruneLeastCoveredUnprotectedRoutesBeforeSampling\(screen\.results,viableEnabled,\.4\)/,'Round 0 protects under-20% coverage and culls the bottom 40% of other routes before preparing a paid plan');
-assert.match(app,/automaticEvolutionWorstCase\(routeCells,roundZero\.enabled_route_ids,perRoute\)/,'the three paid rounds budget only Round 0 survivors');
+assert.match(app,/pruneLeastCoveredUnprotectedRoutesBeforeSampling\(screen\.results,enabled,\.4\)/,'the first pool screen protects under-20% coverage and culls the bottom 40% before paid cell selection');
+assert.match(app,/activeAfterRoundZero=screen\.round_zero\?viableEnabled:roundZero\.enabled_route_ids/,'the automatic cycle reuses the earlier Round 0 decision');
+assert.match(app,/automaticEvolutionWorstCase\(routeCells,activeAfterRoundZero,perRoute\)/,'the three paid rounds budget only Round 0 survivors');
 assert.match(app,/requestAutomaticEvolutionStop\('manual mode selected by user'\)/,'selecting Manual cancels remaining automatic server authorization');
 assert.match(app,/automatic_evolution_stop_requested\|\|!\$\('automatic-route-pruning'\)\.checked/,'auto mode checks the stop control before each next attempt');
 assert.match(app,/round<2\).*pruneLowestRankedRoutes/,'only rounds one and two cull routes for a subsequent automatic round');
