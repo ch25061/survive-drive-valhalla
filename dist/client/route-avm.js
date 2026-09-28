@@ -47,6 +47,7 @@
   function savedAuthority(route){
     if(route.here_evidence)return authority(route);
     if(route.live_here)throw Error('This live route needs its complete saved HERE spans.');
+    if(route.live_valhalla&&route.authority_source!=='valhalla_maneuvers_v1')throw Error('Valhalla highway evidence is unavailable for this route. Load its original response or search again before AVM evaluation.');
     const ranges=Array.isArray(route.authority_ranges)?route.authority_ranges:Array.isArray(route.authority_offsets)?[route.authority_offsets]:null;
     if(!ranges)throw Error('This route needs its saved HERE spans or highway-authority offsets.');
     if(ranges.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isInteger)||p[0]<0||p[0]>=p[1]||p[1]>=route.geometry.length))throw Error('Saved highway authority is incomplete.');return ranges;
@@ -67,11 +68,12 @@
     const cells=Array.from(records.values()).filter(c=>c.outside_here_distance_m>=1).sort((a,b)=>a.r-b.r||a.q-b.q);
     if(cells.length>1000)throw Error('This route crosses more than 1,000 eligible cells.');
     for(const cell of cells){const [lon,lat]=inverse(...center(cell.q,cell.r));cell.latitude=Number(lat.toFixed(8));cell.longitude=Number(lon.toFixed(8));cell.polygon=vertices(cell.q,cell.r).map(p=>inverse(...p));cell.polygon.push(cell.polygon[0].slice());cell.estimate_ppsqft=null;cell.value_origin='pending';cell.acquired_at=null;cell.query_location='locked_grid_center';}
-    return{cells,authority_ranges:ranges,authority_offsets:ranges.length===1?ranges[0]:null,authority_only_cell_count:Array.from(records.values()).filter(c=>c.outside_here_distance_m<1&&c.here_distance_m>=1).length,avm_mapping:PREFIX,avm_status:cells.length?'mapped_missing_values':'no_eligible_non_highway_cells',authority_rule:route.live_valhalla?'Highway classification is unverified for this Valhalla route; the entire route is AVM-eligible.':'each controlled-access highway run plus its attached entry and exit ramps is HERE and excluded; every remaining overland segment is OURS and AVM-eligible'};
+    return{cells,authority_ranges:ranges,authority_offsets:ranges.length===1?ranges[0]:null,authority_only_cell_count:Array.from(records.values()).filter(c=>c.outside_here_distance_m<1&&c.here_distance_m>=1).length,avm_mapping:PREFIX,avm_status:cells.length?'mapped_missing_values':'no_eligible_non_highway_cells',authority_rule:route.live_valhalla?'Valhalla highway maneuvers and their attached ramps are excluded; remaining street segments are AVM-eligible.':'each controlled-access highway run plus its attached entry and exit ramps is HERE and excluded; every remaining overland segment is OURS and AVM-eligible'};
   }
   function routeCellPositions(route){
     if(!Array.isArray(route.geometry)||route.geometry.length<2||route.geometry.length>20000)throw Error('Spaced sampling needs the saved route geometry.');
     let ranges;
+    if(route.live_valhalla&&route.authority_source!=='valhalla_maneuvers_v1')throw Error('Valhalla highway evidence is unavailable for spaced sampling.');
     if(route.here_evidence)ranges=authority(route);
     else if(Array.isArray(route.authority_ranges))ranges=route.authority_ranges;
     else if(Array.isArray(route.authority_offsets))ranges=[route.authority_offsets];

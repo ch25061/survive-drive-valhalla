@@ -46,17 +46,29 @@ assert.equal(decoded[0].length_m,2400);
 assert.equal(decoded[0].duration_s,180);
 assert.equal(decoded[0].live_valhalla,true);
 assert.equal(decoded[0].authority_ranges.length,0);
+assert.equal(decoded[0].authority_source,'unverified','missing maneuver evidence must not be treated as an all-street route');
 const highwayPoints=[[41.9,-87.6],[41.91,-87.61],[41.92,-87.62],[41.93,-87.63],[41.94,-87.64],[41.95,-87.65]];
 const highwayResponse={trip:{legs:[
-  {shape:polyline6(highwayPoints.slice(0,4)),summary:{length:4,time:240},maneuvers:[{type:1,highway:false,begin_shape_index:0},{type:17,highway:false,begin_shape_index:1},{type:8,highway:true,begin_shape_index:2},{type:20,highway:true,begin_shape_index:3}]},
-  {shape:polyline6(highwayPoints.slice(3)),summary:{length:3,time:180},maneuvers:[{type:8,highway:false,begin_shape_index:0},{type:18,highway:true,begin_shape_index:1}]}
+  {shape:polyline6(highwayPoints.slice(0,4)),summary:{length:4,time:240},maneuvers:[{type:1,highway:false,begin_shape_index:0,end_shape_index:1},{type:17,highway:false,begin_shape_index:1,end_shape_index:2},{type:8,highway:true,begin_shape_index:2,end_shape_index:3},{type:20,highway:true,begin_shape_index:3,end_shape_index:3}]},
+  {shape:polyline6(highwayPoints.slice(3)),summary:{length:3,time:180},maneuvers:[{type:8,highway:false,begin_shape_index:0,end_shape_index:1},{type:18,highway:true,begin_shape_index:1,end_shape_index:2}]}
 ]}};
 const highwayRoute=context.SurviveValhalla.convertRoutes(highwayResponse,'highway-round')[0];
 assert.deepEqual(Array.from(highwayRoute.highway_transitions,item=>[item.index,item.kind]),[[1,'entry'],[3,'exit'],[4,'entry']]);
-assert.equal(highwayRoute.authority_ranges.length,0,'maneuver dots do not exclude Valhalla AVM cells');
-const savedHighwayRoute={...highwayRoute,highway_transitions:undefined,imported:true};
+assert.deepEqual(Array.from(highwayRoute.authority_ranges,range=>Array.from(range)),[[1,3],[4,5]],'highway and attached ramp spans must be excluded');
+assert.equal(highwayRoute.authority_source,'valhalla_maneuvers_v1');
+const avmContext={};vm.runInNewContext(await readFile(new URL('../dist/route-avm.js',import.meta.url),'utf8'),avmContext);
+assert.throws(()=>avmContext.SurviveAvm.mapRoute(decoded[0]),/highway evidence is unavailable/);
+const mappedHighway=avmContext.SurviveAvm.mapRoute(highwayRoute);
+assert.ok(mappedHighway.authority_only_cell_count>0);
+assert.ok(mappedHighway.cells.some(cell=>cell.here_distance_m>0));
+const excludedDistance=mappedHighway.cells.reduce((total,cell)=>total+cell.here_distance_m,0);
+const eligibleDistance=mappedHighway.cells.reduce((total,cell)=>total+cell.outside_here_distance_m,0);
+assert.ok(excludedDistance>0&&eligibleDistance>0);
+assert.ok(eligibleDistance<excludedDistance+eligibleDistance,'red distance must be based on non-highway cells only');
+const savedHighwayRoute={...highwayRoute,highway_transitions:undefined,authority_ranges:[],authority_source:'unverified',imported:true};
 assert.equal(context.SurviveValhalla.restoreSavedTransitions([savedHighwayRoute],[{provider:'Valhalla',round_id:'highway-round',response:highwayResponse}]),1);
 assert.deepEqual(Array.from(savedHighwayRoute.highway_transitions,item=>item.kind),['entry','exit','entry']);
+assert.deepEqual(Array.from(savedHighwayRoute.authority_ranges,range=>Array.from(range)),[[1,3],[4,5]],'saved raw response restores highway exclusion');
 const appSource=await readFile(new URL('../dist/app.js',import.meta.url),'utf8');
 const preflightSource=appSource.match(/async function providerPreflight\([^]*?(?=\nasync function providerFetch\()/)?.[0];
 assert.ok(preflightSource,'AVM preflight must be present');
@@ -110,8 +122,20 @@ const reference=JSON.parse(await readFile(new URL('../dist/reference.json',impor
 const manyRoutes=Array.from({length:292},(_,index)=>({id:`candidate-${index}`,name:`Candidate ${index}`,route_number:1,geometry:[[-87.6,41.9],[-87.7,42]],cells:[],length_m:1000,duration_s:60}));
 const importedHighway=appContext.window.SurviveDrive.validateCandidateSet({schema:'survive_drive_candidate_set_v1',subject_profile:reference.subject_profile,routes:[highwayRoute]})[0];
 assert.equal(importedHighway.live_valhalla,true);
+assert.equal(importedHighway.authority_source,'valhalla_maneuvers_v1');
 assert.deepEqual(Array.from(importedHighway.highway_transitions,item=>[item.index,item.kind]),[[1,'entry'],[3,'exit'],[4,'entry']]);
 assert.throws(()=>appContext.window.SurviveDrive.validateCandidateSet({schema:'survive_drive_candidate_set_v1',subject_profile:reference.subject_profile,routes:[{...highwayRoute,highway_transitions:[{index:100,kind:'entry'}]}]}),/highway transition markers/);
+appContext.window.SurviveAvm=avmContext.SurviveAvm;
+const formerlyAllStreet=avmContext.SurviveAvm.mapRoute({...highwayRoute,live_valhalla:false,authority_ranges:[]});
+const legacyRoute={...highwayRoute,cells:formerlyAllStreet.cells.map(cell=>({...cell,estimate_ppsqft:100}))};
+const legacyRedDistance=appContext.calculate(legacyRoute).red_distance_m;
+appContext.remapImportedValhallaRoutes([legacyRoute]);
+const correctedRedDistance=appContext.calculate(legacyRoute).red_distance_m;
+assert.ok(correctedRedDistance>0&&correctedRedDistance<legacyRedDistance,'imported red distance must drop highway miles');
+assert.ok(legacyRoute.cells.every(cell=>cell.outside_here_distance_m>=1));
+const noRawEvidence={...highwayRoute,authority_source:'unverified',cells:formerlyAllStreet.cells};
+appContext.remapImportedValhallaRoutes([noRawEvidence]);
+assert.equal(noRawEvidence.cells.length,0,'old sessions without highway evidence must not show highway-inclusive red cells');
 const renderedPolygons=[],renderedDots=[],panes=new Map();let sizeRefreshes=0;
 const mapStub={setView(){return this;},on(){return this;},removeLayer(){},getPane(name){return panes.get(name);},createPane(name){const pane={style:{}};panes.set(name,pane);return pane;},fitBounds(){},invalidateSize(){sizeRefreshes++;}};
 const layer=(type,options={})=>({addTo(){if(type==='polygon')renderedPolygons.push(options);if(type==='circleMarker')renderedDots.push(options);return this;},on(){return this;},bindTooltip(){return this;},getBounds(){return{};}});
@@ -122,7 +146,7 @@ const mappedCell={cell_id:'test-cell',polygon:[[-87.602,41.898],[-87.598,41.898]
 const shownRoute={...highwayRoute,cells:[mappedCell]};appContext.window.SurviveDrive.getState().routes=[shownRoute];
 appContext.window.SurviveDrive.drawMap();
 assert.equal(renderedPolygons.at(-1).fillColor,'#8a96a6');
-assert.equal(renderedDots.filter(dot=>dot.fillColor==='#7138c9').length,3,'all Valhalla guidance transitions render above the route');
+assert.equal(renderedDots.filter(dot=>dot.fillColor==='#7138c9').length,4,'highway run boundaries render above the route without duplicate guidance dots');
 mappedCell.estimate_ppsqft=100;appContext.window.SurviveDrive.drawMap();
 assert.notEqual(renderedPolygons.at(-1).fillColor,'#8a96a6','known AVM color appears on repaint without a map click');
 assert.ok(sizeRefreshes>=2,'map layout refresh runs after drawing');
