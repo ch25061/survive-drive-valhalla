@@ -10,12 +10,13 @@ for(const id of ['pool-evolution-controls','prepare-pool-evolution','prepare-poo
 assert.match(html,/Automatic route ranking evolution/i,'route ranking automation has a clear opt-out label');
 assert.doesNotMatch(html,/plausible.leader.utility|adaptive future selection/i,'route ranking automation must stay within the bounded route-quota policy');
 for(const id of ['automatic-route-pruning','prepare-automatic-route-evolution','automatic-route-evolution-summary'])assert.match(html,new RegExp(`id="${id}"`),`missing ${id}`);
+assert.match(html,/id="next-round-inclusion-summary"/,'the top-30% decision is visible beside the Round 0 record');
 for(const id of ['manual-route-mode','ranking-mode-status','manual-ranking-mode','automatic-ranking-mode','hide-disabled-routes','ranking-visible-count'])assert.match(html,new RegExp(`id="${id}"`),`missing ${id}`);
 assert.match(html,/id="hide-disabled-routes" type="checkbox"/,'the ranking filter is a visible checkbox near the cards');
 assert.doesNotMatch(html,/id="manual-route-mode" type="radio" name="ranking-round-mode" checked/,'The user chooses a ranking mode before another paid round');
 assert.match(app,/const cards=rankedCandidateCards\(\),hasRankings=[\s\S]*?visibleCards=hideDisabled\?cards\.filter/,'hide disabled filters rendered cards without changing route eligibility');
 assert.match(css,/\.ranking-mode-cards\{/,'manual and automatic choices have separate cards');
-assert.match(html,/lowest-ranked 40%/i,'automatic route pruning is disclosed');
+assert.match(html,/top 30% of all candidate routes/i,'next-round inclusion from the full pool is disclosed');
 assert.match(html,/up to 3 additional AVM rounds/i,'the authorized automatic round count is explicit');
 assert.match(html,/New unknown cells per enabled route/i);
 assert.match(html,/both initially and in later rounds/i);
@@ -42,10 +43,11 @@ assert.match(app,/purpose:'automatic_route_evolution'/,'auto evolution uses its 
 assert.match(app,/fingerprintValid=plan\.candidate_pool_fingerprint===await poolSha256\(plan\.candidate_pool_snapshot\)/,'the exact candidate allowlist is fingerprinted before authorization');
 assert.match(app,/pruneLeastCoveredUnprotectedRoutesBeforeSampling\(screen\.results,enabled,\.4\)/,'the first pool screen protects under-20% coverage and culls the bottom 40% before paid cell selection');
 assert.match(app,/activeAfterRoundZero=screen\.round_zero\?viableEnabled:roundZero\.enabled_route_ids/,'the automatic cycle reuses the earlier Round 0 decision');
-assert.match(app,/automaticEvolutionWorstCase\(routeCells,activeAfterRoundZero,perRoute\)/,'the three paid rounds budget only Round 0 survivors');
+assert.match(app,/automaticTopThirtyWorstCase\(routeCells,activeAfterRoundZero,state\.routes\.length,perRoute\)/,'the paid ceiling allows full-pool top-30% inclusion after later rerankings');
 assert.match(app,/requestAutomaticEvolutionStop\('manual mode selected by user'\)/,'selecting Manual cancels remaining automatic server authorization');
 assert.match(app,/automatic_evolution_stop_requested\|\|!\$\('automatic-route-pruning'\)\.checked/,'auto mode checks the stop control before each next attempt');
-assert.match(app,/round<2\).*pruneLowestRankedRoutes/,'only rounds one and two cull routes for a subsequent automatic round');
+assert.match(app,/includeTopThirtyAfterReranking\(plan,round\+1\)/,'each completed automatic reranking updates next-round inclusion');
+assert.match(app,/includeTopThirtyAfterReranking\(plan,screen\.generation\)/,'a completed manual reranking updates next-round inclusion');
 assert.match(app,/if\(saved\?\.automatic_route_evolution\)/,'session import records auto authorization without resuming it');
 assert.match(app,/\$\('approve-pool-screening'\)\.addEventListener\('click',sendPoolScreening\)/,'approval remains separate from preparation');
 

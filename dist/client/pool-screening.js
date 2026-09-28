@@ -29,6 +29,20 @@
     const disabledSet=new Set(disabled);
     return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,protected_route_ids:protectedRoutes.map(row=>row.route_id),unprotected_route_ids:unprotected.map(row=>row.route_id),considered_route_ids:ranked.map(row=>row.route_id),known_coverage:ranked.map(row=>({route_id:row.route_id,coverage_pct:coverage(row),protected:coverage(row)<20,culled:disabledSet.has(row.route_id)})),protection_threshold_pct:20,fraction,rule:'Protect known coverage below 20%; cull ceil(40%) of unprotected routes with the lowest known coverage, using route ID to break ties and keeping at least one survivor.'};
   }
+  function selectTopRankedRoutesForNextRound(results,candidateRouteIds,previousEnabledRouteIds=[],fraction=0.3){
+    if(!Array.isArray(results)||!Array.isArray(candidateRouteIds)||!Array.isArray(previousEnabledRouteIds)||!Number.isFinite(fraction)||fraction<=0||fraction>1)throw Error('Next-round inclusion needs the full ranked pool and a fraction above 0 through 1.');
+    const byId=new Map(results.map(row=>[row.route_id,row]));
+    if(new Set(candidateRouteIds).size!==candidateRouteIds.length||candidateRouteIds.some(id=>!byId.has(id)))throw Error('Every candidate route needs one ranking result before next-round inclusion.');
+    const prior=new Set(previousEnabledRouteIds),position=new Map(candidateRouteIds.map((id,index)=>[id,index]));
+    const ranked=candidateRouteIds.slice().sort((a,b)=>{
+      const ar=byId.get(a).rank,br=byId.get(b).rank,aRanked=Number.isInteger(ar),bRanked=Number.isInteger(br);
+      if(aRanked!==bRanked)return aRanked?-1:1;
+      if(aRanked&&ar!==br)return ar-br;
+      return position.get(a)-position.get(b);
+    });
+    const count=Math.max(1,Math.ceil(candidateRouteIds.length*fraction)),included=ranked.slice(0,count),includedSet=new Set(included);
+    return{enabled_route_ids:included,disabled_route_ids:ranked.filter(id=>!includedSet.has(id)),ranked_route_ids:ranked,promoted_route_ids:included.filter(id=>!prior.has(id)),demoted_route_ids:candidateRouteIds.filter(id=>prior.has(id)&&!includedSet.has(id)),fraction,rounding:'ceil',candidate_count:candidateRouteIds.length};
+  }
   function evolve(routes,context,cap,seed,generation){
     if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');
     if(!Number.isInteger(cap)||cap<0||cap>100)throw Error('Use a whole-number evolution ceiling from 0 to 100.');
@@ -170,5 +184,5 @@
     if(selected.length>10000)throw Error('The route evidence-gap plan contains '+selected.length+' unique cells, above the 10,000-cell candidate-pool capacity. Narrow the candidate pool, then prepare again.');
     const route_sampling=routeRows.map(row=>{const count=row.enabled?(selectedByRoute.get(row.route.id)?.length??0):0;return{route_id:row.route.id,route_name:row.route.name,enabled:row.enabled,requested_per_route:row.enabled?perRoute:0,available_unique_cells:row.available.length,selected_cells:count,incidental_shared_cells:row.incidental.size,shortfall:row.enabled?Math.max(0,perRoute-count):0,selection_status:!row.enabled?'excluded by user':row.available.length===0?'no eligible unknown cells':row.available.length<perRoute?'fewer eligible cells than requested':row.incidental.size?'quota met; additional shared cells disclosed separately':'quota met'};});
     return{algorithm:'known_anchor_route_gap_quota_v3',requested_per_enabled_route:perRoute,enabled_route_ids:enabledRows.map(row=>row.route.id),enabled_route_count:enabledRows.length,maximum_unique_calls:selected.length,selected_count:selected.length,unique_missing_cells:missingCellIds.size,selected_cells:selected,route_sampling,provider_calls:0};
-  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes,pruneLeastCoveredUnprotectedRoutesBeforeSampling};
+  }  global.SurvivePool={algorithm:ALGORITHM,evolutionAlgorithm:EVOLUTION_ALGORITHM,routeQuotaAlgorithm:'known_anchor_route_gap_quota_v3',plan,evolve,routeQuotaPlan,pruneLowestRankedRoutes,pruneLeastCoveredUnprotectedRoutesBeforeSampling,selectTopRankedRoutesForNextRound};
 })(typeof window!=='undefined'?window:globalThis);
