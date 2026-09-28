@@ -26,7 +26,7 @@
   }
   function gpsClustered(list,metrics=gpsDispersion(list)){return list.length>=3&&(metrics.largest_bearing_gap_deg>210+1e-9||metrics.bearing_resultant>.72+1e-9||metrics.axis_resultant>.86+1e-9||metrics.linearity_ratio<.025-1e-9);}
   function suggestGates(catalog,origin,options={}){
-    catalog=validateCatalog(catalog);origin=point(origin,'Starting point');const innerMiles=finite(Number(options.inner_miles??1.5),'Inner radius'),outerMiles=finite(Number(options.outer_miles??3),'Outer radius'),maximum=Number(options.maximum??8),sectors=Number(options.sectors??maximum);
+    catalog=validateCatalog(catalog);origin=point(origin,'Starting point');const innerMiles=finite(Number(options.inner_miles??4),'Inner radius'),outerMiles=finite(Number(options.outer_miles??5),'Outer radius'),maximum=Number(options.maximum??8),sectors=Number(options.sectors??maximum);
     if(innerMiles<0.25||innerMiles>19||outerMiles<0.5||outerMiles>20||innerMiles>=outerMiles)throw Error('Use an inner radius from 0.25 to 19 miles and an outer radius from 0.5 to 20 miles, with inner smaller than outer.');if(!Number.isInteger(maximum)||maximum<1||maximum>16||!Number.isInteger(sectors)||sectors<4||sectors>32)throw Error('Use 1–16 gates and 4–32 directional sectors.');
     const minimumSpacingMiles=finite(Number(options.minimum_spacing_miles??0.75),'Minimum gate spacing');
     if(minimumSpacingMiles<0.25||minimumSpacingMiles>outerMiles*2)throw Error('Minimum gate spacing must be at least 0.25 miles and no more than twice the outer radius.');
