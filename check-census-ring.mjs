@@ -16,6 +16,12 @@ function prepare(sql){const s=db.prepare(sql);return{args:[],bind(...args){this.
 const env={DB:{prepare,batch:s=>s.map(x=>x.execute())}},base='https://test.example';
 async function post(op,body){const response=await worker.fetch(new Request(base+'/api/intersections/ring/'+op,{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)}),env);return{status:response.status,body:await response.json()};}
 const params={origin:[41.7445828,-87.7587891],inner_miles:7,outer_miles:8};
+{
+  const brokenDb={prepare(){throw Error('D1_ERROR: Network connection lost.');}};
+  const response=await worker.fetch(new Request(base+'/api/intersections/ring/claim',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({...params,circle_index:0})}),{DB:brokenDb});
+  assert.equal(response.status,503);
+  const body=await response.json();assert.match(body.error,/road catalog storage is temporarily unavailable/i);assert.doesNotMatch(body.error,/AVM cache/i,'a Census storage outage must not be labeled an AVM failure');
+}
 const planned=await post('plan',params),plan=planned.body.plan;assert.equal(plan.circles.length,76);assert.equal(planned.body.catalog,null);
 assert.equal((await post('merge',params)).status,409,'partial coverage cannot produce gates');
 let firstClaim;
