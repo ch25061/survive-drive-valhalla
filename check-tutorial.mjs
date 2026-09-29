@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import worker from './dist/server/index.js';
 
@@ -7,6 +8,10 @@ const fetchPath=(path,options={},env={})=>worker.fetch(new Request(site+path,opt
 const html=await fetchPath('/tutorial.html');
 assert.equal(html.status,200);
 const page=await html.text();
+const actual=await readFile('tutorial/survive-drive-getting-started.mp4');
+const videoHash=createHash('sha256').update(actual).digest('hex').slice(0,16);
+const expectedKey=`survive-drive/getting-started-${videoHash}.mp4`;
+assert.match(page,new RegExp(`tutorial-video\\.mp4\\?v=${videoHash}`));
 assert.match(page,/Getting started with Survive Drive/);
 assert.match(page,/one credit, or one cent/);
 assert.match(page,/ten million uncached lookups would be \$100,000/);
@@ -26,9 +31,9 @@ assert.ok((await poster.arrayBuffer()).byteLength>100000);
 
 let stored=null;
 const r2={
-  async put(key,bytes){assert.equal(key,'survive-drive/getting-started-v1.mp4');stored=Uint8Array.from(bytes)},
+  async put(key,bytes){assert.equal(key,expectedKey);stored=Uint8Array.from(bytes)},
   async get(key,{range}={}){
-    assert.equal(key,'survive-drive/getting-started-v1.mp4');
+    assert.equal(key,expectedKey);
     if(!stored)return null;
     const match=/^bytes=(\d+)-(\d*)$/.exec(range?.get('Range')??'');
     const start=match?Number(match[1]):0,end=match?Math.min(match[2]?Number(match[2]):stored.length-1,stored.length-1):stored.length-1;
@@ -41,7 +46,6 @@ const first=await fetchPath('/tutorial-video.mp4',{},media);
 assert.equal(first.status,200);
 assert.equal(first.headers.get('Content-Type'),'video/mp4');
 assert.equal(Number(first.headers.get('Content-Length')),stored.length);
-const actual=await readFile('tutorial/survive-drive-getting-started.mp4');
 assert.deepEqual(Buffer.from(await first.arrayBuffer()),actual);
 const partial=await fetchPath('/tutorial-video.mp4',{headers:{Range:'bytes=0-15'}},media);
 assert.equal(partial.status,206);

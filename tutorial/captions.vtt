@@ -1,257 +1,257 @@
 WEBVTT
 
 1.1
-00:00:00.000 --> 00:00:03.633
+00:00:00.000 --> 00:00:03.740
 Welcome to Survive Drive. Set a trip, compare candidate
 
 1.2
-00:00:03.633 --> 00:00:07.265
+00:00:03.740 --> 00:00:07.480
 routes, inspect the evidence, and choose for yourself. The
 
 1.3
-00:00:07.265 --> 00:00:10.898
+00:00:07.480 --> 00:00:11.220
 app organizes information; it does not declare a route
 
 1.4
-00:00:10.898 --> 00:00:14.934
+00:00:11.220 --> 00:00:15.375
 safe. This tour shows the controls and why they exist.
 
 2.1
-00:00:15.634 --> 00:00:19.087
+00:00:16.075 --> 00:00:19.398
 Most of this machinery exists to keep AVM lookups
 
 2.2
-00:00:19.087 --> 00:00:23.307
+00:00:19.398 --> 00:00:23.459
 economical. A cell can be shared by several routes, and a
 
 2.3
-00:00:23.307 --> 00:00:27.144
+00:00:23.459 --> 00:00:27.151
 saved value can be reused without a new RentCast request.
 
 2.4
-00:00:27.144 --> 00:00:30.980
+00:00:27.151 --> 00:00:30.843
 At one cent per new lookup, ten million uncached lookups
 
 2.5
-00:00:30.980 --> 00:00:34.050
+00:00:30.843 --> 00:00:33.797
 would total one hundred thousand dollars. A nationwide
 
 2.6
-00:00:34.050 --> 00:00:37.503
+00:00:33.797 --> 00:00:37.120
 prefill could reach or exceed that scale, depending on
 
 2.7
-00:00:37.503 --> 00:00:41.339
+00:00:37.120 --> 00:00:40.812
 grid density. SD focuses on the cells relevant to your
 
 2.8
-00:00:41.339 --> 00:00:42.106
+00:00:40.812 --> 00:00:41.550
 trip instead.
 
 3.1
-00:00:42.806 --> 00:00:46.259
+00:00:42.250 --> 00:00:45.537
 Enter coordinates or place the start and destination on
 
 3.2
-00:00:46.259 --> 00:00:50.479
+00:00:45.537 --> 00:00:49.554
 the map. You can name each point, choose faster travel or
 
 3.3
-00:00:50.479 --> 00:00:54.315
+00:00:49.554 --> 00:00:53.205
 a balance of time and distance, and set road preferences
 
 3.4
-00:00:54.315 --> 00:00:57.383
+00:00:53.205 --> 00:00:56.127
 such as highways and tolls. These preferences guide
 
 3.5
-00:00:57.383 --> 00:01:01.219
+00:00:56.127 --> 00:00:59.779
 Valhalla; avoid does not guarantee that a road type will
 
 3.6
-00:01:01.219 --> 00:01:04.288
+00:00:59.779 --> 00:01:02.700
 disappear. This version does not use live traffic.
 
 4.1
-00:01:04.988 --> 00:01:08.622
+00:01:03.400 --> 00:01:06.956
 Escape Gates offer possible approaches near both ends of
 
 4.2
-00:01:08.622 --> 00:01:12.660
+00:01:06.956 --> 00:01:10.907
 the trip. Adjust the ring and gate settings, then select
 
 4.3
-00:01:12.660 --> 00:01:16.293
+00:01:10.907 --> 00:01:14.462
 GO to find road suggestions. Review the gates before
 
 4.4
-00:01:16.293 --> 00:01:19.927
+00:01:14.462 --> 00:01:18.018
 searching. With sixteen gates at each end, including the
 
 4.5
-00:01:19.927 --> 00:01:23.561
+00:01:18.018 --> 00:01:21.574
 no-gate cases, the full cross product is seventeen by
 
 4.6
-00:01:23.561 --> 00:01:26.387
+00:01:21.574 --> 00:01:24.339
 seventeen, or two hundred eighty-nine Valhalla requests.
 
 4.7
-00:01:26.387 --> 00:01:29.617
+00:01:24.339 --> 00:01:27.500
 The exact batch is shown before the search.
 
 5.1
-00:01:30.317 --> 00:01:34.175
+00:01:28.200 --> 00:01:31.964
 The route budget shows the prepared Valhalla requests and
 
 5.2
-00:01:34.175 --> 00:01:37.604
+00:01:31.964 --> 00:01:35.310
 provider-attempt count. When the local Valhalla service is
 
 5.3
-00:01:37.604 --> 00:01:41.033
+00:01:35.310 --> 00:01:38.656
 ready, the prepared batch starts automatically within that
 
 5.4
-00:01:41.033 --> 00:01:44.890
+00:01:38.656 --> 00:01:42.420
 limit. A failed request stops the workflow for review.
 
 5.5
-00:01:44.890 --> 00:01:48.748
+00:01:42.420 --> 00:01:46.184
 There is no automatic Valhalla retry. The route search
 
 5.6
-00:01:48.748 --> 00:01:50.891
+00:01:46.184 --> 00:01:48.275
 does not spend AVM credits.
 
 6.1
-00:01:51.591 --> 00:01:55.460
+00:01:48.975 --> 00:01:52.792
 Evaluate first maps eligible route cells and checks saved
 
 6.2
-00:01:55.460 --> 00:01:59.328
+00:01:52.792 --> 00:01:56.609
 AVM values. Round zero ranks with that known evidence
 
 6.3
-00:01:59.328 --> 00:02:03.197
+00:01:56.609 --> 00:02:00.426
 before asking for new paid lookups. Its default cutoff
 
 6.4
-00:02:03.197 --> 00:02:06.206
+00:02:00.426 --> 00:02:03.395
 deactivates thirty-five percent of the nominal candidates,
 
 6.5
-00:02:06.206 --> 00:02:10.075
+00:02:03.395 --> 00:02:07.212
 while routes with less than twenty percent known coverage
 
 6.6
-00:02:10.075 --> 00:02:13.944
+00:02:07.212 --> 00:02:11.029
 are protected. Unknown cells remain unknown; they are not
 
 6.7
-00:02:13.944 --> 00:02:15.664
+00:02:11.029 --> 00:02:12.725
 treated as low values.
 
 7.1
-00:02:16.364 --> 00:02:20.216
+00:02:13.425 --> 00:02:17.205
 Each candidate shows its rank, known coverage, and unknown
 
 7.2
-00:02:20.216 --> 00:02:23.641
+00:02:17.205 --> 00:02:20.565
 cells. INCLUDED means eligible for the next evidence
 
 7.3
-00:02:23.641 --> 00:02:27.065
+00:02:20.565 --> 00:02:23.925
 round; EXCLUDED candidates remain visible and can return
 
 7.4
-00:02:27.065 --> 00:02:30.918
+00:02:23.925 --> 00:02:27.705
 after reranking. The Red cutoff classifies known cells by
 
 7.5
-00:02:30.918 --> 00:02:35.198
+00:02:27.705 --> 00:02:31.905
 price per square foot. This is a geographic value signal,
 
 7.6
-00:02:35.198 --> 00:02:39.051
+00:02:31.905 --> 00:02:35.685
 not a measured safety rating. Highway runs and attached
 
 7.7
-00:02:39.051 --> 00:02:42.047
+00:02:35.685 --> 00:02:38.625
 ramps are left out of AVM evaluation.
 
 8.1
-00:02:42.747 --> 00:02:46.611
+00:02:39.325 --> 00:02:43.090
 For more evidence, choose the number of new cells per
 
 8.2
-00:02:46.611 --> 00:02:50.088
+00:02:43.090 --> 00:02:46.479
 INCLUDED route. SD checks the shared cache and removes
 
 8.3
-00:02:50.088 --> 00:02:53.180
+00:02:46.479 --> 00:02:49.492
 duplicate cells across routes. Calculate exact One Round
 
 8.4
-00:02:53.180 --> 00:02:57.043
+00:02:49.492 --> 00:02:53.257
 lookups to see the final new-call count before you select
 
 8.5
-00:02:57.043 --> 00:03:01.680
+00:02:53.257 --> 00:02:57.775
 Run. Each new lookup is counted as one credit at one cent
 
 8.6
-00:03:01.680 --> 00:03:05.158
+00:02:57.775 --> 00:03:01.164
 in the current cost display. Failed attempts count, and
 
 8.7
-00:03:05.158 --> 00:03:07.862
+00:03:01.164 --> 00:03:03.800
 paid provider calls are not retried automatically.
 
 9.1
-00:03:08.562 --> 00:03:12.852
+00:03:04.500 --> 00:03:09.033
 Set the Red threshold for ranking and the upper map-color
 
 9.2
-00:03:12.852 --> 00:03:15.854
+00:03:09.033 --> 00:03:12.205
 bound for visual contrast. Changing these settings
 
 9.3
-00:03:15.854 --> 00:03:19.286
+00:03:12.205 --> 00:03:15.832
 reclassifies or recolors saved evidence without buying new
 
 9.4
-00:03:19.286 --> 00:03:22.288
+00:03:15.832 --> 00:03:19.004
 values. Colored cells describe estimated property value
 
 9.5
-00:03:22.288 --> 00:03:27.007
+00:03:19.004 --> 00:03:23.990
 around a route, not danger or safety. A missing AVM value
 
 9.6
-00:03:27.007 --> 00:03:28.293
+00:03:23.990 --> 00:03:25.350
 still means unknown.
 
 10.1
-00:03:28.993 --> 00:03:32.982
+00:03:26.050 --> 00:03:29.879
 Open Street View from a map point and check when the
 
 10.2
-00:03:32.982 --> 00:03:36.246
+00:03:29.879 --> 00:03:33.012
 imagery was taken. Record what you notice separately from
 
 10.3
-00:03:36.246 --> 00:03:39.872
+00:03:33.012 --> 00:03:36.493
 the AVM signal. Then compare route trade-offs and choose a
 
 10.4
-00:03:39.872 --> 00:03:43.498
+00:03:36.493 --> 00:03:39.975
 candidate. Export the session or decision if you want a
 
 10.5
-00:03:43.498 --> 00:03:47.487
+00:03:39.975 --> 00:03:43.804
 copy. You remain in control of the route and every new
 
 10.6
-00:03:47.487 --> 00:03:48.212
+00:03:43.804 --> 00:03:44.500
 evidence round.

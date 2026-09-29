@@ -6,47 +6,47 @@
   },
   {
     "title": "AVM economy",
-    "start": 15.63,
+    "start": 16.07,
     "description": "One cell can appear on many routes"
   },
   {
     "title": "Trip setup",
-    "start": 42.81,
+    "start": 42.25,
     "description": "Place S and D on the map"
   },
   {
     "title": "Escape Gates",
-    "start": 64.99,
+    "start": 63.4,
     "description": "Review both ends"
   },
   {
     "title": "Valhalla search",
-    "start": 90.32,
+    "start": 88.2,
     "description": "Prepared batch is explicit"
   },
   {
     "title": "Round 0",
-    "start": 111.59,
+    "start": 108.97,
     "description": "Map eligible route cells"
   },
   {
     "title": "Ranking and coverage",
-    "start": 136.36,
+    "start": 133.42,
     "description": "Coverage tells how much is known"
   },
   {
     "title": "Exact lookup cost",
-    "start": 162.75,
+    "start": 159.32,
     "description": "Set lookups per INCLUDED route"
   },
   {
     "title": "AVM map colors",
-    "start": 188.56,
+    "start": 184.5,
     "description": "Red is below your PPSQFT cutoff"
   },
   {
     "title": "Look around and choose",
-    "start": 208.99,
+    "start": 206.05,
     "description": "Open Street View from a map point"
   }
 ]

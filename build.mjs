@@ -1,4 +1,5 @@
 import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 const files=['index.html','style.css','here-decoder.js','valhalla-decoder.js','route-avm.js','shotgun-gates.js','census-ring.js','census-ring-ui.js','pool-screening.js','app.js','reference.json','intersection-catalog-chicago-v1.json','tutorial.html','tutorial.css','tutorial.js'];
 await mkdir('dist/client',{recursive:true});
 for(const file of files)await cp('dist/'+file,'dist/client/'+file);
@@ -21,15 +22,20 @@ const ringUI=await readFile('dist/census-ring-ui.js','utf8');
 const ringServer=await readFile('server/census-ring.js','utf8');
 const valhallaProvider=await readFile('server/valhalla-provider.js','utf8');
 const core=await readFile('server/worker.js','utf8');
-const tutorialPage=await readFile('dist/tutorial.html','utf8');
+const tutorialVideoBytes=await readFile('tutorial/survive-drive-getting-started.mp4');
+const tutorialVideoHash=createHash('sha256').update(tutorialVideoBytes).digest('hex').slice(0,16);
+const tutorialPage=(await readFile('dist/tutorial.html','utf8'))
+  .replace('/tutorial-video.mp4','/tutorial-video.mp4?v='+tutorialVideoHash)
+  .replace('/tutorial-captions.vtt','/tutorial-captions.vtt?v='+tutorialVideoHash);
+await writeFile('dist/client/tutorial.html',tutorialPage);
 const tutorialCss=await readFile('dist/tutorial.css','utf8');
 const tutorialJs=await readFile('dist/tutorial.js','utf8');
 const tutorialCaptions=await readFile('tutorial/captions.vtt','utf8');
 const tutorialChapters=await readFile('tutorial/chapters.json','utf8');
 const tutorialPoster=(await readFile('tutorial/poster.png')).toString('base64');
-const tutorialVideo=(await readFile('tutorial/survive-drive-getting-started.mp4')).toString('base64');
+const tutorialVideo=tutorialVideoBytes.toString('base64');
 const header='const REFERENCE='+JSON.stringify(reference)+';\nconst ASSETS='+JSON.stringify({'/':{body:page,type:'text/html; charset=utf-8'},'/index.html':{body:page,type:'text/html; charset=utf-8'},'/style.css':{body:css,type:'text/css; charset=utf-8'},'/here-decoder.js':{body:decoder,type:'text/javascript; charset=utf-8'},'/valhalla-decoder.js':{body:valhallaDecoder,type:'text/javascript; charset=utf-8'},'/route-avm.js':{body:mapper,type:'text/javascript; charset=utf-8'},'/shotgun-gates.js':{body:shotgun,type:'text/javascript; charset=utf-8'},'/pool-screening.js':{body:pool,type:'text/javascript; charset=utf-8'},'/census-ring.js':{body:ring,type:'text/javascript; charset=utf-8'},'/census-ring-ui.js':{body:ringUI,type:'text/javascript; charset=utf-8'},'/app.js':{body:js,type:'text/javascript; charset=utf-8'},'/reference.json':{body:JSON.stringify(reference),type:'application/json'},'/intersection-catalog-chicago-v1.json':{body:intersections,type:'application/json'}})+';\n';
-const tutorialHeader='const TUTORIAL_ASSETS='+JSON.stringify({'/tutorial.html':{body:tutorialPage,type:'text/html; charset=utf-8'},'/tutorial.css':{body:tutorialCss,type:'text/css; charset=utf-8'},'/tutorial.js':{body:tutorialJs,type:'text/javascript; charset=utf-8'},'/tutorial-captions.vtt':{body:tutorialCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-chapters.json':{body:tutorialChapters,type:'application/json; charset=utf-8'},'/tutorial-poster.png':{body:tutorialPoster,type:'image/png',encoding:'base64'}})+';\nconst VIDEO_SEED='+JSON.stringify(tutorialVideo)+';\n';
+const tutorialHeader='const TUTORIAL_ASSETS='+JSON.stringify({'/tutorial.html':{body:tutorialPage,type:'text/html; charset=utf-8'},'/tutorial.css':{body:tutorialCss,type:'text/css; charset=utf-8'},'/tutorial.js':{body:tutorialJs,type:'text/javascript; charset=utf-8'},'/tutorial-captions.vtt':{body:tutorialCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-chapters.json':{body:tutorialChapters,type:'application/json; charset=utf-8'},'/tutorial-poster.png':{body:tutorialPoster,type:'image/png',encoding:'base64'}})+';\nconst TUTORIAL_VIDEO_KEY='+JSON.stringify('survive-drive/getting-started-'+tutorialVideoHash+'.mp4')+';\nconst VIDEO_SEED='+JSON.stringify(tutorialVideo)+';\n';
 await writeFile('dist/server/index.js',header+tutorialHeader+ring+'\n'+ringServer+'\n'+valhallaProvider+'\n'+core);
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');

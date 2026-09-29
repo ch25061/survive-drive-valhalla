@@ -1,7 +1,6 @@
 const SUBJECT='rentcast-value-v1|Single Family|3bed|2bath|1500sqft|lookup=false';
 const SCHEMA='survive_drive_avm_cache_v1';
 function json(value,status=200){return new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
-const TUTORIAL_VIDEO_KEY='survive-drive/getting-started-v1.mp4';
 function tutorialSeedBytes(){return Uint8Array.from(atob(VIDEO_SEED),character=>character.charCodeAt(0));}
 async function tutorialVideoResponse(request,env){
   const rangeHeader=request.headers.get('Range');
