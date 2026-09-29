@@ -1,6 +1,27 @@
 const SUBJECT='rentcast-value-v1|Single Family|3bed|2bath|1500sqft|lookup=false';
 const SCHEMA='survive_drive_avm_cache_v1';
 function json(value,status=200){return new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
+const TUTORIAL_VIDEO_KEY='survive-drive/getting-started-v1.mp4';
+function tutorialSeedBytes(){return Uint8Array.from(atob(VIDEO_SEED),character=>character.charCodeAt(0));}
+async function tutorialVideoResponse(request,env){
+  const rangeHeader=request.headers.get('Range');
+  if(!env.TUTORIAL_MEDIA){
+    const all=tutorialSeedBytes(),match=/^bytes=(\d+)-(\d*)$/.exec(rangeHeader??'');
+    const start=match?Math.min(Number(match[1]),all.length):0;
+    const end=match?Math.min(match[2]?Number(match[2]):all.length-1,all.length-1):all.length-1;
+    if(start>end)return new Response(null,{status:416,headers:{'Content-Range':`bytes */${all.length}`}});
+    const part=all.subarray(start,end+1),headers=new Headers({'Content-Type':'video/mp4','Content-Length':String(part.length),'Accept-Ranges':'bytes','Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'});
+    if(match)headers.set('Content-Range',`bytes ${start}-${end}/${all.length}`);
+    return new Response(request.method==='HEAD'?null:part,{status:match?206:200,headers});
+  }
+  let object=await env.TUTORIAL_MEDIA.get(TUTORIAL_VIDEO_KEY,{range:request.headers});
+  if(!object){await env.TUTORIAL_MEDIA.put(TUTORIAL_VIDEO_KEY,tutorialSeedBytes(),{httpMetadata:{contentType:'video/mp4'}});object=await env.TUTORIAL_MEDIA.get(TUTORIAL_VIDEO_KEY,{range:request.headers});}
+  if(!object||!('body'in object))return new Response('Tutorial video is temporarily unavailable.',{status:503});
+  const headers=new Headers({'Accept-Ranges':'bytes','Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'});
+  object.writeHttpMetadata(headers);headers.set('Content-Type','video/mp4');headers.set('Content-Length',String(object.range?.length??object.size));headers.set('ETag',object.httpEtag);
+  if(object.range)headers.set('Content-Range',`bytes ${object.range.offset}-${object.range.offset+object.range.length-1}/${object.size}`);
+  return new Response(request.method==='HEAD'?null:object.body,{status:object.range?206:200,headers});
+}
 function key(cell){return JSON.stringify([SCHEMA,'RentCast',cell.cell_id,cell.latitude,cell.longitude,SUBJECT]);}
 function database(env){if(!env.DB?.prepare)throw Error('The shared AVM cache is unavailable.');return env.DB;}
 async function cacheStatus(env){const db=database(env),row=await db.prepare('SELECT COUNT(*) AS entry_count, MIN(acquired_at) AS oldest_acquisition FROM avm_cache').first();return json({...row,provider_calls:0,subject_profile:SUBJECT,source:'persistent D1 cache'});}
@@ -309,6 +330,7 @@ async function sendAvm(body,env){
   return json({cell,estimate_ppsqft:estimate,acquired_at:now,source_kind:'live_rentcast',provider_attempted:true,cached,...(automatic?{plan_id:body.plan_id,attempt_index:body.attempt_index,round_index:body.round_index,route_id:body.route_id}: {})});
 }
 export default {async fetch(request,env){const url=new URL(request.url);try{
+  if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env);
   if(url.pathname.startsWith('/api/')){
     if(url.pathname==='/api/locations/geocode'&&request.method==='POST')return json({error:'Address lookup is not configured in this Valhalla offshoot. Place the trip points on the map or enter coordinates.',provider_attempted:false,provider_calls:0},501);
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}
@@ -326,5 +348,5 @@ export default {async fetch(request,env){const url=new URL(request.url);try{
     return json({error:'Endpoint unavailable.'},404);
   }
   if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
-  const asset=ASSETS[url.pathname];if(!asset)return new Response('Not found',{status:404});return new Response(request.method==='HEAD'?null:asset.body,{headers:{'Content-Type':asset.type,'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Cache-Control':'no-cache'}});
+  const asset=ASSETS[url.pathname]??TUTORIAL_ASSETS[url.pathname];if(!asset)return new Response('Not found',{status:404});return new Response(request.method==='HEAD'?null:asset.encoding==='base64'?Uint8Array.from(atob(asset.body),character=>character.charCodeAt(0)):asset.body,{headers:{'Content-Type':asset.type,'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Cache-Control':'no-cache'}});
 }catch(error){console.error(JSON.stringify({event:'storage_request_failed',path:url.pathname,error_name:error?.name??'',error_message:String(error?.message??'').slice(0,240)}));const roadCatalogError=url.pathname==='/api/intersections/lookup'?'The road catalog check is temporarily unavailable. Try Suggest again.':url.pathname.startsWith('/api/intersections/')?'The road catalog storage is temporarily unavailable. Previously completed circles remain saved; select Retry to resume when storage is available. Your loaded route evidence has not changed.':'The shared AVM cache is unavailable. Your loaded route evidence has not changed.';return json({error:roadCatalogError},503);}}};

@@ -89,3 +89,4 @@
 .pool-ranking-review .pool-ranking-budget-label{display:flex;align-items:center;gap:10px;flex:1 1 100%;font-weight:800;color:#32165f}
 .pool-ranking-review .pool-ranking-budget-label input{width:96px;max-width:100%;margin:0}
 .ranking-mode-choice[hidden],.ranking-mode-card[hidden],.ranking-mode-choice label[hidden]{display:none}
+.tutorial-link{text-decoration:none;white-space:nowrap}.tutorial-link:hover{text-decoration:underline}@media(max-width:830px){.masthead{flex-wrap:wrap;gap:10px}.masthead .mode{margin-left:0;flex:1 0 100%}}
