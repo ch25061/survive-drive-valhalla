@@ -5,7 +5,6 @@ for(const file of files)await cp('dist/'+file,'dist/client/'+file);
 await cp('tutorial/poster.png','dist/client/tutorial-poster.png');
 await cp('tutorial/captions.vtt','dist/client/tutorial-captions.vtt');
 await cp('tutorial/chapters.json','dist/client/tutorial-chapters.json');
-await cp('tutorial/survive-drive-getting-started.mp4','dist/client/tutorial-video.mp4');
 await mkdir('dist/server',{recursive:true});
 const reference=JSON.parse(await readFile('dist/reference.json','utf8'));
 const page=await readFile('dist/index.html','utf8');
