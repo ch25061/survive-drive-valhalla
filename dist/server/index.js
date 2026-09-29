@@ -166,6 +166,24 @@ function database(env){if(!env.DB?.prepare)throw Error('The shared AVM cache is 
 async function cacheStatus(env){const db=database(env),row=await db.prepare('SELECT COUNT(*) AS entry_count, MIN(acquired_at) AS oldest_acquisition FROM avm_cache').first();return json({...row,provider_calls:0,subject_profile:SUBJECT,source:'persistent D1 cache'});}
 async function cacheReference(env){const db=database(env);const now=new Date().toISOString();const cells=REFERENCE.routes[0].cells;const statements=cells.filter(c=>Number.isFinite(c.latitude)&&Number.isFinite(c.longitude)&&Number.isFinite(c.estimate_ppsqft)&&c.estimate_ppsqft>0).map(c=>db.prepare('INSERT INTO avm_cache (cache_key, cell_id, latitude, longitude, subject_profile, provider, estimate_ppsqft, source_kind, source_artifact, acquired_at, cached_at, schema_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(cache_key) DO NOTHING').bind(key(c),c.cell_id,c.latitude,c.longitude,SUBJECT,'RentCast',c.estimate_ppsqft,c.value_origin,c.source_artifact??'route-5-danger-focus-audit.json',c.acquired_at??null,now,SCHEMA));if(!statements.length)return json({error:'Reference data has no verified lookup coordinates; cache was not changed.'},422);await db.batch(statements);return json({attempted_entries:statements.length,provider_calls:0,source:'bundled reference',subject_profile:SUBJECT});}
 async function cacheLookup(request,env){const raw=await request.text();if(raw.length>50000)return json({error:'Lookup payload is too large.'},413);let body;try{body=JSON.parse(raw);}catch{return json({error:'Use a JSON lookup request.'},400);}if(!body||body.subject_profile!==SUBJECT||!Array.isArray(body.cells)||body.cells.length>100)return json({error:'Use the exact subject profile and at most 100 cell lookup keys.'},400);const db=database(env);const queries=[];for(const cell of body.cells){if(typeof cell.cell_id!=='string'||cell.cell_id.length>150||!Number.isFinite(cell.latitude)||Math.abs(cell.latitude)>90||!Number.isFinite(cell.longitude)||Math.abs(cell.longitude)>180)return json({error:'Invalid lookup coordinates or cell ID.'},400);queries.push(db.prepare('SELECT cell_id, latitude, longitude, estimate_ppsqft, source_kind, acquired_at, cached_at, subject_profile, source_artifact FROM avm_cache WHERE cache_key = ?').bind(key(cell)));}const results=queries.length?await db.batch(queries):[];return json({subject_profile:SUBJECT,provider_calls:0,entries:body.cells.map((c,i)=>({cell_id:c.cell_id,status:results[i]?.results?.length?'hit':'miss',entry:results[i]?.results?.[0]??null})),freshness:'Reported acquisition timestamps; no automatic freshness cutoff or provider refresh.'});}
+async function importLegacyCache(request,env){
+  const token=env.CACHE_IMPORT_TOKEN;
+  if(typeof token!=='string'||token.length<40||request.headers.get('X-Cache-Import-Key')!==token)return json({error:'Import unavailable.'},403);
+  let body;try{body=await readBody(request,40000);}catch{return json({error:'Invalid import payload.'},400);}
+  if(body?.schema!==SCHEMA||!Array.isArray(body.rows)||body.rows.length<1||body.rows.length>50)return json({error:'Expected one to 50 legacy cache rows.'},400);
+  const rows=body.rows,seen=new Set();
+  for(const row of rows){
+    if(!row||row.schema_version!==SCHEMA||row.subject_profile!==SUBJECT||row.provider!=='RentCast'||!Number.isFinite(row.estimate_ppsqft)||row.estimate_ppsqft<=0||row.estimate_ppsqft>100000||!['live_rentcast','exact_cache','live'].includes(row.source_kind)||typeof row.source_artifact!=='string'||row.source_artifact.length>500||typeof row.cached_at!=='string'||!Number.isFinite(Date.parse(row.cached_at))||typeof row.acquired_at!=='string'||!Number.isFinite(Date.parse(row.acquired_at)))return json({error:'Invalid legacy cache row.'},400);
+    const match=/^(CHI1K-V1|REG1K-V1-LAT[+-]\d+-LON[+-]\d+)-Q([+-]\d+)-R([+-]\d+)$/.exec(row.cell_id??'');
+    if(!match)return json({error:'Invalid locked-grid cell identity.'},400);
+    let canonical;try{canonical=honeycombCell({cell_id:row.cell_id,q:Number(match[2]),r:Number(match[3])},honeycombRecipe(match[1]));}catch{return json({error:'Invalid locked-grid cell identity.'},400);}
+    if(row.latitude!==canonical.latitude||row.longitude!==canonical.longitude||row.cache_key!==key(row)||seen.has(row.cache_key))return json({error:'Legacy cache key or coordinates do not match the locked grid.'},400);
+    seen.add(row.cache_key);
+  }
+  const db=database(env),statements=rows.map(row=>db.prepare('INSERT INTO avm_cache (cache_key, cell_id, latitude, longitude, subject_profile, provider, estimate_ppsqft, source_kind, source_artifact, acquired_at, cached_at, schema_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(cache_key) DO NOTHING RETURNING cache_key').bind(row.cache_key,row.cell_id,row.latitude,row.longitude,row.subject_profile,row.provider,row.estimate_ppsqft,row.source_kind,row.source_artifact,row.acquired_at,row.cached_at,row.schema_version));
+  const results=await db.batch(statements);
+  return json({received:rows.length,inserted:results.reduce((count,result)=>count+(result.results?.length??0),0),provider_calls:0});
+}
 function identifier(value){return typeof value==='string'&&/^[a-zA-Z0-9-]{10,100}$/.test(value);}
 function honeycombRecipe(prefix){
   if(prefix==='CHI1K-V1')return{prefix,latitude:41.91063814,longitude:-87.66769738,max_radius:152000};
@@ -482,6 +500,7 @@ export default {async fetch(request,env){const url=new URL(request.url);try{
     if(url.pathname==='/api/cache/status'&&request.method==='GET')return await cacheStatus(env);
     if(url.pathname==='/api/cache/reference'&&request.method==='POST'){if(request.headers.get('Origin')&&request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.'},403);return await cacheReference(env);}
     if(url.pathname==='/api/cache/lookup'&&request.method==='POST')return await cacheLookup(request,env);
+    if(url.pathname==='/api/cache/import-legacy'&&request.method==='POST')return await importLegacyCache(request,env);
     return json({error:'Endpoint unavailable.'},404);
   }
   if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
