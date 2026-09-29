@@ -17,7 +17,20 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
   state.catalogBusy[side]=true;state.catalogRingEpoch[side]=epoch;let settled;state.catalogRingSettled[side]=new Promise(resolve=>{settled=resolve;});const endWorking=beginWorking(status);let completed=0,attempted=0,stopped=false,failure=null;
   state.catalogFaults[side]={kind:'ring',epoch,origin,options,page_id:expected.id};
   const message=text=>{if(current()){status.textContent=text;workflowPhase(text);}};
-  async function post(operation,extra={}){const response=await providerFetch('/api/intersections/ring/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...params,...extra})});const result=await appJson(response,label+' road search',true);if(!response.ok)throw Error(result.error||label+' road search returned HTTP '+response.status+'.');return result;}
+  async function post(operation,extra={}){
+    const maximumAttempts=operation==='ingest'?3:1;
+    for(let attempt=1;attempt<=maximumAttempts;attempt++){
+      const response=await providerFetch('/api/intersections/ring/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...params,...extra}),suppressHttpAdvisory:operation==='ingest'});
+      const result=await appJson(response,label+' road search',true);
+      if(response.ok)return result;
+      if(operation==='ingest'&&response.status===503&&attempt<maximumAttempts&&current()){
+        message('WAIT — '+label+': road catalog storage was temporarily unavailable. Retrying the save ('+(attempt+1)+' of '+maximumAttempts+'); the completed Census response is held and no Census request is repeated.');
+        await new Promise(resolve=>setTimeout(resolve,attempt===1?1000:3000));
+        continue;
+      }
+      throw Error(result.error||label+' road search returned HTTP '+response.status+'.');
+    }
+  }
   try{
     message('WAIT — '+label+': checking saved road data for '+expected.circles.length+' small circles covering the '+params.inner_miles+'–'+params.outer_miles+' mile band. No action needed.');
     const prepared=await post('plan');if(!current())return;if(prepared.plan?.id!==expected.id||prepared.plan.maximum_source_requests!==expected.circles.length)throw Error('The returned road-search plan does not match these settings.');
@@ -67,7 +80,7 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
     state.intersectionCatalogs[side]=valid;if(side==='start')state.intersectionCatalog=valid;state.catalogFaults[side]=null;setCatalogRetryCue(side);
     log(label+' ring complete: '+expected.circles.length+' circles; '+attempted+' Census requests this run; '+(catalog.search_summary?.unique_roads??0)+' unique roads; '+(catalog.search_summary?.duplicate_roads_removed??0)+' duplicate road results removed.');
     suggestShotgunGates({side,skipPageFault:true});
-  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);const pending=[...pendingCensusCircleSaves[side].values()].filter(item=>item.ring_id===expected.id).length;status.textContent=error.message+' No automatic retry. Select Retry '+label+' Census lookup to resume using saved circles.'+(pending?' Retry first saves '+pending+' completed Census response'+(pending===1?'':'s')+' still held in this tab, without requesting those circles again.':'');notice(status.textContent);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
+  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);const pending=[...pendingCensusCircleSaves[side].values()].filter(item=>item.ring_id===expected.id).length;status.textContent=error.message+' No automatic Census retry. Select Retry '+label+' Census lookup to resume using saved circles.'+(pending?' Retry first saves '+pending+' completed Census response'+(pending===1?'':'s')+' still held in this tab, without requesting those circles again.':'');notice(status.textContent);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
   finally{endWorking();state.catalogBusy[side]=false;settled();providerCounts();updateNextAction();}
 }
 
