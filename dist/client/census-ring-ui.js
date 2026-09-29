@@ -1,5 +1,7 @@
 'use strict';
 // Loaded before app.js; work starts only through its explicit GO/Retry handlers.
+const CENSUS_CIRCLE_TIMEOUT_MS=60000;
+function censusCircleError(error){return ['TimeoutError','AbortError'].includes(error?.name)?Error('Census road request exceeded the 60-second limit.'):error;}
 async function checkCensusRing(origin,options,epoch,side,retry=false){
   const label=side==='start'?'Start':'Destination',status=$('shotgun-status'+(side==='destination'?'-destination':'')),params={origin,inner_miles:options.inner_miles,outer_miles:options.outer_miles},expected=window.SurviveCensusRing.plan(params),current=()=>epoch===state.catalogFaultEpochs[side];
   state.catalogRingSettled??={};state.catalogRingEpoch??={};
@@ -28,13 +30,13 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
           // A peer failure stops new claims; finish these already-reserved circles.
           if(!claim.cached){const descriptor=window.SurviveCensusRing.request(circle);if(claim.census_request?.url!==descriptor.url||claim.census_request?.maximum_response_bytes!==descriptor.maximum_response_bytes||![1,2,3].includes(claim.attempt_number)||claim.claim_id!==(claim.attempt_number===1?circle.id:circle.id+'-retry-'+claim.attempt_number))throw Error('The Census circle request does not match its reserved budget.');
             sent=true;attempted++;state.providerCalls.Catalog++;providerCounts();
-            const response=await appFetch(descriptor.url,{method:'GET',headers:{Accept:'application/json'},redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(25000)}),payload=await censusResponseJson(response,descriptor.maximum_response_bytes);
+            const response=await appFetch(descriptor.url,{method:'GET',headers:{Accept:'application/json'},redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(CENSUS_CIRCLE_TIMEOUT_MS)}),payload=await censusResponseJson(response,descriptor.maximum_response_bytes);
             // Cache a request that already completed even if settings changed.
             // This does not launch another Census request or restore old gates.
             await post('ingest',{circle_index:index,claim_id:claim.claim_id,census_payload:payload});ingested=true;
           }
           completed++;
-        }catch(error){if(sent&&!ingested)state.uncertainAttempts.push({provider:'Census TIGERweb',page_id:circle.id,side,scope:'circle_not_cached'});if(!failure)failure={index,error};stopped=true;}
+        }catch(error){if(sent&&!ingested)state.uncertainAttempts.push({provider:'Census TIGERweb',page_id:circle.id,side,scope:'circle_not_cached'});if(!failure)failure={index,error:censusCircleError(error)};stopped=true;}
       }}
       await Promise.all([run(),run(),run()]);if(!current())return;
       if(failure)throw Error(label+' search stopped at circle '+(failure.index+1)+' of '+expected.circles.length+'. '+failure.error.message+' '+completed+' completed circles were saved.');

@@ -58,14 +58,14 @@ assert.throws(()=>R.normalize({features:Array(2000).fill({})}),/2,000-road/);ass
 // An unused reservation can be returned; a complete empty circle is valid.
 {const p={origin:[10,-20],inner_miles:.25,outer_miles:.5},first=await post('claim',{...p,circle_index:0});assert.equal(first.body.attempt_number,1);assert.equal((await post('release',{...p,circle_index:0,claim_id:'wrong'})).status,409);assert.equal((await post('release',{...p,circle_index:0,claim_id:first.body.claim_id})).body.released,true);const second=await post('claim',{...p,circle_index:0});assert.equal(second.body.attempt_number,1);assert.equal((await post('ingest',{...p,circle_index:0,claim_id:second.body.claim_id,census_payload:{features:[]}})).status,200);const empty=await post('merge',p);assert.equal(empty.status,200);assert.equal(G.validateCatalog(empty.body.catalog).intersections.length,0);}
 // UI orchestration: real app functions, mocked network, no paid providers.
-function uiHarness({failIndex=-1,delay=false,delayClaim=false}={}){
+function uiHarness({failIndex=-1,delay=false,delayClaim=false,timeout=false}={}){
   const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',hidden:true,disabled:false,children:[],replaceChildren(){this.children=[];},append(x){this.children.push(x);},focus(){},classList:{add(){},remove(){},toggle(){}},addEventListener(){}});return elements.get(id);};
   for(const[id,v]of Object.entries({origin:params.origin.join(','),'shotgun-inner':'7','shotgun-outer':'8'}))get(id).value=v;
   let calls=0,active=0,maxActive=0,published=0,release,released=0,releaseClaims;const claimsWait=delayClaim?new Promise(r=>{releaseClaims=r;}):Promise.resolve();const saved=new Set(),claims=[];
   const context={console,URL,TextEncoder,TextDecoder,AbortSignal,setTimeout,clearTimeout,document:{getElementById:get,createElement:()=>({textContent:''})},window:{SurviveCensusRing:R,SurviveShotgun:G},state:{catalogFaultEpochs:{start:1},catalogFaults:{},catalogBusy:{},intersectionCatalogs:{},providerCalls:{Catalog:0},uncertainAttempts:[]},beginWorking:()=>()=>{},workflowPhase(){},providerCounts(){},updateNextAction(){},setCatalogRetryCue(){},notice(){},log(){},suggestShotgunGates(){published++;},catalogCovers:(origin,outer,c,inner)=>c.coverage.inner_radius_m===inner*R.MILE&&c.coverage.radius_m===outer*R.MILE,appJson:r=>r.json(),censusResponseJson:r=>r.json()};
   context.$=get;
   context.providerFetch=async(path,options)=>{const body=JSON.parse(options.body),op=path.split('/').pop();if(op==='plan')return Response.json({plan,catalog:null});if(op==='release'){released++;return Response.json({released:true});}if(op==='claim'){claims.push(body.circle_index);await claimsWait;const c=plan.circles[body.circle_index];return Response.json(saved.has(body.circle_index)?{cached:true,circle_id:c.id}:{circle_id:c.id,claim_id:c.id,attempt_number:1,census_request:R.request(c)});}if(op==='ingest'){saved.add(body.circle_index);return Response.json({cached:true});}if(op==='merge')return Response.json({catalog:merged.body.catalog});throw Error('Unexpected API '+path);};
-  context.appFetch=async url=>{const index=plan.circles.findIndex(c=>R.request(c).url===url);calls++;active++;maxActive=Math.max(maxActive,active);try{if(delay&&index===0)await new Promise(r=>{release=r;});else await new Promise(r=>setTimeout(r,1));if(index===failIndex)throw Error('Simulated Census failure');return Response.json({features:[]});}finally{active--;}};
+  context.appFetch=async url=>{const index=plan.circles.findIndex(c=>R.request(c).url===url);calls++;active++;maxActive=Math.max(maxActive,active);try{if(delay&&index===0)await new Promise(r=>{release=r;});else await new Promise(r=>setTimeout(r,1));if(index===failIndex){const error=Error(timeout?'signal timed out':'Simulated Census failure');if(timeout)error.name='TimeoutError';throw error;}return Response.json({features:[]});}finally{active--;}};
   vm.createContext(context);vm.runInContext(readFileSync('dist/census-ring-ui.js','utf8'),context);return{context,run:retry=>context.checkCensusRing(params.origin,params,1,'start',retry),stats:()=>({calls,maxActive,published,saved:saved.size,claims:claims.length,released}),release:()=>release?.(),releaseClaims:()=>releaseClaims?.()};
 }
 {
@@ -73,6 +73,9 @@ function uiHarness({failIndex=-1,delay=false,delayClaim=false}={}){
 }
 {
   const h=uiHarness({failIndex:0});await h.run();assert.ok(h.stats().calls<=3,'failure stops the queue');assert.equal(h.stats().published,0);assert.ok(h.context.state.catalogFaults.start);assert.match(h.context.$('shotgun-status').textContent,/No automatic retry/);
+}
+{
+  const h=uiHarness({failIndex:2,timeout:true});await h.run();assert.equal(h.stats().published,0);assert.match(h.context.$('shotgun-status').textContent,/circle 3 of 76\. Census road request exceeded the 60-second limit\./);assert.doesNotMatch(h.context.$('shotgun-status').textContent,/signal timed out/);assert.match(h.context.$('shotgun-status').textContent,/completed circles were saved\. No automatic retry/);
 }
 {
   const h=uiHarness({delay:true});const run=h.run();await new Promise(r=>setTimeout(r,0));h.context.state.catalogFaultEpochs.start++;h.release();await run;assert.ok(h.stats().calls<=3,'editing cancels future circles');assert.equal(h.stats().published,0,'old results never restore gates');
