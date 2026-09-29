@@ -3,6 +3,9 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const source=readFileSync('dist/app.js','utf8');
+const html=readFileSync('dist/index.html','utf8');
+assert.match(html,/<textarea id="paste-valhalla-request"/);
+assert.match(html,/<button id="load-pasted-valhalla-request"/);
 assert.match(source,/batch\.status='prepared_not_authorized_or_sent';const gateResolution=/,'newly prepared batches must carry an explicit status');
 const nodes=new Map();
 const get=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',hidden:false,disabled:false,value:0,max:1,setAttribute(){},addEventListener(){}});return nodes.get(id);};
