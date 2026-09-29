@@ -863,6 +863,32 @@ function avmCreditCoverage(routes){
   const total=cells.size,known=[...cells.values()].filter(cell=>cell.known).length;
   return{total,known,missing:total-known,percent:total?100*known/total:0};
 }
+function manualRoundLookupPreview(routes,enabledIds,perRoute,attemptedIds){
+  if(!Number.isInteger(perRoute)||perRoute<1||perRoute>100||routes.some(route=>!Array.isArray(route.cells)))return null;
+  const enabled=new Set(enabledIds),unique=new Map();let routeCeiling=0;
+  for(const route of routes){if(!enabled.has(route.id))continue;const available=new Set();
+    for(const cell of route.cells){if(!(Number.isFinite(cell.outside_here_distance_m)&&cell.outside_here_distance_m>=1)||Number.isFinite(cell.estimate_ppsqft)&&cell.estimate_ppsqft>0||typeof cell.cell_id!=='string'||!Number.isFinite(cell.latitude)||!Number.isFinite(cell.longitude)||attemptedIds.has(cell.cell_id))continue;
+      const prior=unique.get(cell.cell_id);if(prior&&(prior.latitude!==cell.latitude||prior.longitude!==cell.longitude))return null;
+      unique.set(cell.cell_id,{latitude:cell.latitude,longitude:cell.longitude});available.add(cell.cell_id);
+    }
+    routeCeiling+=Math.min(perRoute,available.size);
+  }
+  return{ceiling:Math.min(routeCeiling,unique.size),unique_missing:unique.size,included_routes:enabled.size};
+}
+function renderManualRoundCost(){
+  const boxes=[$('manual-round-cost'),$('pool-ranking-round-cost')].filter(Boolean);if(!boxes.length)return;
+  const screen=state.poolScreening,plan=screen.plan,manualPlan=plan?.purpose==='candidate_pool_quota'&&plan.selection_policy?.mode==='additional_known_anchor_gap_round',quota=Number($('pool-screening-budget').value),enabled=enabledPoolRouteIds();
+  const preview=screen.results.length&&quota>0?manualRoundLookupPreview(state.routes,enabled,quota,poolAttemptedCellIds()):null;
+  const previewText=preview?'Up to '+preview.ceiling+' new RentCast lookups from the current mapped cells, across '+preview.included_routes+' INCLUDED routes. A free cache check may lower this; the exact shared-cell count is prepared when you ask for One Round.':'Set a positive per-route count and include at least one mapped route to estimate One Round.';
+  let message;
+  if(!screen.results.length)message='One Round lookup estimate appears after the first route ranking. No lookup is requested by this estimate.';
+  else if(manualPlan){const used=(plan.attempt_records??[]).filter(record=>record.provider_attempted===true).length;message='One Round exact lookup ceiling: up to '+plan.maximum_attempts+' new RentCast lookup'+(plan.maximum_attempts===1?'':'s')+' after the shared-cache check and deduplication.'+(screen.status==='running'?' '+used+' sent so far.':' The round starts automatically after a short pause.');}
+  else if(screen.status==='preparing_evolution')message='Preparing One Round: checking the shared cache at no RentCast cost. Current estimate: '+previewText;
+  else {const last=screen.last_plan,lastManual=last?.purpose==='candidate_pool_quota'&&last.selection_policy?.mode==='additional_known_anchor_gap_round'&&Array.isArray(last.attempt_records)&&last.attempt_records.length>0,used=lastManual?last.attempt_records.filter(record=>record.provider_attempted===true).length:0;message=(lastManual?'Last One Round: ceiling '+last.maximum_attempts+', actual '+used+' new RentCast lookup'+(used===1?'':'s')+'. ':'')+'Next One Round estimate: '+previewText;}
+  for(const box of boxes)box.textContent=message+' Lookup count only; no credit price is configured.';
+  const buttonCount=manualPlan?plan.maximum_attempts:preview?.ceiling,label='Run one Manual round'+(Number.isInteger(buttonCount)?' (up to '+buttonCount+' new lookups)':'');
+  for(const id of ['prepare-pool-evolution','prepare-pool-evolution-ranking']){const button=$(id);if(button)button.textContent=label;}
+}
 function renderAvmCreditForecast(){
   const box=$('avm-credit-forecast');if(!box)return;
   const screen=state.poolScreening,review=screen.cache_review;
@@ -880,6 +906,7 @@ function renderPoolScreening(){
   renderWorkflowStatus();
   const screen=state.poolScreening,hasRoutes=state.routes.length>0,quota=Number($('pool-screening-budget').value),enabled=enabledPoolRouteIds();
   renderAvmCreditForecast();
+  renderManualRoundCost();
   const roundZeroBox=$('pool-round-zero-summary'),roundZero=screen.round_zero;
   if(roundZeroBox){roundZeroBox.hidden=!roundZero;if(roundZero){const names=new Map(state.routes.map(route=>[route.id,route.name||route.id])),coverage=new Map(roundZero.known_coverage.map(row=>[row.route_id,row.coverage_pct]));roundZeroBox.textContent='Round 0 completed before new AVM sampling · nominal quota '+roundZero.quota+' of '+roundZero.candidate_count+' original routes (bottom three-eighths excluded) · '+roundZero.protected_route_ids.length+' routes below 20% known coverage protected · '+roundZero.enabled_route_ids.length+' routes INCLUDED · '+roundZero.disabled_route_ids.length+' routes EXCLUDED. Excluded: '+(roundZero.disabled_route_ids.map(id=>(names.get(id)||id)+' ('+Number(coverage.get(id)??0).toFixed(1)+'%)').join(', ')||'none')+'. All routes remain visible in the ranking.';}}
   const inclusionBox=$('next-round-inclusion-summary'),currentIds=state.routes.map(route=>route.id),lastInclusion=(screen.history??[]).slice().reverse().find(entry=>entry?.status==='route_quota_included_after_cull'&&Array.isArray(entry.candidate_route_ids)&&entry.candidate_route_ids.length===currentIds.length&&currentIds.every(id=>entry.candidate_route_ids.includes(id)));

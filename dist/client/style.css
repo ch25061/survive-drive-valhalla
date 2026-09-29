@@ -81,3 +81,8 @@
 #paste-valhalla-request{display:block;width:100%;min-height:8rem;resize:vertical;margin:8px 0}
 
 .avm-credit-forecast{border:2px solid #007daf;background:#edf8fd;color:#123e58;font-weight:650}
+
+.manual-round-cost{border:2px solid #007daf;background:#edf8fd;color:#123e58;font-weight:700}
+#pool-ranking-round-cost{margin:12px 0;text-align:left}
+
+.pool-ranking-review .manual-round-cost{flex:1 0 100%;margin:2px 0}
