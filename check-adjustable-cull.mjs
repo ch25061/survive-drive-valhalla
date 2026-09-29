@@ -41,6 +41,7 @@ const restore={};vm.createContext(restore);vm.runInContext(appSource.slice(resto
 const legacyRoundZero={enabled_route_ids:ids.slice(0,5),disabled_route_ids:ids.slice(5),protected_route_ids:[],unprotected_route_ids:ids,considered_route_ids:ids,known_coverage:ranked.map(row=>({route_id:row.route_id,coverage_pct:row.coverage_pct})),fraction:3/8};
 assert.equal(restore.roundZero(legacyRoundZero,new Set(ids),ids).cull_fraction,3/8,'an older saved Round 0 keeps its applied percentage');
 assert.deepEqual(Array.from(restore.fractions({cull_round:2,round_zero:legacyRoundZero})),[3/8,3/8],'legacy rounds keep their original cutoff instead of changing on import');
+assert.deepEqual(Array.from(restore.fractions({generation:1,round_zero:legacyRoundZero})),[3/8,3/8],'legacy exports without an explicit cull round keep their prior rounds');
 assert.match(readFileSync('dist/index.html','utf8'),/id="pool-ranking-cull-percent"[^>]+value="35"/);
 assert.match(appSource,/cull_fractions:screen\.cull_fractions\?\?\[\]/,'saved sessions record the cutoff history');
 console.log('Adjustable 35% cull, rounding, protection, promotion, and historical percentages passed offline.');
