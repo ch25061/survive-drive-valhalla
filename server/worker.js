@@ -1,11 +1,11 @@
 const SUBJECT='rentcast-value-v1|Single Family|3bed|2bath|1500sqft|lookup=false';
 const SCHEMA='survive_drive_avm_cache_v1';
 function json(value,status=200){return new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
-function tutorialSeedBytes(){return Uint8Array.from(atob(VIDEO_SEED),character=>character.charCodeAt(0));}
-async function tutorialVideoResponse(request,env){
+function tutorialSeedBytes(seed){return Uint8Array.from(atob(seed),character=>character.charCodeAt(0));}
+async function tutorialVideoResponse(request,env,storageKey,seed){
   const rangeHeader=request.headers.get('Range');
   if(!env.TUTORIAL_MEDIA){
-    const all=tutorialSeedBytes(),match=/^bytes=(\d+)-(\d*)$/.exec(rangeHeader??'');
+    const all=tutorialSeedBytes(seed),match=/^bytes=(\d+)-(\d*)$/.exec(rangeHeader??'');
     const start=match?Math.min(Number(match[1]),all.length):0;
     const end=match?Math.min(match[2]?Number(match[2]):all.length-1,all.length-1):all.length-1;
     if(start>end)return new Response(null,{status:416,headers:{'Content-Range':`bytes */${all.length}`}});
@@ -13,8 +13,8 @@ async function tutorialVideoResponse(request,env){
     if(match)headers.set('Content-Range',`bytes ${start}-${end}/${all.length}`);
     return new Response(request.method==='HEAD'?null:part,{status:match?206:200,headers});
   }
-  let object=await env.TUTORIAL_MEDIA.get(TUTORIAL_VIDEO_KEY,{range:request.headers});
-  if(!object){await env.TUTORIAL_MEDIA.put(TUTORIAL_VIDEO_KEY,tutorialSeedBytes(),{httpMetadata:{contentType:'video/mp4'}});object=await env.TUTORIAL_MEDIA.get(TUTORIAL_VIDEO_KEY,{range:request.headers});}
+  let object=await env.TUTORIAL_MEDIA.get(storageKey,{range:request.headers});
+  if(!object){await env.TUTORIAL_MEDIA.put(storageKey,tutorialSeedBytes(seed),{httpMetadata:{contentType:'video/mp4'}});object=await env.TUTORIAL_MEDIA.get(storageKey,{range:request.headers});}
   if(!object||!('body'in object))return new Response('Tutorial video is temporarily unavailable.',{status:503});
   const headers=new Headers({'Accept-Ranges':'bytes','Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'});
   object.writeHttpMetadata(headers);headers.set('Content-Type','video/mp4');headers.set('Content-Length',String(object.range?.length??object.size));headers.set('ETag',object.httpEtag);
@@ -329,7 +329,8 @@ async function sendAvm(body,env){
   return json({cell,estimate_ppsqft:estimate,acquired_at:now,source_kind:'live_rentcast',provider_attempted:true,cached,...(automatic?{plan_id:body.plan_id,attempt_index:body.attempt_index,round_index:body.round_index,route_id:body.route_id}: {})});
 }
 export default {async fetch(request,env){const url=new URL(request.url);try{
-  if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env);
+  if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,TUTORIAL_VIDEO_KEY,VIDEO_SEED);
+  if(url.pathname==='/tutorial-la-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_VIDEO_KEY,LA_VIDEO_SEED);
   if(url.pathname.startsWith('/api/')){
     if(url.pathname==='/api/locations/geocode'&&request.method==='POST')return json({error:'Address lookup is not configured in this Valhalla offshoot. Place the trip points on the map or enter coordinates.',provider_attempted:false,provider_calls:0},501);
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}

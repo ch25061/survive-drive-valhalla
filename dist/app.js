@@ -849,7 +849,7 @@ function renderPoolRankingProgress(){
     heading.textContent='Manual round stopped';guidance.textContent=(screen.error||'The round could not finish.')+' Earlier evidence remains available. No automatic retry.';
   }else{
     heading.textContent='Review this ranking';
-    guidance.textContent='Examine the rank order and evidence for every candidate. Equal Red shares are ordered by shorter travel time. Review the ranking, choose a per-route count, and enable the routes to sample before preparing another round.';
+    guidance.textContent='Examine the rank order and evidence for every candidate. Equal Red shares are ordered by higher weighted PPSQFT, then shorter travel time. Review the ranking, choose a per-route count, and enable the routes to sample before preparing another round.';
   }
 }
 function avmCreditCoverage(routes){

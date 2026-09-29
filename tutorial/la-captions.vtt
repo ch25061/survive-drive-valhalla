@@ -1,0 +1,217 @@
+WEBVTT
+
+1.1
+00:00:00.000 --> 00:00:04.732
+Let us compare a longer trip across the Los Angeles area, from
+
+1.2
+00:00:04.732 --> 00:00:09.070
+Santa Clarita to Long Beach. In Set the trip, place both
+
+1.3
+00:00:09.070 --> 00:00:12.225
+endpoints and review Valhalla preferences for highways, tolls,
+
+1.4
+00:00:12.225 --> 00:00:16.168
+and route style. This is an illustrated training scenario; the
+
+1.5
+00:00:16.168 --> 00:00:20.111
+route lines and property values shown here are examples, not
+
+1.6
+00:00:20.111 --> 00:00:20.900
+live results.
+
+2.1
+00:00:21.600 --> 00:00:25.075
+Next, review Escape Gates near both ends. They suggest
+
+2.2
+00:00:25.075 --> 00:00:29.321
+different ways out of Santa Clarita and into Long Beach. If
+
+2.3
+00:00:29.321 --> 00:00:33.954
+you keep four gates at each end, the no-gate choices make five
+
+2.4
+00:00:33.954 --> 00:00:37.428
+times five, or twenty-five start and destination pairings. The
+
+2.5
+00:00:37.428 --> 00:00:41.289
+app prepares the full cross product, not just matching gate
+
+2.6
+00:00:41.289 --> 00:00:41.675
+numbers.
+
+3.1
+00:00:42.375 --> 00:00:45.970
+Before routing, check the batch and its request limit.
+
+3.2
+00:00:45.970 --> 00:00:49.565
+Valhalla returns road routes; some pairings may converge on
+
+3.3
+00:00:49.565 --> 00:00:53.159
+the same corridor. The number of returned candidates can
+
+3.4
+00:00:53.159 --> 00:00:57.153
+differ from the number of requests. Route discovery does not
+
+3.5
+00:00:57.153 --> 00:00:59.550
+use RentCast A V M credits.
+
+4.1
+00:01:00.250 --> 00:01:03.681
+After routes arrive, evaluate the candidate pool. Round zero
+
+4.2
+00:01:03.681 --> 00:01:08.256
+reuses saved A V M evidence before any new paid lookup. The
+
+4.3
+00:01:08.256 --> 00:01:11.688
+default cull is thirty-five percent of the nominal pool.
+
+4.4
+00:01:11.688 --> 00:01:15.119
+Routes with under twenty percent known coverage are protected
+
+4.5
+00:01:15.119 --> 00:01:19.312
+in this first screen, because too little is known to reject
+
+4.6
+00:01:19.312 --> 00:01:22.744
+them confidently. Highway runs and attached ramps are outside
+
+4.7
+00:01:22.744 --> 00:01:24.650
+the A V M comparison.
+
+5.1
+00:01:25.350 --> 00:01:29.687
+Now read the ranking with its coverage. A route with a low
+
+5.2
+00:01:29.687 --> 00:01:33.662
+known Red share can still have many unknown cells. When Red
+
+5.3
+00:01:33.662 --> 00:01:37.276
+shares are equal, higher weighted price per square foot breaks
+
+5.4
+00:01:37.276 --> 00:01:40.529
+the tie. In this demonstration, every percentage and property
+
+5.5
+00:01:40.529 --> 00:01:44.143
+value on screen is illustrative, so use the pattern of
+
+5.6
+00:01:44.143 --> 00:01:45.950
+reasoning rather than the numbers.
+
+6.1
+00:01:46.650 --> 00:01:50.444
+INCLUDED means eligible for the next evidence round. EXCLUDED
+
+6.2
+00:01:50.444 --> 00:01:55.082
+candidates remain in the ranked pool, and can return after new
+
+6.3
+00:01:55.082 --> 00:01:58.876
+evidence changes the order. You can manually include or
+
+6.4
+00:01:58.876 --> 00:02:02.249
+exclude routes before preparing another round. Every change
+
+6.5
+00:02:02.249 --> 00:02:05.200
+updates the proposed A V M cost.
+
+7.1
+00:02:05.900 --> 00:02:09.676
+Set the new lookup count per included route, starting at five.
+
+7.2
+00:02:09.676 --> 00:02:13.452
+Then select Calculate exact One Round lookups. S D checks the
+
+7.3
+00:02:13.452 --> 00:02:16.542
+cache and removes cells shared across routes before showing
+
+7.4
+00:02:16.542 --> 00:02:20.661
+the new call count. For example, six unique new calls would be
+
+7.5
+00:02:20.661 --> 00:02:24.437
+six credits, or six cents at the current displayed rate. That
+
+7.6
+00:02:24.437 --> 00:02:28.557
+example is not a quote for this trip. Run remains a separate
+
+7.7
+00:02:28.557 --> 00:02:28.900
+action.
+
+8.1
+00:02:29.600 --> 00:02:33.573
+After a completed One Round, the app reranks the full
+
+8.2
+00:02:33.573 --> 00:02:37.149
+candidate pool. The next cutoff deactivates the chosen share
+
+8.3
+00:02:37.149 --> 00:02:41.122
+of the previous nominal quota, with thirty-five percent as the
+
+8.4
+00:02:41.122 --> 00:02:44.698
+current default. The best candidates fill the remaining slots,
+
+8.5
+00:02:44.698 --> 00:02:47.877
+including routes excluded earlier if new evidence promotes
+
+8.6
+00:02:47.877 --> 00:02:51.850
+them. You can continue one priced round at a time.
+
+9.1
+00:02:52.550 --> 00:02:56.412
+Finally, inspect a candidate on the map. The colored honeycomb
+
+9.2
+00:02:56.412 --> 00:02:59.502
+represents estimated property values, not a safety score.
+
+9.3
+00:02:59.502 --> 00:03:04.136
+Check the dates of any Street View imagery and keep your own
+
+9.4
+00:03:04.136 --> 00:03:06.840
+observations separate. Compare travel time, known coverage,
+
+9.5
+00:03:06.840 --> 00:03:10.702
+unknown areas, and your priorities. Choose a route and export
+
+9.6
+00:03:10.702 --> 00:03:14.950
+the session if you want a record. You make the decision.

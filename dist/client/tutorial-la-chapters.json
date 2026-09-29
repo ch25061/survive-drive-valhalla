@@ -1,0 +1,47 @@
+[
+  {
+    "title": "The trip",
+    "start": 0,
+    "description": "Santa Clarita to Long Beach"
+  },
+  {
+    "title": "Escape Gates",
+    "start": 21.6,
+    "description": "Start and destination gates"
+  },
+  {
+    "title": "Route search",
+    "start": 42.38,
+    "description": "Check the exact request count"
+  },
+  {
+    "title": "Round 0",
+    "start": 60.25,
+    "description": "Map non-highway cells"
+  },
+  {
+    "title": "Ranking",
+    "start": 85.35,
+    "description": "Lower known Red share ranks higher"
+  },
+  {
+    "title": "Inclusion",
+    "start": 106.65,
+    "description": "INCLUDED routes enter One Round"
+  },
+  {
+    "title": "Exact cost",
+    "start": 125.9,
+    "description": "Start at 5 per INCLUDED route"
+  },
+  {
+    "title": "Rerank",
+    "start": 149.6,
+    "description": "Inspect the completed round"
+  },
+  {
+    "title": "Decide",
+    "start": 172.55,
+    "description": "Compare route time and evidence"
+  }
+]
