@@ -875,17 +875,21 @@ function manualRoundLookupPreview(routes,enabledIds,perRoute,attemptedIds){
   }
   return{ceiling:Math.min(routeCeiling,unique.size),unique_missing:unique.size,included_routes:enabled.size};
 }
+function avmLookupCreditCost(count){
+  const credits=Math.max(0,Math.trunc(count));
+  return credits+' credit'+(credits===1?'':'s')+' ($'+(credits*0.01).toFixed(2)+')';
+}
 function renderManualRoundCost(){
   const boxes=[$('manual-round-cost'),$('pool-ranking-round-cost')].filter(Boolean);if(!boxes.length)return;
   const screen=state.poolScreening,plan=screen.plan,manualPlan=plan?.purpose==='candidate_pool_quota'&&plan.selection_policy?.mode==='additional_known_anchor_gap_round',quota=Number($('pool-screening-budget').value),enabled=enabledPoolRouteIds();
   const preview=screen.results.length&&quota>0?manualRoundLookupPreview(state.routes,enabled,quota,poolAttemptedCellIds()):null;
-  const previewText=preview?'Up to '+preview.ceiling+' new RentCast lookups from the current mapped cells, across '+preview.included_routes+' INCLUDED routes. A free cache check may lower this; the exact shared-cell count is prepared when you ask for One Round.':'Set a positive per-route count and include at least one mapped route to estimate One Round.';
+  const previewText=preview?'Up to '+preview.ceiling+' new RentCast lookups = up to '+avmLookupCreditCost(preview.ceiling)+' from the current mapped cells, across '+preview.included_routes+' INCLUDED routes. A free cache check may lower this; the exact shared-cell count is prepared when you ask for One Round.':'Set a positive per-route count and include at least one mapped route to estimate One Round.';
   let message;
   if(!screen.results.length)message='One Round lookup estimate appears after the first route ranking. No lookup is requested by this estimate.';
-  else if(manualPlan){const used=(plan.attempt_records??[]).filter(record=>record.provider_attempted===true).length;message='One Round exact lookup ceiling: up to '+plan.maximum_attempts+' new RentCast lookup'+(plan.maximum_attempts===1?'':'s')+' after the shared-cache check and deduplication.'+(screen.status==='running'?' '+used+' sent so far.':' The round starts automatically after a short pause.');}
+  else if(manualPlan){const used=(plan.attempt_records??[]).filter(record=>record.provider_attempted===true).length;message='One Round exact lookup ceiling: up to '+plan.maximum_attempts+' new RentCast lookup'+(plan.maximum_attempts===1?'':'s')+' = up to '+avmLookupCreditCost(plan.maximum_attempts)+' after the shared-cache check and deduplication.'+(screen.status==='running'?' '+used+' sent so far ('+avmLookupCreditCost(used)+').':' The round starts automatically after a short pause.');}
   else if(screen.status==='preparing_evolution')message='Preparing One Round: checking the shared cache at no RentCast cost. Current estimate: '+previewText;
-  else {const last=screen.last_plan,lastManual=last?.purpose==='candidate_pool_quota'&&last.selection_policy?.mode==='additional_known_anchor_gap_round'&&Array.isArray(last.attempt_records)&&last.attempt_records.length>0,used=lastManual?last.attempt_records.filter(record=>record.provider_attempted===true).length:0;message=(lastManual?'Last One Round: ceiling '+last.maximum_attempts+', actual '+used+' new RentCast lookup'+(used===1?'':'s')+'. ':'')+'Next One Round estimate: '+previewText;}
-  for(const box of boxes)box.textContent=message+' Lookup count only; no credit price is configured.';
+  else {const last=screen.last_plan,lastManual=last?.purpose==='candidate_pool_quota'&&last.selection_policy?.mode==='additional_known_anchor_gap_round'&&Array.isArray(last.attempt_records)&&last.attempt_records.length>0,used=lastManual?last.attempt_records.filter(record=>record.provider_attempted===true).length:0;message=(lastManual?'Last One Round: ceiling '+last.maximum_attempts+', actual '+used+' new RentCast lookup'+(used===1?'':'s')+' = '+avmLookupCreditCost(used)+'. ':'')+'Next One Round estimate: '+previewText;}
+  for(const box of boxes)box.textContent=message+' Each new lookup uses 1 credit at $0.01; cached cells use none. This is an estimate, not a charge.';
   const buttonCount=manualPlan?plan.maximum_attempts:preview?.ceiling,label='Run one Manual round'+(Number.isInteger(buttonCount)?' (up to '+buttonCount+' new lookups)':'');
   for(const id of ['prepare-pool-evolution','prepare-pool-evolution-ranking']){const button=$(id);if(button)button.textContent=label;}
 }
@@ -898,8 +902,8 @@ function renderAvmCreditForecast(){
   if(!coverage){box.textContent='AVM lookup forecast unavailable: a shared cell has conflicting coordinates. No new RentCast request was sent by the forecast.';return;}
   const percent=coverage.percent.toFixed(1),base='AVM lookup forecast · '+coverage.known+' of '+coverage.total+' unique eligible non-highway cells have values on every route where they appear ('+percent+'%); '+coverage.missing+' still need evidence on at least one route. The latest free shared-cache check reused '+review.hits+' of '+review.checked+' checked cells. Shared cells count once. ';
   const plan=screen.plan;
-  if(plan?.purpose==='candidate_pool_quota')box.textContent=base+'This prepared Manual round can make up to '+plan.maximum_attempts+' new RentCast lookup attempt'+(plan.maximum_attempts===1?'':'s')+' after route selection and shared-cell deduplication. The exact cell list is below. No lookup was sent by this forecast.';
-  else if(plan?.purpose==='automatic_route_evolution')box.textContent=base+'This prepared Automatic cycle can make up to '+plan.maximum_attempts+' new RentCast lookup attempts over three rounds; the first round can make up to '+Math.min(plan.maximum_attempts,plan.round_schedule?.[0]?.maximum_attempts??plan.maximum_attempts)+'. Later route choices depend on reranking. No lookup was sent by this forecast.';
+  if(plan?.purpose==='candidate_pool_quota')box.textContent=base+'This prepared Manual round can make up to '+plan.maximum_attempts+' new RentCast lookup attempt'+(plan.maximum_attempts===1?'':'s')+' = up to '+avmLookupCreditCost(plan.maximum_attempts)+' after route selection and shared-cell deduplication. The exact cell list is below. No lookup was sent by this forecast.';
+  else if(plan?.purpose==='automatic_route_evolution')box.textContent=base+'This prepared Automatic cycle can make up to '+plan.maximum_attempts+' new RentCast lookup attempts = up to '+avmLookupCreditCost(plan.maximum_attempts)+' over three rounds; the first round can make up to '+Math.min(plan.maximum_attempts,plan.round_schedule?.[0]?.maximum_attempts??plan.maximum_attempts)+'. Later route choices depend on reranking. No lookup was sent by this forecast.';
   else box.textContent=base+'Choose the per-route count and INCLUDED routes to prepare an exact next-round lookup ceiling. No new lookup is authorized by this forecast.';
 }
 function renderPoolScreening(){
