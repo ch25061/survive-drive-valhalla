@@ -68,7 +68,14 @@
 <div class="budget"><h3>This batch’s call budget</h3><div><span>Valhalla</span><b id="here-budget-display">Shotgun batch not prepared</b></div><div><span>RentCast</span><b id="avm-cap-display">0 attempts authorized</b></div><div><span>Automatic retries</span><b>None</b></div><p class="hint">The provider-attempt counter in the footer is cumulative for this browser session. The Valhalla search starts automatically within this exact batch limit when the local server is ready.</p></div>
 <div id="here-approval-group"><input id="here-key" type="password" hidden aria-hidden="true" tabindex="-1">
 <p class="hint">Routes use the configured self-hosted Valhalla server. Editing settings makes no provider call.</p>
-<button id="send-here" class="primary" disabled>Waiting for prepared Valhalla batch</button><div id="here-result" class="hint" role="status">Prepare the mandatory Shotgun batch first. It starts automatically when Valhalla is ready. Failed attempts count; no automatic retries.</div></div>
+<button id="send-here" class="primary" disabled>Waiting for prepared Valhalla batch</button>
+<section id="valhalla-progress-report" class="valhalla-progress-report" aria-label="Valhalla route search progress" hidden>
+<strong id="valhalla-progress-heading">Route search prepared</strong>
+<p id="valhalla-progress-summary">0 route requests finished.</p>
+<progress id="valhalla-progress-bar" value="0" max="1" aria-label="Completed Valhalla route requests"></progress>
+<p id="valhalla-progress-detail">Waiting for the local connection.</p>
+</section>
+<div id="here-result" class="hint" role="status">Prepare the mandatory Shotgun batch first. It starts automatically when Valhalla is ready. Failed attempts count; no automatic retries.</div></div>
 <button id="download-request" class="secondary" disabled>Download the reviewed request</button><button id="download-response" class="secondary" disabled>Download the last Valhalla response</button>
 <button id="import-button" class="secondary">Load saved routes</button><input id="import-file" type="file" accept="application/json,.json" hidden>
 <p class="hint">Load a saved session or candidate-set JSON. Loading sends no Valhalla request.</p>
