@@ -7,7 +7,7 @@
   function random(state){state.value^=state.value<<13;state.value^=state.value>>>17;state.value^=state.value<<5;return (state.value>>>0)/4294967296;}
   function axial(id){const m=/^(CHI1K-V1|REG1K-V1-LAT[+-]\d+-LON[+-]\d+)-Q([+-]?\d+)-R([+-]?\d+)$/.exec(id||'');return m?{grid:m[1],q:Number(m[2]),r:Number(m[3])}:null;}
   function hops(a,b){if(!a||!b||a.grid!==b.grid)return null;return(Math.abs(a.q-b.q)+Math.abs(a.r-b.r)+Math.abs(a.q-b.q+a.r-b.r))/2;}
-  function pruneLowestRankedRoutes(results,enabledRouteIds,fraction=0.4){
+  function pruneLowestRankedRoutes(results,enabledRouteIds,fraction=3/8){
     if(!Array.isArray(results)||!Array.isArray(enabledRouteIds)||!Number.isFinite(fraction)||fraction<0||fraction>=1)throw Error('Automatic route pruning needs ranked routes, enabled route IDs, and a fraction from 0 to less than 1.');
     const enabled=new Set(enabledRouteIds),ranked=results.filter(row=>enabled.has(row.route_id)).slice().sort((a,b)=>{
       const ar=Number.isInteger(a.rank)?a.rank:Number.MAX_SAFE_INTEGER,br=Number.isInteger(b.rank)?b.rank:Number.MAX_SAFE_INTEGER;
@@ -17,7 +17,7 @@
     const disabled=ranked.slice(0,count).map(row=>row.route_id),disabledSet=new Set(disabled);
     return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,considered_route_ids:ranked.map(row=>row.route_id),fraction,minimum_survivors:ranked.length?1:0};
   }
-  function pruneLeastCoveredUnprotectedRoutesBeforeSampling(results,enabledRouteIds,fraction=0.4){
+  function pruneLeastCoveredUnprotectedRoutesBeforeSampling(results,enabledRouteIds,fraction=3/8){
     if(!Array.isArray(results)||!Array.isArray(enabledRouteIds)||!Number.isFinite(fraction)||fraction<0||fraction>=1)throw Error('Round 0 needs known coverage, enabled route IDs, and a fraction from 0 to less than 1.');
     const byId=new Map(results.map(row=>[row.route_id,row]));
     if(new Set(enabledRouteIds).size!==enabledRouteIds.length||enabledRouteIds.some(id=>!byId.has(id)))throw Error('Round 0 requires one coverage result for every enabled route.');
@@ -27,7 +27,7 @@
     const target=Math.min(Math.max(0,ranked.length-1),Math.ceil(unprotected.length*fraction));
     const disabled=unprotected.slice(0,target).map(row=>row.route_id);
     const disabledSet=new Set(disabled);
-    return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,protected_route_ids:protectedRoutes.map(row=>row.route_id),unprotected_route_ids:unprotected.map(row=>row.route_id),considered_route_ids:ranked.map(row=>row.route_id),known_coverage:ranked.map(row=>({route_id:row.route_id,coverage_pct:coverage(row),protected:coverage(row)<20,culled:disabledSet.has(row.route_id)})),protection_threshold_pct:20,fraction,rule:'Protect known coverage below 20%; cull ceil(40%) of unprotected routes with the lowest known coverage, using route ID to break ties and keeping at least one survivor.'};
+    return{enabled_route_ids:enabledRouteIds.filter(id=>!disabledSet.has(id)),disabled_route_ids:disabled,protected_route_ids:protectedRoutes.map(row=>row.route_id),unprotected_route_ids:unprotected.map(row=>row.route_id),considered_route_ids:ranked.map(row=>row.route_id),known_coverage:ranked.map(row=>({route_id:row.route_id,coverage_pct:coverage(row),protected:coverage(row)<20,culled:disabledSet.has(row.route_id)})),protection_threshold_pct:20,fraction,rule:'Protect known coverage below 20%; cull ceil(3/8) of unprotected routes with the lowest known coverage, using route ID to break ties and keeping at least one survivor.'};
   }
   function selectTopRankedRoutesForNextRound(results,candidateRouteIds,previousEnabledRouteIds=[],fraction=0.3){
     if(!Array.isArray(results)||!Array.isArray(candidateRouteIds)||!Array.isArray(previousEnabledRouteIds)||!Number.isFinite(fraction)||fraction<=0||fraction>1)throw Error('Next-round inclusion needs the full ranked pool and a fraction above 0 through 1.');
@@ -46,7 +46,7 @@
   function routeQuotaForCullRound(candidateCount,cullRound){
     if(!Number.isInteger(candidateCount)||candidateCount<1||candidateCount>292||!Number.isInteger(cullRound)||cullRound<1)throw Error('A cull quota needs the original candidate count and a positive cull round.');
     let survivors=candidateCount;
-    for(let round=0;round<cullRound&&survivors>1;round++)survivors=Math.max(1,survivors-Math.ceil(survivors/3));
+    for(let round=0;round<cullRound&&survivors>1;round++)survivors=Math.max(1,survivors-Math.ceil(survivors*3/8));
     return survivors;
   }
   function selectRoutesForCullRound(results,candidateRouteIds,previousEnabledRouteIds,cullRound,protectedRouteIds=[]){
@@ -58,13 +58,13 @@
     const selected=new Set(ranked.filter(id=>protectedSet.has(id)));
     for(const id of ranked){if(selected.size>=quota)break;selected.add(id);}
     const included=ranked.filter(id=>selected.has(id));
-    return{enabled_route_ids:included,disabled_route_ids:ranked.filter(id=>!selected.has(id)),ranked_route_ids:ranked,promoted_route_ids:included.filter(id=>!prior.has(id)),demoted_route_ids:candidateRouteIds.filter(id=>prior.has(id)&&!selected.has(id)),candidate_count:candidateRouteIds.length,cull_round:cullRound,cull_fraction:1/3,quota,protected_route_ids:protectedRouteIds.slice(),protected_over_quota:Math.max(0,protectedRouteIds.length-quota)};
+    return{enabled_route_ids:included,disabled_route_ids:ranked.filter(id=>!selected.has(id)),ranked_route_ids:ranked,promoted_route_ids:included.filter(id=>!prior.has(id)),demoted_route_ids:candidateRouteIds.filter(id=>prior.has(id)&&!selected.has(id)),candidate_count:candidateRouteIds.length,cull_round:cullRound,cull_fraction:3/8,quota,protected_route_ids:protectedRouteIds.slice(),protected_over_quota:Math.max(0,protectedRouteIds.length-quota)};
   }
   function screenRoundZeroWithQuota(results,candidateRouteIds){
     const byId=new Map(results.map(row=>[row.route_id,row])),coverage=row=>Number.isFinite(row.coverage_pct)?row.coverage_pct:0;
     if(candidateRouteIds.some(id=>!byId.has(id)))throw Error('Round 0 needs known coverage for every candidate.');
     const protectedRouteIds=candidateRouteIds.filter(id=>coverage(byId.get(id))<20),selection=selectRoutesForCullRound(results,candidateRouteIds,candidateRouteIds,1,protectedRouteIds);
-    return{...selection,considered_route_ids:candidateRouteIds.slice(),unprotected_route_ids:candidateRouteIds.filter(id=>!protectedRouteIds.includes(id)),known_coverage:candidateRouteIds.map(id=>({route_id:id,coverage_pct:coverage(byId.get(id)),protected:protectedRouteIds.includes(id),culled:selection.disabled_route_ids.includes(id)})),protection_threshold_pct:20,rule:'Round 0 excludes the bottom one-third (rounded up) and fills the remaining slots from the current ranking, keeping every route under 20% known coverage even when protection exceeds the nominal quota.'};
+    return{...selection,considered_route_ids:candidateRouteIds.slice(),unprotected_route_ids:candidateRouteIds.filter(id=>!protectedRouteIds.includes(id)),known_coverage:candidateRouteIds.map(id=>({route_id:id,coverage_pct:coverage(byId.get(id)),protected:protectedRouteIds.includes(id),culled:selection.disabled_route_ids.includes(id)})),protection_threshold_pct:20,rule:'Round 0 excludes the bottom three-eighths (rounded up) and fills the remaining slots from the current ranking, keeping every route under 20% known coverage even when protection exceeds the nominal quota.'};
   }
   function evolve(routes,context,cap,seed,generation){
     if(!Array.isArray(routes)||!routes.length||routes.length>292)throw Error('Ranking evolution needs 1–292 candidate routes.');
