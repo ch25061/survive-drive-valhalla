@@ -65,10 +65,10 @@
 <button id="check-local-valhalla" type="button" class="secondary">Check local Valhalla connection</button>
 <div id="draft-summary" class="inset">Prepare the mandatory Start and Destination Escape Gates first.</div>
 <details open><summary>Exact request settings</summary><pre id="request-preview">No request prepared.</pre></details>
-<div class="budget"><h3>This batch’s call budget</h3><div><span>Valhalla</span><b id="here-budget-display">Shotgun batch not prepared</b></div><div><span>RentCast</span><b id="avm-cap-display">0 attempts authorized</b></div><div><span>Automatic retries</span><b>None</b></div><p class="hint">The provider-attempt counter in the footer is cumulative for this browser session; this batch budget is the current approval ceiling.</p></div>
+<div class="budget"><h3>This batch’s call budget</h3><div><span>Valhalla</span><b id="here-budget-display">Shotgun batch not prepared</b></div><div><span>RentCast</span><b id="avm-cap-display">0 attempts authorized</b></div><div><span>Automatic retries</span><b>None</b></div><p class="hint">The provider-attempt counter in the footer is cumulative for this browser session. The Valhalla search starts automatically within this exact batch limit when the local server is ready.</p></div>
 <div id="here-approval-group"><input id="here-key" type="password" hidden aria-hidden="true" tabindex="-1">
 <p class="hint">Routes use the configured self-hosted Valhalla server. Editing settings makes no provider call.</p>
-<button id="send-here" class="primary" disabled>Approve mandatory Shotgun batch</button><div id="here-result" class="hint" role="status">Prepare and review the mandatory Shotgun batch first. Failed attempts count; no automatic retries.</div></div>
+<button id="send-here" class="primary" disabled>Waiting for prepared Valhalla batch</button><div id="here-result" class="hint" role="status">Prepare the mandatory Shotgun batch first. It starts automatically when Valhalla is ready. Failed attempts count; no automatic retries.</div></div>
 <button id="download-request" class="secondary" disabled>Download the reviewed request</button><button id="download-response" class="secondary" disabled>Download the last Valhalla response</button>
 <button id="import-button" class="secondary">Load saved routes</button><input id="import-file" type="file" accept="application/json,.json" hidden>
 <p class="hint">Load a saved session or candidate-set JSON. Loading sends no Valhalla request.</p>
