@@ -11,8 +11,8 @@ assert.match(html,/<details><summary>Exact plan data<\/summary><pre id="pool-scr
   'exact plan data should remain available for review and audit');
 assert.match(app,/Planned: '\+screen\.plan\.cells\.length\+' new RentCast API pull/,
   'visible plan summary should lead with the concise API pull count');
-assert.match(app,/The exact frozen plan will auto-approve after a short pause if its quota, route selection, and cells stay unchanged\. No more than /,
-  'the exact-list auto-approval boundary must remain explicit');
+assert.match(app,/Manual follow-up rounds wait for your Run click; the initial screen can start automatically after a short pause\. No more than /,
+  'the exact-list Manual launch boundary must remain explicit');
 assert.match(app,/purpose:'candidate_pool_quota'/,
   'pool screening must retain the exact route-quota authorization path');
 console.log('Passed pool plan display contract: concise pull count, collapsed per-route details, and preserved exact-plan audit and authorization disclosures.');

@@ -21,7 +21,8 @@ assert.match(html,/up to 3 additional AVM rounds/i,'the authorized automatic rou
 assert.match(html,/New unknown cells per enabled route/i);
 assert.match(html,/both initially and in later rounds/i);
 assert.match(html,/Run one Manual round/i);
-assert.match(html,/Select Run one Manual round after editing route inclusion\. Its exact plan starts after a short pause if your settings stay unchanged/i);
+assert.match(html,/Calculate the exact lookup count after editing route inclusion, then review it and select Run one Manual round to launch/i);
+assert.match(html,/id="automatic-cycle-cost"/,'Automatic route changes have a visible credit estimate');
 assert.match(css,/\.pool-evolution-controls/);
 assert.match(css,/\.route-quota-toggle/);
 assert.match(app,/function poolAttemptedCellIds\(\)/,'prior failed or uncertain cells remain excluded from future retries');
