@@ -168,6 +168,7 @@ async function sendValhalla(body,env){
   }catch(error){const type=['TypeError','SyntaxError','TimeoutError','AbortError','RangeError'].includes(error?.name)?error.name:'Error',code=type==='TimeoutError'||type==='AbortError'?'valhalla_timeout':phase==='decode_response'?'valhalla_invalid_response':'valhalla_network_or_runtime_error';console.error(JSON.stringify({provider:'Valhalla',round_id:body.round_id,phase,error_type:type,error_code:code}));return json({error:code==='valhalla_timeout'?'Valhalla timed out. Its attempt counts; no retry was made.':code==='valhalla_invalid_response'?'Valhalla returned an unusable route. Its attempt counts; no retry was made.':'The Valhalla connection failed. Its attempt counts; no retry was made.',error_code:code,provider_attempted:true},502);}
 }
 async function approveAvm(body,env){
+  if(body?.purpose==='automatic_route_evolution')return json({error:'Multi-round AVM authorization is retired. Calculate and approve one exact-cost round at a time. No provider call sent.'},410);
   if(!env.RENTCAST_API_KEY)return json({error:'RentCast needs a server-side RENTCAST_API_KEY before requests can be approved. No provider call sent.'},428);
   try{await database(env).batch([database(env).prepare('DELETE FROM rentcast_rate_seconds WHERE second < ?').bind(Math.floor(Date.now()/1000)-86400)]);}catch{return json({error:'The shared RentCast rate limiter is unavailable. No provider plan was approved.'},503);}
   if(body?.purpose==='automatic_route_evolution'){
