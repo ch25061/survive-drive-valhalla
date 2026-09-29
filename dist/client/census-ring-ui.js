@@ -1,6 +1,13 @@
 'use strict';
 // Loaded before app.js; work starts only through its explicit GO/Retry handlers.
 const CENSUS_CIRCLE_TIMEOUT_MS=60000;
+// A completed Census response can be saved again after a database outage without another Census request.
+const pendingCensusCircleSaves={start:new Map(),destination:new Map()};
+function pendingCensusKey(circleId){return 'survive-drive-census-pending-'+circleId;}
+function rememberPendingCensus(side,circleId,pending){pendingCensusCircleSaves[side].set(circleId,pending);try{globalThis.sessionStorage?.setItem(pendingCensusKey(circleId),JSON.stringify(pending));}catch{/* Keep the response in this tab's memory when browser storage is full or disabled. */}}
+function restorePendingCensus(side,plan){for(const circle of plan.circles){if(pendingCensusCircleSaves[side].has(circle.id))continue;try{const raw=globalThis.sessionStorage?.getItem(pendingCensusKey(circle.id));if(!raw)continue;const pending=JSON.parse(raw);if(pending.ring_id===plan.id&&[circle.id,circle.id+'-retry-2',circle.id+'-retry-3'].includes(pending.claim_id)&&pending.payload&&typeof pending.payload==='object')pendingCensusCircleSaves[side].set(circle.id,pending);}catch{/* Corrupt or unavailable browser storage cannot authorize another Census request. */}}}
+function forgetPendingCensus(side,circleId){pendingCensusCircleSaves[side].delete(circleId);try{globalThis.sessionStorage?.removeItem(pendingCensusKey(circleId));}catch{/* The confirmed server cache remains authoritative. */}}
+function markCensusCircleSaved(side,circleId){state.uncertainAttempts=state.uncertainAttempts.filter(item=>!(item.provider==='Census TIGERweb'&&item.page_id===circleId&&item.side===side&&item.scope==='circle_not_cached'));providerCounts();}
 function censusCircleError(error){return ['TimeoutError','AbortError'].includes(error?.name)?Error('Census road request exceeded the 60-second limit.'):error;}
 async function checkCensusRing(origin,options,epoch,side,retry=false){
   const label=side==='start'?'Start':'Destination',status=$('shotgun-status'+(side==='destination'?'-destination':'')),params={origin,inner_miles:options.inner_miles,outer_miles:options.outer_miles},expected=window.SurviveCensusRing.plan(params),current=()=>epoch===state.catalogFaultEpochs[side];
@@ -14,8 +21,18 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
   try{
     message('WAIT — '+label+': checking saved road data for '+expected.circles.length+' small circles covering the '+params.inner_miles+'–'+params.outer_miles+' mile band. No action needed.');
     const prepared=await post('plan');if(!current())return;if(prepared.plan?.id!==expected.id||prepared.plan.maximum_source_requests!==expected.circles.length)throw Error('The returned road-search plan does not match these settings.');
-    let catalog=prepared.catalog;
-    if(!catalog){let cursor=0;
+    let catalog=prepared.catalog;restorePendingCensus(side,expected);
+    if(!catalog){
+      for(const [circleId,pending] of pendingCensusCircleSaves[side]){
+        if(pending.ring_id!==expected.id)continue;
+        const index=expected.circles.findIndex(circle=>circle.id===circleId);
+        if(index<0)continue;
+        message('WAIT — '+label+': saving a Census response already received for circle '+(index+1)+'. No new Census request for this circle.');
+        await post('ingest',{circle_index:index,claim_id:pending.claim_id,census_payload:pending.payload});
+        forgetPendingCensus(side,circleId);
+        markCensusCircleSaved(side,circleId);
+      }
+      let cursor=0;
       async function run(){while(!stopped&&current()&&cursor<expected.circles.length){const index=cursor++,circle=expected.circles[index];let sent=false,ingested=false;
         try{
           message('WAIT — '+label+': '+completed+' of '+expected.circles.length+' circles finished. Checking circle '+(index+1)+'. Up to 3 at a time; no action needed.');
@@ -33,7 +50,10 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
             const response=await appFetch(descriptor.url,{method:'GET',headers:{Accept:'application/json'},redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(CENSUS_CIRCLE_TIMEOUT_MS)}),payload=await censusResponseJson(response,descriptor.maximum_response_bytes);
             // Cache a request that already completed even if settings changed.
             // This does not launch another Census request or restore old gates.
+            rememberPendingCensus(side,circle.id,{ring_id:expected.id,claim_id:claim.claim_id,payload});
             await post('ingest',{circle_index:index,claim_id:claim.claim_id,census_payload:payload});ingested=true;
+            forgetPendingCensus(side,circle.id);
+            markCensusCircleSaved(side,circle.id);
           }
           completed++;
         }catch(error){if(sent&&!ingested)state.uncertainAttempts.push({provider:'Census TIGERweb',page_id:circle.id,side,scope:'circle_not_cached'});if(!failure)failure={index,error:censusCircleError(error)};stopped=true;}
@@ -47,7 +67,7 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
     state.intersectionCatalogs[side]=valid;if(side==='start')state.intersectionCatalog=valid;state.catalogFaults[side]=null;setCatalogRetryCue(side);
     log(label+' ring complete: '+expected.circles.length+' circles; '+attempted+' Census requests this run; '+(catalog.search_summary?.unique_roads??0)+' unique roads; '+(catalog.search_summary?.duplicate_roads_removed??0)+' duplicate road results removed.');
     suggestShotgunGates({side,skipPageFault:true});
-  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);status.textContent=error.message+' No automatic retry. Select Retry '+label+' Census lookup to resume using saved circles.';notice(status.textContent);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
+  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);const pending=[...pendingCensusCircleSaves[side].values()].filter(item=>item.ring_id===expected.id).length;status.textContent=error.message+' No automatic retry. Select Retry '+label+' Census lookup to resume using saved circles.'+(pending?' Retry first saves '+pending+' completed Census response'+(pending===1?'':'s')+' still held in this tab, without requesting those circles again.':'');notice(status.textContent);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
   finally{endWorking();state.catalogBusy[side]=false;settled();providerCounts();updateNextAction();}
 }
 
