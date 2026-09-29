@@ -21,19 +21,20 @@ const routes=[{id:'alpha',name:'Alpha',cells:[]},{id:'beta',name:'Beta',cells:[]
 state.poolScreening.results=[{route_id:'alpha',rank:1},{route_id:'beta',rank:2}];
 assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>[card.route.id,card.index]),[['alpha',0],['beta',1]]);
 
-// Equal Red shares use the returned travel time before coverage or route name.
+// Equal Red shares use the higher distance-weighted PPSQFT, then travel time.
 state.redThresholdPpsqft=250;
 const evidenceCell=(id,distance,value)=>({cell_id:id,outside_here_distance_m:distance,estimate_ppsqft:value});
 const tieRoutes=[
   {id:'slow',name:'A slow route',duration_s:1200,cells:[evidenceCell('slow-red',100,200),evidenceCell('slow-green',100,300)]},
   {id:'fast',name:'Z fast route',duration_s:600,cells:[evidenceCell('fast-red',100,200),evidenceCell('fast-green',100,300),evidenceCell('fast-unknown',100,null)]},
+  {id:'higher-value',name:'Higher value, longer trip',duration_s:1800,cells:[evidenceCell('higher-red',100,200),evidenceCell('higher-green',100,500)]},
   {id:'least-red',name:'Least Red',duration_s:1800,cells:[evidenceCell('least-green',200,300)]},
   {id:'no-time',name:'No travel time',duration_s:null,cells:[evidenceCell('untimed-red',100,200),evidenceCell('untimed-green',100,300)]}
 ];
 const tieResults=ui.rankPoolResults(tieRoutes,null,[]),tieRanks=new Map(tieResults.map(row=>[row.route_id,row.rank]));
-assert.deepEqual(Array.from(['least-red','fast','slow','no-time'],id=>tieRanks.get(id)),[1,2,3,4]);
+assert.deepEqual(Array.from(['least-red','higher-value','fast','slow','no-time'],id=>tieRanks.get(id)),[1,2,3,4,5]);
 state.routes=tieRoutes;state.poolScreening.results=tieResults;
-assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['least-red','fast','slow','no-time']);
+assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['least-red','higher-value','fast','slow','no-time']);
 state.routes=routes;
 
 // A cutoff-driven rerank can reorder the visible cards; their stored indices

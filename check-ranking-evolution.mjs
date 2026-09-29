@@ -13,9 +13,9 @@ const routes=[
   {id:'stable',name:'Stable',cells:[stableRed,stableGreen]}
 ];
 const results={ranked_routes:[{route_id:'promising',rank:2},{route_id:'known',rank:1},{route_id:'stable',rank:3}],attempted_cell_ids:[],red_threshold_ppsqft:250};
-const tiedRoutes=[{id:'slow-tie',name:'A slow route',duration_s:1200,cells:[cell(30,0,100,200),cell(31,0,100,300)]},{id:'fast-tie',name:'Z fast route',duration_s:600,cells:[cell(32,0,100,200),cell(33,0,100,300)]}];
+const tiedRoutes=[{id:'slow-tie',name:'A slow route',duration_s:1200,cells:[cell(30,0,100,200),cell(31,0,100,500)]},{id:'fast-tie',name:'Z fast route',duration_s:600,cells:[cell(32,0,100,200),cell(33,0,100,300)]}];
 const tiedEvolution=context.SurvivePool.evolve(tiedRoutes,{ranked_routes:[],attempted_cell_ids:[],red_threshold_ppsqft:250},0,'time-tie',1);
-assert.equal(tiedEvolution.rank_intervals.find(row=>row.route_id==='fast-tie').current_rank,1,'ranking evolution breaks equal Red shares by shorter travel time');
+assert.equal(tiedEvolution.rank_intervals.find(row=>row.route_id==='slow-tie').current_rank,1,'ranking evolution breaks equal Red shares by higher weighted PPSQFT before travel time');
 const first=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
 const repeat=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
 assert.equal(first.algorithm,'rank_interval_red_frontier_v1');
