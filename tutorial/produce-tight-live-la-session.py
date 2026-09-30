@@ -19,7 +19,7 @@ SCRIPT = json.loads((OUT / 'live-la-edited-script.json').read_text(encoding='utf
 RANGES = [
     [(0, 10), (20, 28), (39, 55)],
     [(58, 69), (108, 118)],
-    [(119, 130), (155, 177)],
+    [(175, 189)],
     [(178, 186), (204, 225)],
     [(320, 335)],
     [(258, 270), (310, 320), (337, 354)],
@@ -63,6 +63,8 @@ def render(item):
     # and the route map from the original pre-lookup footage, omitting the
     # selection controls above them. Keep the chapter and narration timing.
     framing = 'crop=1320:742:566:254,scale=1920:1080,' if chapter['id'] == 'round0' else ''
+    if chapter['id'] == 'gates':
+        framing = 'crop=416:602:48:60,scale=-2:980,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0xf0f4f8,'
     filters = [f'[{i}:v]{framing}setpts=PTS-STARTPTS[v{i}]' for i in range(len(ranges))]
     filters.append(''.join(f'[v{i}]' for i in range(len(ranges))) +
                    f'concat=n={len(ranges)}:v=1:a=0,'
