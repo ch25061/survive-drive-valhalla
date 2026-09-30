@@ -1,62 +1,50 @@
 [
   {
-    "title": "What this recorded session shows",
-    "start": 0.0,
-    "description": "intro"
+    "title": "Set the trip",
+    "start": 0.0
   },
   {
-    "title": "Set both ends of the trip",
-    "start": 59.75,
-    "description": "trip"
+    "title": "Review road preferences",
+    "start": 87.0
   },
   {
-    "title": "Choose road preferences",
-    "start": 118.0,
-    "description": "preferences"
+    "title": "Build the escape gates",
+    "start": 178.5
   },
   {
-    "title": "Understand Escape Gates",
-    "start": 189.15,
-    "description": "gates"
+    "title": "Search all pairings",
+    "start": 267.0
   },
   {
-    "title": "Load the clearly labeled training file",
-    "start": 263.38,
-    "description": "import"
+    "title": "Read Round Zero",
+    "start": 337.5
   },
   {
-    "title": "Run the free Round 0 screen",
-    "start": 326.25,
-    "description": "round0"
+    "title": "Calculate the exact first cost",
+    "start": 441.0
   },
   {
-    "title": "Read the ranking and compare routes",
-    "start": 403.75,
-    "description": "ranking"
+    "title": "Watch the first evidence round",
+    "start": 532.5
   },
   {
-    "title": "Read and adjust the honeycomb",
-    "start": 481.7,
-    "description": "map"
+    "title": "Compare and run another round",
+    "start": 645.0
   },
   {
-    "title": "Choose who receives more evidence",
-    "start": 554.2,
-    "description": "selection"
+    "title": "Inspect a map point",
+    "start": 762.0
   },
   {
-    "title": "Calculate the exact One Round count",
-    "start": 628.25,
-    "description": "cost"
+    "title": "Narrow the pool again",
+    "start": 900.0
   },
   {
-    "title": "Look around before choosing",
-    "start": 708.4,
-    "description": "inspect"
+    "title": "Reach two finalists",
+    "start": 1012.5
   },
   {
-    "title": "Record and export a decision",
-    "start": 777.4,
-    "description": "decision"
+    "title": "Review before choosing",
+    "start": 1132.5
   }
 ]

@@ -65,7 +65,7 @@ const server=createServer(async(request,response)=>{
     try{response.writeHead(200,{'Content-Type':contentType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});response.end(readFileSync(resolve(import.meta.dirname,file)));}catch{send(response,500,{error:'Local page is unavailable.'},origin);}return;
   }
   if(request.url==='/status'&&request.method==='GET'){
-    try{const check=await fetch(engine+'/status',{signal:AbortSignal.timeout(3000),redirect:'error'});send(response,200,{valhalla_ready:check.ok,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, and Florida'},origin);}catch{send(response,200,{valhalla_ready:false,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, and Florida'},origin);}return;
+    try{const check=await fetch(engine+'/status',{signal:AbortSignal.timeout(3000),redirect:'error'});send(response,200,{valhalla_ready:check.ok,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California'},origin);}catch{send(response,200,{valhalla_ready:false,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California'},origin);}return;
   }
   if(request.url!=='/route'||request.method!=='POST'){send(response,404,{error:'Not found.'},origin);return;}
   let input,payload;
