@@ -21,7 +21,7 @@ RANGES = [
     [(58, 69), (108, 118)],
     [(119, 130), (155, 177)],
     [(178, 186), (204, 225)],
-    [(210, 227), (239, 252)],
+    [(320, 335)],
     [(258, 270), (310, 320), (337, 354)],
     [(355, 367), (406, 428)],
     [(468, 482), (498, 525)],
@@ -59,7 +59,11 @@ def render(item):
     for start, end in ranges:
         args += ['-ss', str(start), '-t', str(end - start), '-i', str(CAPTURE)]
     args += ['-i', str(wav)]
-    filters = [f'[{i}:v]setpts=PTS-STARTPTS[v{i}]' for i in range(len(ranges))]
+    # Prescreening discusses the evidence on the route cards. Frame those cards
+    # and the route map from the original pre-lookup footage, omitting the
+    # selection controls above them. Keep the chapter and narration timing.
+    framing = 'crop=1320:742:566:254,scale=1920:1080,' if chapter['id'] == 'round0' else ''
+    filters = [f'[{i}:v]{framing}setpts=PTS-STARTPTS[v{i}]' for i in range(len(ranges))]
     filters.append(''.join(f'[v{i}]' for i in range(len(ranges))) +
                    f'concat=n={len(ranges)}:v=1:a=0,'
                    f'fps=12,format=yuv420p,tpad=stop_mode=clone:stop_duration={length},'
