@@ -1,136 +1,283 @@
 WEBVTT
 
-00:00:00,000 --> 00:00:02,932
-This is a new, live Survive Drive session.
+00:00:00.750 --> 00:00:08.435
+We begin with an empty Survive Drive trip, using Santa Clarita as the start and Long Beach as the destination.
 
-00:00:02,932 --> 00:00:07,329
-I am setting a Santa Clarita start and a Long Beach destination.
+00:00:08.435 --> 00:00:15.736
+Enter the two places in the trip panel, then check that the resolved locations are the ones you intended.
 
-00:00:07,329 --> 00:00:13,925
-The map and route candidates are still empty, so you can follow the search from its first click.
+00:00:15.736 --> 00:00:21.499
+Similar place names can refer to different locations, so this is a useful first check.
 
-00:01:27,000 --> 00:01:30,079
-Before searching, I review the Valhalla road controls.
+00:00:21.499 --> 00:00:26.495
+At this point, we have not searched for routes or requested property evidence.
 
-00:01:30,079 --> 00:01:34,697
-Highway and toll preferences stay at their neutral defaults for this example.
+00:00:26.495 --> 00:00:35.717
+Think of the workflow as a sequence: set the trip, find alternatives, compare the available evidence, inspect the finalists, and make your own choice.
 
-00:01:34,697 --> 00:01:41,625
-We can change them here, but the new search would then need its own route and evidence review.
+00:00:35.717 --> 00:00:39.175
+This recording follows that sequence in the actual app.
 
-00:02:58,500 --> 00:03:03,245
-I request four suggested escape gates near each end of the trip.
+00:00:44.750 --> 00:00:47.141
+Before searching, review the road preferences.
 
-00:03:03,245 --> 00:03:07,200
-The circles and road suggestions appear in the app itself.
+00:00:47.141 --> 00:00:52.321
+In this example, the highway and toll controls remain at their neutral defaults.
 
-00:03:07,200 --> 00:03:15,900
-With the no-gate choice on both ends, four gates each way create five times five, or twenty five, start and destination pairings.
+00:00:52.321 --> 00:00:56.705
+Those settings affect the alternatives that the routing engine will consider.
 
-00:04:27,000 --> 00:04:31,029
-The local Valhalla server now searches those twenty five pairings.
+00:00:56.705 --> 00:01:01.885
+Choose the preferences that fit your trip before you generate the candidate pool.
 
-00:04:31,029 --> 00:04:33,850
-It returns twenty seven distinct route candidates.
+00:01:01.885 --> 00:01:09.855
+A change in preferences can produce a different search, so the routes and their evidence need to be reviewed again.
 
-00:04:33,850 --> 00:04:40,700
-This is real route data for this session; no property lookup was needed to make the routes.
+00:01:09.855 --> 00:01:14.636
+Notice that routing and property sampling are separate decisions in this workflow.
 
-00:05:37,500 --> 00:05:43,560
-Round Zero ranks the whole candidate pool using evidence already saved in the shared cache.
+00:01:14.636 --> 00:01:19.020
+Setting up the road search does not require a property lookup.
 
-00:05:43,560 --> 00:05:51,640
-Each of these twenty seven candidates has less than twenty percent known coverage, so the first screen protects them all.
+00:01:19.020 --> 00:01:24.200
+We are preparing the alternatives first, then deciding which alternatives need additional evidence.
 
-00:05:51,640 --> 00:05:55,276
-An included route is eligible for another evidence round.
+00:01:29.750 --> 00:01:35.714
+Escape Gates give the search more ways to leave the starting area and approach the destination.
 
-00:05:55,276 --> 00:05:57,700
-It is not a driving recommendation.
+00:01:35.714 --> 00:01:40.188
+Here, I request four suggested gates near each end of the trip.
 
-00:07:21,000 --> 00:07:27,373
-Five new lookups per route would exceed the current batch limit, so I set the quota to three.
+00:01:40.188 --> 00:01:43.543
+The app displays the circles and suggested road locations.
 
-00:07:27,373 --> 00:07:31,975
-I also briefly deselect and reselect a candidate to show the estimate respond.
+00:01:43.543 --> 00:01:46.898
+There is also a no-gate option at each end.
 
-00:07:31,975 --> 00:07:35,870
-The free cache check then finds twenty six unique, uncached cells.
+00:01:46.898 --> 00:01:50.625
+That gives us five starting choices and five destination choices.
 
-00:07:35,870 --> 00:07:41,889
-At one credit and one cent per new lookup, this round is capped at twenty six cents.
+00:01:50.625 --> 00:01:53.235
+Five times five is twenty five pairings.
 
-00:07:41,889 --> 00:07:45,075
-I start it only after seeing that exact count.
+00:01:53.235 --> 00:01:58.081
+This is why the search can explore more than a single direct route.
 
-00:08:52,500 --> 00:08:55,001
-The first RentCast round is underway.
+00:01:58.081 --> 00:02:04.418
+A gate is part of the route search, not a declaration that the surrounding area is safe.
 
-00:08:55,001 --> 00:08:58,753
-Each returned cell updates every route that shares it.
+00:02:04.418 --> 00:02:07.400
+Check the suggestions in the map before proceeding.
 
-00:08:58,753 --> 00:09:04,171
-The twenty six calls succeed, and the app reranks all twenty seven candidates.
+00:02:12.750 --> 00:02:17.858
+The local Valhalla routing server searches the twenty five start and destination pairings.
 
-00:09:04,171 --> 00:09:07,506
-The next included pool narrows to eleven routes.
+00:02:17.858 --> 00:02:22.573
+The completed search returns twenty seven distinct route candidates in this session.
 
-00:09:07,506 --> 00:09:12,925
-Unknown cells remain unknown; the app does not treat them as low-value cells.
+00:02:22.573 --> 00:02:30.432
+Pairings and candidates are different counts: a pairing can yield route alternatives, and the resulting pool is what we compare.
 
-00:10:45,000 --> 00:10:48,004
-Here I compare the new route cards.
+00:02:30.432 --> 00:02:33.968
+No property lookup was needed to generate these routes.
 
-00:10:48,004 --> 00:10:53,582
-Distance, travel time, known coverage, and weighted price per square foot all matter.
+00:02:33.968 --> 00:02:42.612
+We now have a set of possible paths, with distance and travel time information, but generating a candidate does not endorse it.
 
-00:10:53,582 --> 00:10:57,443
+00:02:42.612 --> 00:02:50.078
+The next task is to compare those paths using saved evidence and decide where additional sampling will be useful.
+
+00:02:50.078 --> 00:02:54.400
+I have cut the waiting between the request and the results.
+
+00:02:59.750 --> 00:03:04.009
+Round Zero starts with evidence already available in the shared cache.
+
+00:03:04.009 --> 00:03:08.655
+It ranks the full candidate pool before asking for new property lookups.
+
+00:03:08.655 --> 00:03:12.526
+Pay attention to known coverage as well as the ranking.
+
+00:03:12.526 --> 00:03:20.269
+In this session, all twenty seven candidates begin below twenty percent known coverage, so the first screen protects them all.
+
+00:03:20.269 --> 00:03:24.528
+Included means that a route remains eligible for another evidence round.
+
+00:03:24.528 --> 00:03:28.787
+It does not mean that the route is recommended for driving.
+
+00:03:28.787 --> 00:03:33.433
+Unknown cells remain unknown; they are not assigned a low property value.
+
+00:03:33.433 --> 00:03:41.950
+A strong-looking score based on limited coverage deserves a different level of confidence from a score supported across most of the route.
+
+00:03:47.750 --> 00:03:51.319
+Now we check the cost of the first evidence round.
+
+00:03:51.319 --> 00:03:56.316
+The per-route quota controls how many new samples we request for an included route.
+
+00:03:56.316 --> 00:04:03.098
+Five per route would exceed the current batch limit in this example, so I reduce the quota to three.
+
+00:04:03.098 --> 00:04:08.094
+I also change a candidate selection briefly, which lets us see the estimate respond.
+
+00:04:08.094 --> 00:04:12.734
+The free cache check identifies twenty six unique cells that still need evidence.
+
+00:04:12.734 --> 00:04:16.660
+Shared cells are counted once, even when several routes use them.
+
+00:04:16.660 --> 00:04:24.156
+At this session's rate of one credit and one cent per new lookup, the plan is capped at twenty six cents.
+
+00:04:24.156 --> 00:04:27.725
+Review that exact count before using the separate Run control.
+
+00:04:32.750 --> 00:04:36.484
+The first evidence round makes those twenty six RentCast requests.
+
+00:04:36.484 --> 00:04:42.831
+Each returned cell can update every route that shares it, so one lookup can improve several comparisons.
+
+00:04:42.831 --> 00:04:45.818
+All twenty six calls succeed in this session.
+
+00:04:45.818 --> 00:04:53.658
+Once the round completes, the app reranks the full pool of twenty seven candidates, and eleven remain included for further sampling.
+
+00:04:53.658 --> 00:04:58.512
+The completed round is the point at which the next cull takes effect.
+
+00:04:58.512 --> 00:05:05.233
+Keep looking at the amount of evidence behind each route, rather than reading the new order as certainty.
+
+00:05:05.233 --> 00:05:12.700
+The progress wait has been shortened here; the completed count and the resulting pool are the useful checkpoints to read.
+
+00:05:17.750 --> 00:05:21.366
+The map adds geographic context to the route cards.
+
+00:05:21.366 --> 00:05:27.795
+It shows the selected route, colored property cells, and highway segments excluded from the property comparison.
+
+00:05:27.795 --> 00:05:32.616
+The colors describe the app's property-value signal; they are not personal-safety ratings.
+
+00:05:32.616 --> 00:05:38.643
+Known coverage also matters because a colored patch is only part of the route's evidence.
+
+00:05:38.643 --> 00:05:43.062
+Here I inspect a separate cell away from the candidate route.
+
+00:05:43.062 --> 00:05:46.679
+The app identifies that cell as outside the route.
+
+00:05:46.679 --> 00:05:51.500
+Evidence retrieved for an outside cell does not change the route ranking.
+
+00:05:51.500 --> 00:05:57.527
+The full demo session includes one separate map lookup in addition to its route rounds.
+
+00:05:57.527 --> 00:06:02.750
+Keep route evidence and exploratory map lookups distinct when reviewing the session cost.
+
+00:06:07.750 --> 00:06:10.530
+Before another round, compare the route cards.
+
+00:06:10.530 --> 00:06:16.091
+Distance, travel time, known coverage, and weighted price per square foot answer different questions.
+
+00:06:16.091 --> 00:06:21.651
+A route that scores well on one measure can involve a tradeoff on another.
+
+00:06:21.651 --> 00:06:25.225
 The next free check identifies fourteen new shared-cell lookups.
 
-00:10:57,443 --> 00:11:01,305
+00:06:25.225 --> 00:06:28.800
 After those fourteen calls finish, seven routes remain included.
 
-00:11:01,305 --> 00:11:06,025
-An excluded route can reenter if later evidence changes the ranking.
+00:06:28.800 --> 00:06:35.949
+The full pool is still reranked: a previously excluded route can return if the evidence changes its position.
 
-00:12:42,000 --> 00:12:49,471
-The map shows the selected route, its colored property cells, and the highway segments excluded from the property comparison.
+00:06:35.949 --> 00:06:39.126
+Earlier inclusion does not permanently reserve a slot.
 
-00:12:49,471 --> 00:12:53,404
-I also inspect a cell away from the candidate route.
+00:06:39.126 --> 00:06:49.850
+Use the next round to answer a comparison that still matters, and review the exact lookup count again rather than assuming it will match the previous round.
 
-00:12:53,404 --> 00:13:00,875
-That single extra lookup is clearly identified as outside the route, so it does not change the route rankings.
+00:06:55.750 --> 00:06:58.459
+The third plan identifies ten new cells.
 
-00:15:00,000 --> 00:15:03,497
-The third evidence plan calls for ten new cells.
+00:06:58.459 --> 00:07:03.878
+I review the plan and use the separate Run control to start the requests.
 
-00:15:03,497 --> 00:15:07,772
-I review the separate Run control, then let the requests finish.
+00:07:03.878 --> 00:07:08.522
+Once they finish, the included pool falls from seven routes to four.
 
-00:15:07,772 --> 00:15:10,880
-The included pool falls from seven to four.
+00:07:08.522 --> 00:07:16.263
+This session uses a thirty five percent culling setting for the evidence rounds, with whole-route rounding shown in the interface.
 
-00:15:10,880 --> 00:15:17,875
-All four rounds keep the culling percentage at thirty five percent, with whole-route rounding shown in the interface.
+00:07:16.263 --> 00:07:22.843
+The shrinking pool directs new sampling toward fewer alternatives, while the full ranking remains available for comparison.
 
-00:16:52,500 --> 00:16:55,549
-One more exact plan uses nine new lookups.
+00:07:22.843 --> 00:07:26.326
+It does not remove uncertainty from the property signal.
 
-00:16:55,549 --> 00:17:01,266
-When it completes, two routes are included and twenty five are excluded from further sampling.
+00:07:26.326 --> 00:07:32.131
+Read the completed round status, then inspect which routes moved and how their coverage changed.
 
-00:17:01,266 --> 00:17:07,745
-The shorter finalist is sixty six point three four miles and seventy five and a half minutes.
+00:07:32.131 --> 00:07:37.550
+I have removed the idle wait while keeping the plan and the completed result.
 
-00:17:07,745 --> 00:17:12,700
-It has about eighty one percent known cell coverage and six unknown cells.
+00:07:42.750 --> 00:07:45.755
+The fourth exact plan uses nine more lookups.
 
-00:18:52,500 --> 00:18:57,375
-I move into Look around and select a known route cell for inspection.
+00:07:45.755 --> 00:07:51.015
+At completion, two routes remain included and twenty five are excluded from further sampling.
 
-00:18:57,375 --> 00:19:05,250
-Street View can add visual context, but its imagery date matters, and the property value signal is not a safety verdict.
+00:07:51.015 --> 00:07:57.777
+The shorter finalist is sixty six point three four miles and about seventy five and a half minutes.
 
-00:19:05,250 --> 00:19:12,375
-The recording ends at this review point; a route choice should follow your own inspection and current road conditions.
+00:07:57.777 --> 00:08:03.036
+It has roughly eighty one percent known cell coverage, with six cells still unknown.
+
+00:08:03.036 --> 00:08:09.047
+The four route rounds used twenty six, fourteen, ten, and nine lookups: fifty nine in total.
+
+00:08:09.047 --> 00:08:16.185
+The separate map lookup brings the recorded session to sixty credits, or sixty cents at the session's planning rate.
+
+00:08:16.185 --> 00:08:21.444
+Those are the costs of this example, not a fixed price for every trip.
+
+00:08:21.444 --> 00:08:24.825
+Two finalists are an invitation to compare and inspect.
+
+00:08:30.750 --> 00:08:35.583
+We finish in Look around, with a known route cell selected for inspection.
+
+00:08:35.583 --> 00:08:44.133
+Street View can add visual context to a place on the route, but check the imagery date and remember that conditions can change.
+
+00:08:44.133 --> 00:08:50.452
+The property-value signal is not a safety verdict about the route or the people who live nearby.
+
+00:08:50.452 --> 00:08:54.913
+Combine the route comparison with your own inspection and current road information.
+
+00:08:54.913 --> 00:08:59.002
+This footage ends at the review controls, before the route choice.
+
+00:08:59.002 --> 00:09:01.976
+It does not show a completed driving recommendation.
+
+00:09:01.976 --> 00:09:07.552
+You can pause on these screens or use the chapter list to revisit a decision.
+
+00:09:07.552 --> 00:09:13.500
+The useful outcome is a better informed choice, with the remaining gaps in evidence still visible.

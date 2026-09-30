@@ -1,0 +1,62 @@
+[
+  {
+    "id": "trip",
+    "title": "Set the trip",
+    "narration": "We begin with an empty Survive Drive trip, using Santa Clarita as the start and Long Beach as the destination. Enter the two places in the trip panel, then check that the resolved locations are the ones you intended. Similar place names can refer to different locations, so this is a useful first check. At this point, we have not searched for routes or requested property evidence. Think of the workflow as a sequence: set the trip, find alternatives, compare the available evidence, inspect the finalists, and make your own choice. This recording follows that sequence in the actual app."
+  },
+  {
+    "id": "preferences",
+    "title": "Review road preferences",
+    "narration": "Before searching, review the road preferences. In this example, the highway and toll controls remain at their neutral defaults. Those settings affect the alternatives that the routing engine will consider. Choose the preferences that fit your trip before you generate the candidate pool. A change in preferences can produce a different search, so the routes and their evidence need to be reviewed again. Notice that routing and property sampling are separate decisions in this workflow. Setting up the road search does not require a property lookup. We are preparing the alternatives first, then deciding which alternatives need additional evidence."
+  },
+  {
+    "id": "gates",
+    "title": "Build the escape gates",
+    "narration": "Escape Gates give the search more ways to leave the starting area and approach the destination. Here, I request four suggested gates near each end of the trip. The app displays the circles and suggested road locations. There is also a no-gate option at each end. That gives us five starting choices and five destination choices. Five times five is twenty five pairings. This is why the search can explore more than a single direct route. A gate is part of the route search, not a declaration that the surrounding area is safe. Check the suggestions in the map before proceeding."
+  },
+  {
+    "id": "routes",
+    "title": "Search all pairings",
+    "narration": "The local Valhalla routing server searches the twenty five start and destination pairings. The completed search returns twenty seven distinct route candidates in this session. Pairings and candidates are different counts: a pairing can yield route alternatives, and the resulting pool is what we compare. No property lookup was needed to generate these routes. We now have a set of possible paths, with distance and travel time information, but generating a candidate does not endorse it. The next task is to compare those paths using saved evidence and decide where additional sampling will be useful. I have cut the waiting between the request and the results."
+  },
+  {
+    "id": "round0",
+    "title": "Read Round Zero",
+    "narration": "Round Zero starts with evidence already available in the shared cache. It ranks the full candidate pool before asking for new property lookups. Pay attention to known coverage as well as the ranking. In this session, all twenty seven candidates begin below twenty percent known coverage, so the first screen protects them all. Included means that a route remains eligible for another evidence round. It does not mean that the route is recommended for driving. Unknown cells remain unknown; they are not assigned a low property value. A strong-looking score based on limited coverage deserves a different level of confidence from a score supported across most of the route."
+  },
+  {
+    "id": "cost",
+    "title": "Calculate the exact first cost",
+    "narration": "Now we check the cost of the first evidence round. The per-route quota controls how many new samples we request for an included route. Five per route would exceed the current batch limit in this example, so I reduce the quota to three. I also change a candidate selection briefly, which lets us see the estimate respond. The free cache check identifies twenty six unique cells that still need evidence. Shared cells are counted once, even when several routes use them. At this session's rate of one credit and one cent per new lookup, the plan is capped at twenty six cents. Review that exact count before using the separate Run control."
+  },
+  {
+    "id": "first",
+    "title": "Watch the first evidence round",
+    "narration": "The first evidence round makes those twenty six RentCast requests. Each returned cell can update every route that shares it, so one lookup can improve several comparisons. All twenty six calls succeed in this session. Once the round completes, the app reranks the full pool of twenty seven candidates, and eleven remain included for further sampling. The completed round is the point at which the next cull takes effect. Keep looking at the amount of evidence behind each route, rather than reading the new order as certainty. The progress wait has been shortened here; the completed count and the resulting pool are the useful checkpoints to read."
+  },
+  {
+    "id": "map",
+    "title": "Inspect a map point",
+    "narration": "The map adds geographic context to the route cards. It shows the selected route, colored property cells, and highway segments excluded from the property comparison. The colors describe the app's property-value signal; they are not personal-safety ratings. Known coverage also matters because a colored patch is only part of the route's evidence. Here I inspect a separate cell away from the candidate route. The app identifies that cell as outside the route. Evidence retrieved for an outside cell does not change the route ranking. The full demo session includes one separate map lookup in addition to its route rounds. Keep route evidence and exploratory map lookups distinct when reviewing the session cost."
+  },
+  {
+    "id": "second",
+    "title": "Compare and run another round",
+    "narration": "Before another round, compare the route cards. Distance, travel time, known coverage, and weighted price per square foot answer different questions. A route that scores well on one measure can involve a tradeoff on another. The next free check identifies fourteen new shared-cell lookups. After those fourteen calls finish, seven routes remain included. The full pool is still reranked: a previously excluded route can return if the evidence changes its position. Earlier inclusion does not permanently reserve a slot. Use the next round to answer a comparison that still matters, and review the exact lookup count again rather than assuming it will match the previous round."
+  },
+  {
+    "id": "third",
+    "title": "Narrow the pool again",
+    "narration": "The third plan identifies ten new cells. I review the plan and use the separate Run control to start the requests. Once they finish, the included pool falls from seven routes to four. This session uses a thirty five percent culling setting for the evidence rounds, with whole-route rounding shown in the interface. The shrinking pool directs new sampling toward fewer alternatives, while the full ranking remains available for comparison. It does not remove uncertainty from the property signal. Read the completed round status, then inspect which routes moved and how their coverage changed. I have removed the idle wait while keeping the plan and the completed result."
+  },
+  {
+    "id": "fourth",
+    "title": "Reach two finalists",
+    "narration": "The fourth exact plan uses nine more lookups. At completion, two routes remain included and twenty five are excluded from further sampling. The shorter finalist is sixty six point three four miles and about seventy five and a half minutes. It has roughly eighty one percent known cell coverage, with six cells still unknown. The four route rounds used twenty six, fourteen, ten, and nine lookups: fifty nine in total. The separate map lookup brings the recorded session to sixty credits, or sixty cents at the session's planning rate. Those are the costs of this example, not a fixed price for every trip. Two finalists are an invitation to compare and inspect."
+  },
+  {
+    "id": "inspection",
+    "title": "Review before choosing",
+    "narration": "We finish in Look around, with a known route cell selected for inspection. Street View can add visual context to a place on the route, but check the imagery date and remember that conditions can change. The property-value signal is not a safety verdict about the route or the people who live nearby. Combine the route comparison with your own inspection and current road information. This footage ends at the review controls, before the route choice. It does not show a completed driving recommendation. You can pause on these screens or use the chapter list to revisit a decision. The useful outcome is a better informed choice, with the remaining gaps in evidence still visible."
+  }
+]

@@ -1,50 +1,50 @@
 [
   {
     "title": "Set the trip",
-    "start": 0.0
+    "start": 0
   },
   {
     "title": "Review road preferences",
-    "start": 87.0
+    "start": 44
   },
   {
     "title": "Build the escape gates",
-    "start": 178.5
+    "start": 89
   },
   {
     "title": "Search all pairings",
-    "start": 267.0
+    "start": 132
   },
   {
     "title": "Read Round Zero",
-    "start": 337.5
+    "start": 179
   },
   {
     "title": "Calculate the exact first cost",
-    "start": 441.0
+    "start": 227
   },
   {
     "title": "Watch the first evidence round",
-    "start": 532.5
-  },
-  {
-    "title": "Compare and run another round",
-    "start": 645.0
+    "start": 272
   },
   {
     "title": "Inspect a map point",
-    "start": 762.0
+    "start": 317
+  },
+  {
+    "title": "Compare and run another round",
+    "start": 367
   },
   {
     "title": "Narrow the pool again",
-    "start": 900.0
+    "start": 415
   },
   {
     "title": "Reach two finalists",
-    "start": 1012.5
+    "start": 462
   },
   {
     "title": "Review before choosing",
-    "start": 1132.5
+    "start": 510
   }
 ]
