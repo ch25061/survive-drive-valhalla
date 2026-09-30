@@ -1,6 +1,6 @@
 import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const files=['index.html','style.css','here-decoder.js','valhalla-decoder.js','route-avm.js','shotgun-gates.js','census-ring.js','census-ring-ui.js','pool-screening.js','app.js','reference.json','intersection-catalog-chicago-v1.json','tutorial.html','tutorial.css','tutorial.js','tutorial-la.css','tutorial-la.js'];
+const files=['index.html','style.css','here-decoder.js','valhalla-decoder.js','route-avm.js','shotgun-gates.js','census-ring.js','census-ring-ui.js','pool-screening.js','app.js','reference.json','intersection-catalog-chicago-v1.json','tutorial.html','tutorial.css','tutorial.js','tutorial-la.css','tutorial-la.js','tutorial-la-session.js'];
 await mkdir('dist/client',{recursive:true});
 for(const file of files)await cp('dist/'+file,'dist/client/'+file);
 await cp('tutorial/poster.png','dist/client/tutorial-poster.png');
@@ -9,6 +9,9 @@ await cp('tutorial/chapters.json','dist/client/tutorial-chapters.json');
 await cp('tutorial/la-poster.png','dist/client/tutorial-la-poster.png');
 await cp('tutorial/la-captions.vtt','dist/client/tutorial-la-captions.vtt');
 await cp('tutorial/la-chapters.json','dist/client/tutorial-la-chapters.json');
+await cp('tutorial/la-session-poster.png','dist/client/tutorial-la-session-poster.png');
+await cp('tutorial/la-session-captions.vtt','dist/client/tutorial-la-session-captions.vtt');
+await cp('tutorial/la-session-chapters.json','dist/client/tutorial-la-session-chapters.json');
 await mkdir('dist/server',{recursive:true});
 const reference=JSON.parse(await readFile('dist/reference.json','utf8'));
 const page=await readFile('dist/index.html','utf8');
@@ -29,16 +32,21 @@ const tutorialVideoBytes=await readFile('tutorial/survive-drive-getting-started.
 const tutorialVideoHash=createHash('sha256').update(tutorialVideoBytes).digest('hex').slice(0,16);
 const laVideoBytes=await readFile('tutorial/survive-drive-la-workflow.mp4');
 const laVideoHash=createHash('sha256').update(laVideoBytes).digest('hex').slice(0,16);
+const laSessionVideoBytes=await readFile('tutorial/survive-drive-la-screen-session.mp4');
+const laSessionVideoHash=createHash('sha256').update(laSessionVideoBytes).digest('hex').slice(0,16);
 const tutorialPage=(await readFile('dist/tutorial.html','utf8'))
   .replace('/tutorial-video.mp4','/tutorial-video.mp4?v='+tutorialVideoHash)
   .replace('/tutorial-captions.vtt','/tutorial-captions.vtt?v='+tutorialVideoHash)
   .replace('/tutorial-la-video.mp4','/tutorial-la-video.mp4?v='+laVideoHash)
-  .replace('/tutorial-la-captions.vtt','/tutorial-la-captions.vtt?v='+laVideoHash);
+  .replace('/tutorial-la-captions.vtt','/tutorial-la-captions.vtt?v='+laVideoHash)
+  .replace('/tutorial-la-session-video.mp4','/tutorial-la-session-video.mp4?v='+laSessionVideoHash)
+  .replace('/tutorial-la-session-captions.vtt','/tutorial-la-session-captions.vtt?v='+laSessionVideoHash);
 await writeFile('dist/client/tutorial.html',tutorialPage);
 const tutorialCss=await readFile('dist/tutorial.css','utf8');
 const tutorialJs=await readFile('dist/tutorial.js','utf8');
 const tutorialLaCss=await readFile('dist/tutorial-la.css','utf8');
 const tutorialLaJs=await readFile('dist/tutorial-la.js','utf8');
+const tutorialLaSessionJs=await readFile('dist/tutorial-la-session.js','utf8');
 const tutorialCaptions=await readFile('tutorial/captions.vtt','utf8');
 const tutorialChapters=await readFile('tutorial/chapters.json','utf8');
 const tutorialPoster=(await readFile('tutorial/poster.png')).toString('base64');
@@ -47,8 +55,12 @@ const laCaptions=await readFile('tutorial/la-captions.vtt','utf8');
 const laChapters=await readFile('tutorial/la-chapters.json','utf8');
 const laPoster=(await readFile('tutorial/la-poster.png')).toString('base64');
 const laVideo=laVideoBytes.toString('base64');
+const laSessionCaptions=await readFile('tutorial/la-session-captions.vtt','utf8');
+const laSessionChapters=await readFile('tutorial/la-session-chapters.json','utf8');
+const laSessionPoster=(await readFile('tutorial/la-session-poster.png')).toString('base64');
+const laSessionVideo=laSessionVideoBytes.toString('base64');
 const header='const REFERENCE='+JSON.stringify(reference)+';\nconst ASSETS='+JSON.stringify({'/':{body:page,type:'text/html; charset=utf-8'},'/index.html':{body:page,type:'text/html; charset=utf-8'},'/style.css':{body:css,type:'text/css; charset=utf-8'},'/here-decoder.js':{body:decoder,type:'text/javascript; charset=utf-8'},'/valhalla-decoder.js':{body:valhallaDecoder,type:'text/javascript; charset=utf-8'},'/route-avm.js':{body:mapper,type:'text/javascript; charset=utf-8'},'/shotgun-gates.js':{body:shotgun,type:'text/javascript; charset=utf-8'},'/pool-screening.js':{body:pool,type:'text/javascript; charset=utf-8'},'/census-ring.js':{body:ring,type:'text/javascript; charset=utf-8'},'/census-ring-ui.js':{body:ringUI,type:'text/javascript; charset=utf-8'},'/app.js':{body:js,type:'text/javascript; charset=utf-8'},'/reference.json':{body:JSON.stringify(reference),type:'application/json'},'/intersection-catalog-chicago-v1.json':{body:intersections,type:'application/json'}})+';\n';
-const tutorialHeader='const TUTORIAL_ASSETS='+JSON.stringify({'/tutorial.html':{body:tutorialPage,type:'text/html; charset=utf-8'},'/tutorial.css':{body:tutorialCss,type:'text/css; charset=utf-8'},'/tutorial.js':{body:tutorialJs,type:'text/javascript; charset=utf-8'},'/tutorial-la.css':{body:tutorialLaCss,type:'text/css; charset=utf-8'},'/tutorial-la.js':{body:tutorialLaJs,type:'text/javascript; charset=utf-8'},'/tutorial-captions.vtt':{body:tutorialCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-chapters.json':{body:tutorialChapters,type:'application/json; charset=utf-8'},'/tutorial-poster.png':{body:tutorialPoster,type:'image/png',encoding:'base64'},'/tutorial-la-captions.vtt':{body:laCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-la-chapters.json':{body:laChapters,type:'application/json; charset=utf-8'},'/tutorial-la-poster.png':{body:laPoster,type:'image/png',encoding:'base64'}})+';\nconst TUTORIAL_VIDEO_KEY='+JSON.stringify('survive-drive/getting-started-'+tutorialVideoHash+'.mp4')+';\nconst VIDEO_SEED='+JSON.stringify(tutorialVideo)+';\nconst LA_VIDEO_KEY='+JSON.stringify('survive-drive/la-workflow-'+laVideoHash+'.mp4')+';\nconst LA_VIDEO_SEED='+JSON.stringify(laVideo)+';\n';
+const tutorialHeader='const TUTORIAL_ASSETS='+JSON.stringify({'/tutorial.html':{body:tutorialPage,type:'text/html; charset=utf-8'},'/tutorial.css':{body:tutorialCss,type:'text/css; charset=utf-8'},'/tutorial.js':{body:tutorialJs,type:'text/javascript; charset=utf-8'},'/tutorial-la.css':{body:tutorialLaCss,type:'text/css; charset=utf-8'},'/tutorial-la.js':{body:tutorialLaJs,type:'text/javascript; charset=utf-8'},'/tutorial-la-session.js':{body:tutorialLaSessionJs,type:'text/javascript; charset=utf-8'},'/tutorial-captions.vtt':{body:tutorialCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-chapters.json':{body:tutorialChapters,type:'application/json; charset=utf-8'},'/tutorial-poster.png':{body:tutorialPoster,type:'image/png',encoding:'base64'},'/tutorial-la-captions.vtt':{body:laCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-la-chapters.json':{body:laChapters,type:'application/json; charset=utf-8'},'/tutorial-la-poster.png':{body:laPoster,type:'image/png',encoding:'base64'},'/tutorial-la-session-captions.vtt':{body:laSessionCaptions,type:'text/vtt; charset=utf-8'},'/tutorial-la-session-chapters.json':{body:laSessionChapters,type:'application/json; charset=utf-8'},'/tutorial-la-session-poster.png':{body:laSessionPoster,type:'image/png',encoding:'base64'}})+';\nconst TUTORIAL_VIDEO_KEY='+JSON.stringify('survive-drive/getting-started-'+tutorialVideoHash+'.mp4')+';\nconst VIDEO_SEED='+JSON.stringify(tutorialVideo)+';\nconst LA_VIDEO_KEY='+JSON.stringify('survive-drive/la-workflow-'+laVideoHash+'.mp4')+';\nconst LA_VIDEO_SEED='+JSON.stringify(laVideo)+';\nconst LA_SESSION_VIDEO_KEY='+JSON.stringify('survive-drive/la-screen-session-'+laSessionVideoHash+'.mp4')+';\nconst LA_SESSION_VIDEO_SEED='+JSON.stringify(laSessionVideo)+';\n';
 await writeFile('dist/server/index.js',header+tutorialHeader+ring+'\n'+ringServer+'\n'+valhallaProvider+'\n'+core);
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');

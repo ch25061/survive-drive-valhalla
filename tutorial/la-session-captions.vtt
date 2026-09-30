@@ -1,0 +1,466 @@
+WEBVTT
+
+00:00:00,000 --> 00:00:04,319
+This is a longer walk through of the actual Survive Drive interface.
+
+00:00:04,319 --> 00:00:11,518
+You will see the controls respond, the candidate cards rerank, and the map and lookup count change as we work.
+
+00:00:11,518 --> 00:00:18,357
+One disclosure before we begin: this Los Angeles training file contains invented route lines, travel times, and property values.
+
+00:00:18,357 --> 00:00:21,236
+It is not a live California Valhalla search.
+
+00:00:21,236 --> 00:00:28,075
+The local routing graph does not yet cover California, and no paid property lookup will run during this recording.
+
+00:00:28,075 --> 00:00:32,395
+The point is to learn the sequence and the decisions you control.
+
+00:00:32,395 --> 00:00:35,994
+Notice the training banner at the top throughout this recording.
+
+00:00:35,994 --> 00:00:44,273
+I am working through the same panels a driver would use, but the example route evidence is deliberately fenced off from live services.
+
+00:00:44,273 --> 00:00:50,032
+When we reach a control that would request paid information, I will stop at its preview.
+
+00:00:50,032 --> 00:00:59,750
+That distinction matters because the app's estimates are useful only when you can tell what is saved, what is unknown, and what a new call would add.
+
+00:00:59,750 --> 00:01:01,818
+I start in Set the trip.
+
+00:01:01,818 --> 00:01:08,367
+For this exercise, I name the start Santa Clarita and the destination Long Beach, then enter their area coordinates.
+
+00:01:08,367 --> 00:01:12,158
+These points are for training, not exact door to door addresses.
+
+00:01:12,158 --> 00:01:16,294
+You can also place the S and D pins on the map.
+
+00:01:16,294 --> 00:01:19,741
+Watch how the map responds as the second point arrives.
+
+00:01:19,741 --> 00:01:23,533
+No routing or property service is called by typing these settings.
+
+00:01:23,533 --> 00:01:31,460
+A real trip deserves precise points, because even a short move can change which roads are available and which cells a route crosses.
+
+00:01:31,460 --> 00:01:38,009
+The two names are labels that help me recognize the trip later; the coordinates are what place the endpoints.
+
+00:01:38,009 --> 00:01:42,834
+I pause on this screen because the rest of the workflow inherits these choices.
+
+00:01:42,834 --> 00:01:51,107
+If either endpoint is wrong, it is better to correct it before generating gates or routes than to reason carefully about the wrong journey.
+
+00:01:51,107 --> 00:01:58,000
+The buttons in the left rail make the sequence visible, so I can move back before committing to a search.
+
+00:01:58,000 --> 00:02:00,798
+Next I review what Valhalla should favor.
+
+00:02:00,798 --> 00:02:06,394
+The route preference can emphasize faster travel or a balance of time and distance.
+
+00:02:06,394 --> 00:02:11,990
+The baseline limit allows up to four alternatives when no Escape Gates are used.
+
+00:02:11,990 --> 00:02:19,985
+Further down are highway and toll road preferences, ferry choices, unpaved roads, cash only tolls, and H O V eligibility.
+
+00:02:19,985 --> 00:02:26,780
+These are instructions to the route engine, not a promise that every unwanted road can be avoided.
+
+00:02:26,780 --> 00:02:30,777
+Only select an H O V occupancy you actually meet.
+
+00:02:30,777 --> 00:02:36,773
+This version does not use live traffic, so treat the time estimates as planning estimates.
+
+00:02:36,773 --> 00:02:42,769
+Watch the settings themselves, rather than assuming a single avoid switch guarantees a particular road.
+
+00:02:42,769 --> 00:02:46,766
+Avoidance is usually a preference in a constrained road network.
+
+00:02:46,766 --> 00:02:51,562
+A bridge, turn restriction, or disconnected local street can force a compromise.
+
+00:02:51,562 --> 00:02:59,956
+The app exposes these parameters so you can make that tradeoff before requesting a potentially large cross product of route candidates.
+
+00:02:59,956 --> 00:03:09,150
+If you alter them after a search, you should expect to generate a new candidate batch and revisit the cost forecast for evidence.
+
+00:03:09,150 --> 00:03:14,767
+Escape Gates suggest different ways to leave the starting area and approach the destination.
+
+00:03:14,767 --> 00:03:19,582
+Here are the inner and outer radii, maximum suggestions, and separation controls.
+
+00:03:19,582 --> 00:03:28,408
+In a live California search, G O would ask for road suggestions near both ends, using saved Census road circles when available.
+
+00:03:28,408 --> 00:03:40,044
+We do not press G O in this training recording: the next step loads an illustrative candidate file, and I will not imply invented gates came back from Census.
+
+00:03:40,044 --> 00:03:46,463
+The full route batch includes every selected start and destination combination, plus each no gate choice.
+
+00:03:46,463 --> 00:03:52,481
+Four selected gates at each end would mean five times five, or twenty five pairings.
+
+00:03:52,481 --> 00:04:02,913
+The inner and outer distances define the annulus where suggestions are considered, and the separation control keeps nearby suggestions from piling onto effectively the same road.
+
+00:04:02,913 --> 00:04:07,326
+More gates increase exploration, but their start and destination counts multiply.
+
+00:04:07,326 --> 00:04:10,937
+This is why I check the batch before starting.
+
+00:04:10,937 --> 00:04:15,752
+A moderate choice at each end can still become many route requests.
+
+00:04:15,752 --> 00:04:23,375
+In this tutorial the gate screen is a real app screen; only the later imported candidate file is illustrative.
+
+00:04:23,375 --> 00:04:28,493
+Now I use Load saved routes to bring the exercise into the real app.
+
+00:04:28,493 --> 00:04:33,245
+The banner stays on screen so you can tell this is illustrative data.
+
+00:04:33,245 --> 00:04:35,438
+The browser reads the file locally.
+
+00:04:35,438 --> 00:04:37,997
+It makes no Valhalla or RentCast call.
+
+00:04:37,997 --> 00:04:42,018
+You can see four candidate cards and the route map appear.
+
+00:04:42,018 --> 00:04:48,233
+Their lines are schematic, not road matched; the displayed times and property values were invented for teaching.
+
+00:04:48,233 --> 00:04:53,350
+The generic imported route label is not evidence that HERE or Valhalla returned them.
+
+00:04:53,350 --> 00:04:58,834
+In your own trip, this is where real Valhalla results would replace the training file.
+
+00:04:58,834 --> 00:05:02,489
+The import is useful for reviewing a previous session, too.
+
+00:05:02,489 --> 00:05:07,241
+Here I use that mechanism to teach the controls without invoking a service.
+
+00:05:07,241 --> 00:05:13,821
+A saved file is evidence of what was in that file, not proof that a provider just answered.
+
+00:05:13,821 --> 00:05:17,111
+Read the training label before interpreting any map line.
+
+00:05:17,111 --> 00:05:26,250
+The route map is a visual aid for comparing four options, while the cards show the separate evidence fields that will drive ranking and selection.
+
+00:05:26,250 --> 00:05:32,269
+I open Evaluate and apply a Red Cell threshold of two hundred dollars per square foot.
+
+00:05:32,269 --> 00:05:35,655
+Red means a known cell falls below that threshold.
+
+00:05:35,655 --> 00:05:43,180
+The app then checks its mapped cells and available values, and completes Round zero without a new paid property lookup.
+
+00:05:43,180 --> 00:05:48,823
+This exercise uses an isolated training cache, so the values on screen are still examples.
+
+00:05:48,823 --> 00:05:51,080
+Round zero ranks all four candidates.
+
+00:05:51,080 --> 00:05:56,347
+With a thirty five percent cull setting, rounding leaves two nominal INCLUDED slots here.
+
+00:05:56,347 --> 00:06:01,238
+A candidate under twenty percent known coverage is protected from this first cull.
+
+00:06:01,238 --> 00:06:05,000
+Notice that an EXCLUDED route stays visible in the ranking.
+
+00:06:05,000 --> 00:06:08,010
+Unknown evidence is not a low property value.
+
+00:06:08,010 --> 00:06:10,267
+This is the economical starting point.
+
+00:06:10,267 --> 00:06:15,158
+The app first asks what can be inferred from information already in hand.
+
+00:06:15,158 --> 00:06:21,553
+It counts mapped eligible cells, looks up saved values, and ranks before proposing any new AVM call.
+
+00:06:21,553 --> 00:06:29,830
+The protection rule prevents a route with very little known coverage from being discarded merely because its few known cells look poor.
+
+00:06:29,830 --> 00:06:36,602
+Still, protection does not make that route good; it marks the evidence as thin enough to warrant caution.
+
+00:06:36,602 --> 00:06:43,750
+The first cull changes who is eligible for more sampling, and the ranking continues to show the complete field.
+
+00:06:43,750 --> 00:06:48,226
+Look across the four ranked cards before you commit to another round.
+
+00:06:48,226 --> 00:06:55,312
+Each shows travel distance and time, known coverage, unknown cells, known Red share, and weighted price per square foot.
+
+00:06:55,312 --> 00:06:59,042
+The route with the lowest known Red share ranks first.
+
+00:06:59,042 --> 00:07:04,636
+When Red shares tie, higher weighted price per square foot is the next sort key.
+
+00:07:04,636 --> 00:07:10,604
+I select another card and the map switches to that candidate, then return to the first.
+
+00:07:10,604 --> 00:07:18,809
+Coverage matters: a low Red percentage based on very little known distance is less informative than a similar result with broad coverage.
+
+00:07:18,809 --> 00:07:23,657
+Live Valhalla routes exclude highway runs and attached ramps from this property comparison.
+
+00:07:23,657 --> 00:07:26,641
+This schematic file does not prove highway classification.
+
+00:07:26,641 --> 00:07:30,371
+I read the status line and the evidence numbers together.
+
+00:07:30,371 --> 00:07:36,338
+A count of unknown cells tells me how much of the path still lacks property evidence.
+
+00:07:36,338 --> 00:07:40,441
+Known coverage tells me the fraction that is actually being compared.
+
+00:07:40,441 --> 00:07:48,646
+The weighted price is a summary of known mapped cells and should not be read as a quotation for any particular house.
+
+00:07:48,646 --> 00:07:53,495
+When I click a different candidate, the highlighted line and card change together.
+
+00:07:53,495 --> 00:08:01,700
+That is the point of this review: see whether the apparent leader remains attractive once its time, path, and uncertainty are considered.
+
+00:08:01,700 --> 00:08:05,708
+The route and its colored honeycomb can now be inspected together.
+
+00:08:05,708 --> 00:08:08,258
+The red threshold stays at two hundred.
+
+00:08:08,258 --> 00:08:16,637
+I narrow the map's upper color bound from five hundred to four hundred fifty dollars per square foot, and the color contrast changes.
+
+00:08:16,637 --> 00:08:19,187
+That upper bound is a display control.
+
+00:08:19,187 --> 00:08:24,288
+It does not change the route ranking or make an A V M request.
+
+00:08:24,288 --> 00:08:27,203
+Gray cells are unknown, not safe or unsafe.
+
+00:08:27,203 --> 00:08:33,396
+These property estimates describe geographic value; they are not a safety rating for people, homes, or neighborhoods.
+
+00:08:33,396 --> 00:08:40,318
+In a real session, look for highway entry and exit cues and check what each colored cell actually covers.
+
+00:08:40,318 --> 00:08:47,240
+Color is easy to overread, so I treat the honeycomb as a prompt to inspect rather than a verdict.
+
+00:08:47,240 --> 00:08:52,341
+The lower threshold determines which known eligible cells count as Red for this run.
+
+00:08:52,341 --> 00:08:58,170
+The upper value stretches the display scale so a narrow local range is easier to see.
+
+00:08:58,170 --> 00:09:01,084
+I can change that display without consuming credits.
+
+00:09:01,084 --> 00:09:08,007
+I also leave unknown cells visible; hiding them would make a sparse route look more certain than it is.
+
+00:09:08,007 --> 00:09:14,200
+On a real road matched route, the highway exclusion keeps highway distance from diluting the local-road comparison.
+
+00:09:14,200 --> 00:09:17,017
+Now I change the next evidence pool.
+
+00:09:17,017 --> 00:09:21,042
+I exclude the first candidate, then include the second one.
+
+00:09:21,042 --> 00:09:27,078
+Both remain visible in the ranking, and the forecast changes as the INCLUDED set changes.
+
+00:09:27,078 --> 00:09:31,505
+This is a substitution decision, not a permanent deletion of routes.
+
+00:09:31,505 --> 00:09:37,542
+The app can promote a previously EXCLUDED candidate after later evidence changes the full ranking.
+
+00:09:37,542 --> 00:09:44,383
+A protected low coverage route survived Round zero, but I can still adjust the next round deliberately.
+
+00:09:44,383 --> 00:09:52,030
+These buttons control which candidates may receive new property evidence; they do not select a driving route for me.
+
+00:09:52,030 --> 00:09:55,249
+Here the distinction between rank and inclusion matters.
+
+00:09:55,249 --> 00:09:58,067
+Rank is the current order across candidates.
+
+00:09:58,067 --> 00:10:05,311
+Inclusion says who receives the next sample, so I can move that sampling attention without erasing a candidate.
+
+00:10:05,311 --> 00:10:14,164
+The automatic cull uses a percentage of the current nominal pool after each round, and the top-ranked candidates refill the remaining slots.
+
+00:10:14,164 --> 00:10:18,591
+A previously excluded route can therefore return as the evidence changes.
+
+00:10:18,591 --> 00:10:28,250
+I make a manual substitution on screen and watch the projected lookup count update; the new cost calculation must follow the latest inclusion state.
+
+00:10:28,250 --> 00:10:31,605
+The per route count starts at five unknown cells.
+
+00:10:31,605 --> 00:10:36,451
+I briefly lower it to three, see the forecast shrink, and restore five.
+
+00:10:36,451 --> 00:10:39,434
+Then I select Calculate exact One Round lookups.
+
+00:10:39,434 --> 00:10:45,771
+The app checks this isolated training cache, chooses the exact cells, and removes duplicates shared by candidates.
+
+00:10:45,771 --> 00:10:52,481
+For this invented exercise, the prepared plan is nine new lookups, or nine credits at one cent each.
+
+00:10:52,481 --> 00:10:56,955
+That is not a price quote for a real Los Angeles trip.
+
+00:10:56,955 --> 00:11:00,683
+Calculating the count is separate from Run one Manual round.
+
+00:11:00,683 --> 00:11:02,547
+I do not press Run.
+
+00:11:02,547 --> 00:11:06,647
+Instead, I change the count again, which clears the prepared plan.
+
+00:11:06,647 --> 00:11:08,511
+No paid lookup has happened.
+
+00:11:08,511 --> 00:11:12,239
+This is the last free checkpoint before a paid round.
+
+00:11:12,239 --> 00:11:22,677
+The estimate beside the control responds immediately to the per-route count and the INCLUDED set, but the exact plan performs a cache check and deduplicates the chosen cells.
+
+00:11:22,677 --> 00:11:27,897
+I read both the count and the credits before deciding whether to spend them.
+
+00:11:27,897 --> 00:11:31,252
+One credit is one cent in the current display.
+
+00:11:31,252 --> 00:11:37,589
+A failed provider attempt may still count against the provider ceiling, so there is no automatic retry.
+
+00:11:37,589 --> 00:11:40,571
+The separate Run button is the commitment point.
+
+00:11:40,571 --> 00:11:48,400
+In this recording I deliberately stop before it and then edit the count, demonstrating that the old prepared plan is invalidated.
+
+00:11:48,400 --> 00:11:51,957
+With the cost plan cleared, I move to Look around.
+
+00:11:51,957 --> 00:11:58,714
+This panel lets you inspect mapped cells, record your own assessment, and choose an inspection point for Street View.
+
+00:11:58,714 --> 00:12:05,116
+I place a sample point and show the Street View control without opening a panorama in this recording.
+
+00:12:05,116 --> 00:12:10,452
+If you use it, check the image capture date; imagery can be old or missing.
+
+00:12:10,452 --> 00:12:14,364
+Record what you actually observe separately from the property value signal.
+
+00:12:14,364 --> 00:12:18,988
+For a real route, compare uncertainty and road conditions as well as time.
+
+00:12:18,988 --> 00:12:23,611
+A colored map alone is not enough to decide where you would drive.
+
+00:12:23,611 --> 00:12:30,013
+The inspection step is where I slow down and ask what the numerical screen did not tell me.
+
+00:12:30,013 --> 00:12:38,905
+A good looking price signal does not establish the condition of a road, and a map color cannot describe lighting, construction, or a difficult interchange.
+
+00:12:38,905 --> 00:12:45,307
+Street View can help orient a person, but the photographs are only snapshots of particular dates and viewpoints.
+
+00:12:45,307 --> 00:12:49,575
+I place an inspection marker so the app can retain that point.
+
+00:12:49,575 --> 00:12:57,400
+I would add notes only for observations I can actually support, especially if I intend to compare this route with another later.
+
+00:12:57,400 --> 00:12:59,722
+Finally I open Choose or adjust.
+
+00:12:59,722 --> 00:13:05,139
+I type a short reason and record a sample choice inside this local exercise.
+
+00:13:05,139 --> 00:13:09,396
+This is a saved comparison decision, not turn by turn navigation.
+
+00:13:09,396 --> 00:13:15,588
+You can export the session if you want to preserve the settings, candidate evidence, and notes.
+
+00:13:15,588 --> 00:13:25,262
+On a real trip I would first obtain genuine routes, consider where the evidence remains unknown, and decide whether another priced One Round is worthwhile.
+
+00:13:25,262 --> 00:13:30,680
+Survive Drive is meant to make those tradeoffs visible while you remain in control.
+
+00:13:30,680 --> 00:13:33,002
+That completes the screen recorded workflow.
+
+00:13:33,002 --> 00:13:40,354
+The saved reason is useful because after several rounds it is easy to forget why a route looked preferable.
+
+00:13:40,354 --> 00:13:45,772
+I can mention travel time, known coverage, unknown segments, and the places I inspected.
+
+00:13:45,772 --> 00:13:51,189
+The app preserves alternatives so the choice remains revisable if a new fact appears.
+
+00:13:51,189 --> 00:13:58,542
+It is also possible to stop without buying another round when the current evidence is enough for your purpose.
+
+00:13:58,542 --> 00:14:05,894
+In a real trip, I would review the route in a navigation tool and current road conditions before driving.
+
+00:14:05,894 --> 00:14:10,925
+This training recording ends with a recorded example choice and no charged lookup.

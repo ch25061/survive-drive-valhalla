@@ -331,6 +331,7 @@ async function sendAvm(body,env){
 export default {async fetch(request,env){const url=new URL(request.url);try{
   if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,TUTORIAL_VIDEO_KEY,VIDEO_SEED);
   if(url.pathname==='/tutorial-la-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_VIDEO_KEY,LA_VIDEO_SEED);
+  if(url.pathname==='/tutorial-la-session-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_SESSION_VIDEO_KEY,LA_SESSION_VIDEO_SEED);
   if(url.pathname.startsWith('/api/')){
     if(url.pathname==='/api/locations/geocode'&&request.method==='POST')return json({error:'Address lookup is not configured in this Valhalla offshoot. Place the trip points on the map or enter coordinates.',provider_attempted:false,provider_calls:0},501);
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}

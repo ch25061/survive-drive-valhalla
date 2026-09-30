@@ -1,0 +1,62 @@
+[
+  {
+    "title": "What this recorded session shows",
+    "start": 0.0,
+    "description": "intro"
+  },
+  {
+    "title": "Set both ends of the trip",
+    "start": 59.75,
+    "description": "trip"
+  },
+  {
+    "title": "Choose road preferences",
+    "start": 118.0,
+    "description": "preferences"
+  },
+  {
+    "title": "Understand Escape Gates",
+    "start": 189.15,
+    "description": "gates"
+  },
+  {
+    "title": "Load the clearly labeled training file",
+    "start": 263.38,
+    "description": "import"
+  },
+  {
+    "title": "Run the free Round 0 screen",
+    "start": 326.25,
+    "description": "round0"
+  },
+  {
+    "title": "Read the ranking and compare routes",
+    "start": 403.75,
+    "description": "ranking"
+  },
+  {
+    "title": "Read and adjust the honeycomb",
+    "start": 481.7,
+    "description": "map"
+  },
+  {
+    "title": "Choose who receives more evidence",
+    "start": 554.2,
+    "description": "selection"
+  },
+  {
+    "title": "Calculate the exact One Round count",
+    "start": 628.25,
+    "description": "cost"
+  },
+  {
+    "title": "Look around before choosing",
+    "start": 708.4,
+    "description": "inspect"
+  },
+  {
+    "title": "Record and export a decision",
+    "start": 777.4,
+    "description": "decision"
+  }
+]

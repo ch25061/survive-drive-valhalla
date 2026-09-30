@@ -14,8 +14,13 @@ const expectedKey=`survive-drive/getting-started-${videoHash}.mp4`;
 const laActual=await readFile('tutorial/survive-drive-la-workflow.mp4');
 const laHash=createHash('sha256').update(laActual).digest('hex').slice(0,16);
 const laKey=`survive-drive/la-workflow-${laHash}.mp4`;
+const laSessionActual=await readFile('tutorial/survive-drive-la-screen-session.mp4');
+const laSessionHash=createHash('sha256').update(laSessionActual).digest('hex').slice(0,16);
+const laSessionKey=`survive-drive/la-screen-session-${laSessionHash}.mp4`;
 assert.match(page,new RegExp(`tutorial-video\\.mp4\\?v=${videoHash}`));
 assert.match(page,new RegExp(`tutorial-la-video\\.mp4\\?v=${laHash}`));
+assert.match(page,new RegExp(`tutorial-la-session-video\\.mp4\\?v=${laSessionHash}`));
+assert.match(page,/recording of the real app controls/);
 assert.match(page,/Rank a long Los Angeles area trip/);
 assert.match(page,/illustrative training data/);
 assert.match(page,/Getting started with Survive Drive/);
@@ -33,6 +38,12 @@ const laChapters=await (await fetchPath('/tutorial-la-chapters.json')).json();
 assert.equal(laChapters.length,9);
 assert.equal(laChapters[0].start,0);
 assert.ok(laChapters.every((entry,index)=>index===0||entry.start>laChapters[index-1].start));
+const laSessionChapters=await (await fetchPath('/tutorial-la-session-chapters.json')).json();
+assert.equal(laSessionChapters.length,12);
+assert.equal(laSessionChapters[0].start,0);
+assert.ok(laSessionChapters.every((entry,index)=>index===0||entry.start>laSessionChapters[index-1].start));
+assert.match(await (await fetchPath('/tutorial-la-session-captions.vtt')).text(),/^WEBVTT/);
+assert.equal((await fetchPath('/tutorial-la-session-poster.png')).headers.get('Content-Type'),'image/png');
 assert.match(await (await fetchPath('/tutorial-la-captions.vtt')).text(),/^WEBVTT/);
 assert.equal((await fetchPath('/tutorial-la-poster.png')).headers.get('Content-Type'),'image/png');
 const captions=await (await fetchPath('/tutorial-captions.vtt')).text();
@@ -43,9 +54,9 @@ assert.ok((await poster.arrayBuffer()).byteLength>100000);
 
 const stored=new Map();
 const r2={
-  async put(key,bytes){assert.ok([expectedKey,laKey].includes(key));stored.set(key,Uint8Array.from(bytes))},
+  async put(key,bytes){assert.ok([expectedKey,laKey,laSessionKey].includes(key));stored.set(key,Uint8Array.from(bytes))},
   async get(key,{range}={}){
-    assert.ok([expectedKey,laKey].includes(key));
+    assert.ok([expectedKey,laKey,laSessionKey].includes(key));
     const dataBytes=stored.get(key);
     if(!dataBytes)return null;
     const match=/^bytes=(\d+)-(\d*)$/.exec(range?.get('Range')??'');
@@ -72,4 +83,12 @@ const laPartial=await fetchPath('/tutorial-la-video.mp4',{headers:{Range:'bytes=
 assert.equal(laPartial.status,206);
 assert.equal(laPartial.headers.get('Content-Range'),`bytes 0-15/${laActual.length}`);
 assert.deepEqual(Buffer.from(await laPartial.arrayBuffer()),laActual.subarray(0,16));
-console.log('Both tutorial videos, chapters, captions, posters, R2 seeding, and ranged playback verified.');
+const laSessionFirst=await fetchPath('/tutorial-la-session-video.mp4',{},media);
+assert.equal(laSessionFirst.status,200);
+assert.equal(laSessionFirst.headers.get('Content-Type'),'video/mp4');
+assert.deepEqual(Buffer.from(await laSessionFirst.arrayBuffer()),laSessionActual);
+const laSessionPartial=await fetchPath('/tutorial-la-session-video.mp4',{headers:{Range:'bytes=0-15'}},media);
+assert.equal(laSessionPartial.status,206);
+assert.equal(laSessionPartial.headers.get('Content-Range'),`bytes 0-15/${laSessionActual.length}`);
+assert.deepEqual(Buffer.from(await laSessionPartial.arrayBuffer()),laSessionActual.subarray(0,16));
+console.log('Three tutorial videos, chapters, captions, posters, R2 seeding, and ranged playback verified.');
