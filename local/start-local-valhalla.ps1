@@ -26,7 +26,7 @@ if (-not (Test-Service 'http://127.0.0.1:8003/status')) {
 for ($attempt = 0; $attempt -lt 45; $attempt++) {
     $status = Test-Service 'http://127.0.0.1:8003/status'
     if ($status -and $status.valhalla_ready) {
-        Write-Output 'Local Valhalla is ready for Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California at http://127.0.0.1:8002.'
+        Write-Output 'Local Valhalla is ready for Illinois, Indiana, Ohio, Kentucky, Florida, Southern California, and Texas at http://127.0.0.1:8002.'
         Write-Output 'The Survive Drive local connection is ready at http://127.0.0.1:8003.'
         exit 0
     }

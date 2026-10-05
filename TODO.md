@@ -1,7 +1,11 @@
 # Survive Drive TODO
 
+- [x] **Default Escape Gate count is 6** for both Start and Destination. Saved explicit gate counts are preserved. Verified offline on October 5, 2026.
+- [x] **Fit the entire selected route within the map when a route is clicked.** Route selection and deliberate reselection fit the full route; routine evidence refreshes preserve zoom. Verified offline on October 5, 2026.
+- [x] **Add "Known Exclusion Zone Miles Under $[Exclusion Cutoff]" to each route card**, immediately after Known Red Miles. Counts known non-highway mileage strictly below the current independent Exclusion cutoff; unknown mileage stays unknown. Ranking order is unchanged. Verified offline on October 5, 2026.
+
 - [x] **HIGH PRIORITY — Rank routes by absolute Red overland mileage, rather than Red percentage.** Requested during the October 2, 2026 live demonstration; completed and verified offline on October 2, 2026. Adding non-red detour miles cannot improve the primary score when the route's red mileage is unchanged.
-  - Current route-card order: Known Red Miles Under, Red Percent, then Known Coverage; returned travel time breaks remaining ties.
+  - Current route-card order: Known Red Miles Under, Known Exclusion Zone Miles Under, Red Percent, then Known Coverage; ranking still uses Known Red Miles, Red Percent, and Known Coverage, and returned travel time breaks remaining ties.
   - Keep missing distance unknown, keep routes with no known eligible evidence unranked, and show Known Coverage immediately after Red Percent. The route sort uses recorded Known Red Miles Under rather than adding unmeasured miles to that score.
   - Apply the new order to route ranking and cull selection. Keep cell acquisition selection on its separate evidence and coverage diagnostics. Preserve full-pool reranking, shared-cell evidence updates, excluded-route promotion, configurable cull quotas, exact provider ceilings, and no retries.
   - Verify offline that a non-red detour cannot improve the primary score, ties use the intended order, partial coverage remains clear, and excluded routes can return. Do not make live provider calls solely to test this change.
@@ -14,7 +18,7 @@
 
 - [x] Bring the required Shotgun Escape Gates cue into view after trip-point placement.
 - [x] When a Destination Approach Gate set needs a decision, scroll the workflow to its approval panel and keep the large **Accept limited set** button in view. User scrolling cancels delayed correction.
-- [x] Show a focused advisory with the HTTP status when an app request returns an error response.
+- [x] Report HTTP errors in inline panels instead of popup cards. Group repeated failures, preserve current-step details, and provide optional clearing without focus changes or acknowledgement steps. Expected excluded-gate no-path outcomes remain in the route batch panel. Verified offline on October 5, 2026.
 - [x] Show real-time Route Ranking progress in its area and move there immediately; the first pass completes free Round 0 without a separate Prescreening pause.
 - [x] Retire automatic multi-round paid AVM authorization. After each free cache check, show the exact unique-cell request count and wait for explicit user approval before authorizing a one-round AVM plan; imported Automatic records remain review-only.
 - [x] Keep the Route Ranking workflow on explicit One Round runs. Preserve route inclusion controls and acquired rankings/evidence between rounds.
@@ -22,3 +26,4 @@
 - [x] Respect user scrolling during guided workflow focus. Once the user scrolls away from an automatically focused next step, stop trying to scroll back to it during rerenders or progress updates. Resume automatic focus only after a new user action starts a step that calls for guided scrolling.
 - [x] Restore the PPSQFT value card on hover over route-containing map cells. The sticky cell tooltip stays interactive beneath route and highway strokes.
 - [x] Preserve the map's current zoom when resetting the Red or Exclusion Zone sliders. Known-cell cache refreshes frame the map only once before the first trip.
+- [x] Notify users above Route Ranking when newly known trip-area AVM cells fall below the Exclusion Zone cutoff. Offer explicit regeneration from the same selected Escape Gates; keep candidates and rankings until the user chooses to replace them. Preserve the frozen evidence baseline in session exports, count shared cells once, and leave equal/above-cutoff evidence quiet. Verified offline on October 5, 2026.
