@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {appendFileSync,existsSync,mkdirSync,readFileSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
-import {valhallaPayload,validateValhallaResponse} from '../server/valhalla-provider.js';
+import {valhallaPayload,valhallaHighwayCellMasks,validateValhallaResponse} from '../server/valhalla-provider.js';
 
 const listenHost='127.0.0.1';
 const listenPort=8003;
@@ -39,17 +39,19 @@ function validate(input){
   if((p.via??[]).length&&p.alternatives!==0)throw Error('Gate routes cannot request alternatives.');
   return valhallaPayload(p);
 }
-async function readJson(request){
+async function readJson(request,limit=2*1024*1024){
   let text='';
-  for await(const chunk of request){text+=chunk;if(text.length>50000)throw Error('Route request is too large.');}
+  for await(const chunk of request){text+=chunk;if(text.length>limit)throw Error('Route request is too large.');}
   return JSON.parse(text);
 }
 async function boundedJson(response){
-  if(!response.ok)throw Error('Valhalla returned HTTP '+response.status+'.');
   const reader=response.body.getReader(),decoder=new TextDecoder();let total=0,text='';
   while(true){const part=await reader.read();if(part.done)break;total+=part.value.byteLength;if(total>5*1024*1024){await reader.cancel();throw Error('Valhalla response exceeded 5 MiB.');}text+=decoder.decode(part.value,{stream:true});}
   text+=decoder.decode();
-  return JSON.parse(text);
+  let data;
+  try{data=JSON.parse(text);}catch{if(!response.ok)throw Object.assign(Error('Valhalla returned HTTP '+response.status+' with a non-JSON error response.'),{status:response.status});throw Error('Valhalla returned an invalid JSON response.');}
+  if(!response.ok){const detail=typeof data?.error==='string'?data.error:typeof data?.status==='string'?data.status:'';throw Object.assign(Error('Valhalla returned HTTP '+response.status+(detail?': '+detail:'')),{status:response.status});}
+  return data;
 }
 
 const server=createServer(async(request,response)=>{
@@ -67,6 +69,9 @@ const server=createServer(async(request,response)=>{
   if(request.url==='/status'&&request.method==='GET'){
     try{const check=await fetch(engine+'/status',{signal:AbortSignal.timeout(3000),redirect:'error'});send(response,200,{valhalla_ready:check.ok,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California'},origin);}catch{send(response,200,{valhalla_ready:false,mode:'local',map_area:'Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California'},origin);}return;
   }
+  if(request.url==='/road-mask'&&request.method==='POST'){
+    try{const input=await readJson(request,8*1024*1024),options=input?.route_options;if(!options||![0,0.5,1].includes(options.highways)||![0,0.5,1].includes(options.tolls))throw Error('Choose valid highway and toll preferences.');const includeHighways=options.highways===1,includeTollways=options.tolls===1;if(!includeHighways&&!includeTollways){send(response,200,{highway_cell_ids:[],tollway_cell_ids:[],tile_count:0,road_source:'Valhalla static graph tiles'},origin);return;}const masks=await valhallaHighwayCellMasks({cells:input.cells,include_tollways:includeTollways},engine);send(response,200,{...masks,highway_cell_ids:includeHighways?masks.highway_cell_ids:[],tollway_cell_ids:includeTollways?masks.tollway_cell_ids:[]},origin);}catch(error){send(response,502,{error:error.message||'The Valhalla static road mask could not be built. No route request was sent.'},origin);}return;
+  }
   if(request.url!=='/route'||request.method!=='POST'){send(response,404,{error:'Not found.'},origin);return;}
   let input,payload;
   try{input=await readJson(request);payload=validate(input);}catch(error){send(response,400,{error:error.message,provider_attempted:false},origin);return;}
@@ -76,6 +81,6 @@ const server=createServer(async(request,response)=>{
     const upstream=await fetch(engine+'/route',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),redirect:'error',signal:AbortSignal.timeout(25000)});
     const data=validateValhallaResponse(await boundedJson(upstream),payload.alternates+1);
     send(response,200,{round_id:input.round_id,provider_attempted:true,response:data,received_at:new Date().toISOString(),provider:'Valhalla'},origin);
-  }catch(error){send(response,502,{error:error.message+' This attempt counts; no retry was made.',provider_attempted:true},origin);}
+  }catch(error){send(response,Number.isInteger(error.status)?error.status:502,{error:error.message+' This attempt counts; no retry was made.',provider_attempted:true},origin);}
 });
 server.listen(listenPort,listenHost,()=>console.log('Local Valhalla bridge ready at http://'+listenHost+':'+listenPort));

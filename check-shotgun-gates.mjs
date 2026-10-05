@@ -54,4 +54,4 @@ assert.equal(ceiling.gate_request_count,288);
 assert.equal(ceiling.requests.filter(request=>request.start_gate&&!request.destination_gate).length,16);
 assert.equal(ceiling.requests.filter(request=>!request.start_gate&&request.destination_gate).length,16);
 assert.equal(ceiling.requests.filter(request=>request.start_gate&&request.destination_gate).length,256);
-console.log('Passed Escape Gate selection, all 289 cross-product searches, provenance, and deduplication. Actual provider calls: 0.');
+console.log('Passed Escape Gate selection, 289-request full start/destination cross-product, provenance, and deduplication. Actual provider calls: 0.');

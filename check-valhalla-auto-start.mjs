@@ -45,7 +45,7 @@ assert.equal(timers.length,0,'a stopped batch must never auto-start');
 assert.equal(context.sends,1);
 
 vm.runInContext("restoreTripSetup=()=>true;setStage=stage=>{state.stage=stage;}",context);
-const imported={schema:'survive_drive_request_draft_v1',provider:'Valhalla',round:2,trip:{origin_label:'Start',destination_label:'End'},here:{status:'shotgun_batch_prepared_not_authorized_or_sent',maximum_requests:2,params:{origin:'42,-87',destination:'42.1,-87.1',departureTime:'any',alternatives:0}},shotgun:{start_gate_settings:{},batch:{maximum_requests:2,maximum_candidates:2,requests:[{index:0,request_kind:'baseline',status:'prepared_not_authorized_or_sent',params:{}},{index:1,request_kind:'gate_pair',status:'prepared_not_authorized_or_sent',params:{}}]}}};
+const imported={schema:'survive_drive_request_draft_v1',provider:'Valhalla',exclusion_zones:{cutoff_ppsqft:200,buffer_miles:30,zone_count:0,cell_count:0,polygon_count:0,vertex_count:0,polygons:[]},round:2,trip:{origin_label:'Start',destination_label:'End'},here:{status:'shotgun_batch_prepared_not_authorized_or_sent',maximum_requests:2,params:{origin:'42,-87',destination:'42.1,-87.1',departureTime:'any',alternatives:0}},shotgun:{start_gate_settings:{},batch:{maximum_requests:2,maximum_candidates:2,requests:[{index:0,request_kind:'baseline',status:'prepared_not_authorized_or_sent',params:{}},{index:1,request_kind:'gate_pair',status:'prepared_not_authorized_or_sent',params:{}}]}}};
 assert.equal(vm.runInContext('restorePreparedValhallaDraft',context)(imported),true);
 assert.equal(state.draft,imported);
 assert.equal(imported.shotgun.batch.status,'prepared_not_authorized_or_sent');

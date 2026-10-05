@@ -1,5 +1,8 @@
 .sites-runtime/
 .env
+.env.*
+!.env.example
+local-round-claims.jsonl
 *.tgz
 node_modules/
 work/

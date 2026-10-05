@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {valhallaPayload,valhallaEndpoint,validateValhallaResponse} from '../server/valhalla-provider.js';
+import {valhallaPayload,valhallaEndpoint,valhallaHighwayCellMasks,validateValhallaResponse} from '../server/valhalla-provider.js';
 
 const baseline={origin:'41.9,-87.6',destination:'42,-87.7',routingMode:'fast',departureTime:'any',alternatives:3};
 const payload=valhallaPayload(baseline);
@@ -9,6 +9,11 @@ assert.equal(payload.locations.length,2);
 assert.equal(payload.alternates,3);
 assert.equal(payload.costing,'auto');
 assert.equal(payload.shape_format,'polyline6');
+const exclusionRing=[[-87.65,41.9],[-87.64,41.9],[-87.64,41.91],[-87.65,41.91],[-87.65,41.9]];
+const excluded=valhallaPayload({...baseline,exclude_polygons:[exclusionRing]});
+assert.deepEqual(excluded.exclude_polygons,[exclusionRing],'reviewed exclusion rings are forwarded unchanged to Valhalla');
+assert.throws(()=>valhallaPayload({...baseline,exclude_polygons:[[[-87.65,41.9],[-87.64,41.9],[-87.64,41.91],[-87.65,41.91]]]}),/must be closed/);
+assert.throws(()=>valhallaPayload({...baseline,exclude_polygons:[[[0,0],[1,1],[2,2],[0,0]]]}),/enclose an area/);
 const gated=valhallaPayload({...baseline,via:['41.91,-87.61;radius=200','41.99,-87.69;radius=200']});
 assert.deepEqual(gated.locations.map(p=>p.type),['break','through','through','break']);
 assert.equal(gated.locations[1].radius,200);
@@ -32,6 +37,23 @@ assert.throws(()=>valhallaPayload({...baseline,routeOptions:{unexpected:true}}))
 assert.equal(valhallaEndpoint('https://routing.example.com').href,'https://routing.example.com/route');
 assert.throws(()=>valhallaEndpoint('http://routing.example.com'));
 assert.throws(()=>valhallaEndpoint('https://routing.example.com/other'));
+
+const varint=value=>{const bytes=[];while(value>127){bytes.push((value&127)|128);value=Math.floor(value/128);}bytes.push(value);return bytes;};
+const field=(number,wire,value)=>[...varint(number*8+wire),...(wire===2?[...varint(value.length),...value]:varint(value))];
+const packed=values=>values.flatMap(varint),utf8=value=>[...new TextEncoder().encode(value)],mvtValue=value=>typeof value==='string'?field(1,2,utf8(value)):field(7,0,value?1:0);
+const zigzag=value=>value<0?-value*2-1:value*2,geometry=(x,y)=>packed([9,zigzag(x),zigzag(y),10,zigzag(56),zigzag(0)]);
+const feature=(tags,x,y)=>[...field(2,2,packed(tags)),...field(3,0,2),...field(4,2,geometry(x,y))];
+const layerBytes=[...field(1,2,utf8('edges')),...field(2,2,feature([0,0,1,1,2,2],2020,2048)),...field(2,2,feature([0,3,1,4,2,2],2020,3000)),...field(3,2,utf8('edge.road_class')),...field(3,2,utf8('edge.toll')),...field(3,2,utf8('edge.ramp')),...[mvtValue('motorway'),mvtValue(false),mvtValue(false),mvtValue('primary'),mvtValue(true)].flatMap(value=>field(4,2,value)),...field(5,0,4096)];
+const tileBytes=Uint8Array.from(field(3,2,layerBytes));
+const z=12,n=2**z,latLon=(x,y)=>[x/n*360-180,Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI],tileCenterLonLat=(tx,ty,px,py)=>latLon(tx+px/4096,ty+py/4096);
+const [tx,ty]=(()=>{const lon=-87.65,lat=41.9,sin=Math.sin(lat*Math.PI/180);return[Math.floor((lon+180)/360*n),Math.floor((1-Math.log((1+sin)/(1-sin))/(2*Math.PI))/2*n)];})();
+const cellAtTilePoint=(id,px,py)=>{const [lon,lat]=tileCenterLonLat(tx,ty,px,py),[west,north]=tileCenterLonLat(tx,ty,px-10,py-10),[east,south]=tileCenterLonLat(tx,ty,px+10,py+10);return{cell_id:id,polygon:[[west,north],[east,north],[east,south],[west,south],[west,north]]};};
+let tileRequests=0;
+const roadMasks=await valhallaHighwayCellMasks({include_tollways:true,cells:[cellAtTilePoint('highway-cell',2048,2048),cellAtTilePoint('toll-cell',2048,3000)]},'https://routing.example.com',{fetchImpl:async()=>{tileRequests++;return{ok:true,arrayBuffer:async()=>tileBytes.buffer.slice(tileBytes.byteOffset,tileBytes.byteOffset+tileBytes.byteLength)};}});
+assert.deepEqual(roadMasks.highway_cell_ids,['highway-cell'],'the static graph highway mask includes motorway cells');
+assert.deepEqual(roadMasks.tollway_cell_ids,['toll-cell'],'tollway masking remains independent of highway classification');
+assert.equal(roadMasks.tile_count,1,'cells sharing a static graph tile cause one tile read');
+assert.equal(tileRequests,1,'the offline fixture issues no network request');
 
 function polyline6(points){let prior=[0,0],out='';for(const [lat,lon] of points){const next=[Math.round(lat*1e6),Math.round(lon*1e6)];for(let i=0;i<2;i++){let value=next[i]-prior[i];value=value<0?~(value<<1):value<<1;while(value>=32){out+=String.fromCharCode((32|(value&31))+63);value>>>=5;}out+=String.fromCharCode(value+63);}prior=next;}return out;}
 const shape=polyline6([[41.9,-87.6],[41.91,-87.61]]);
@@ -86,7 +108,7 @@ vm.runInNewContext(await readFile(new URL('../dist/shotgun-gates.js',import.meta
 const gates=Array.from({length:16},(_,i)=>({id:`gate-${i+1}`,gate_number:i+1,name:`Gate ${i+1}`,latitude:41.9+i*.001,longitude:-87.6,bearing_deg:i*22.5}));
 const destinations=gates.map((gate,i)=>({...gate,id:`destination-${i+1}`,latitude:42+i*.001}));
 let serial=0;
-const batch=shotgunContext.SurviveShotgun.buildBatch({here:{maximum_candidates:4,params:{...baseline,routeOptions:preferences}}},gates,destinations,()=>`request-${++serial}`);
+const batch=shotgunContext.SurviveShotgun.buildBatch({here:{maximum_candidates:4,params:{...baseline,routeOptions:preferences,exclude_polygons:[exclusionRing]}}},gates,destinations,()=>`request-${++serial}`);
 assert.equal(batch.maximum_requests,289);
 assert.equal(batch.maximum_candidates,292);
 assert.equal(batch.gate_request_count,288);
@@ -103,6 +125,7 @@ for(const request of batch.requests.slice(1)){
   assert.equal(request.maximum_candidates,1);
   assert.equal(request.params.via.length,Number(!!request.start_gate)+Number(!!request.destination_gate));
   const translated=valhallaPayload({...baseline,...request.params});
+  assert.deepEqual(translated.exclude_polygons,[exclusionRing],'every gate request keeps the frozen route-exclusion set');
   assert.equal(translated.locations.length,2+request.params.via.length);
   assert.equal(translated.alternates,0);
   assert.equal(translated.costing_options.auto.use_highways,0);

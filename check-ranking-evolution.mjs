@@ -15,10 +15,11 @@ const routes=[
 const results={ranked_routes:[{route_id:'promising',rank:2},{route_id:'known',rank:1},{route_id:'stable',rank:3}],attempted_cell_ids:[],red_threshold_ppsqft:250};
 const tiedRoutes=[{id:'slow-tie',name:'A slow route',duration_s:1200,cells:[cell(30,0,100,200),cell(31,0,100,500)]},{id:'fast-tie',name:'Z fast route',duration_s:600,cells:[cell(32,0,100,200),cell(33,0,100,300)]}];
 const tiedEvolution=context.SurvivePool.evolve(tiedRoutes,{ranked_routes:[],attempted_cell_ids:[],red_threshold_ppsqft:250},0,'time-tie',1);
-assert.equal(tiedEvolution.rank_intervals.find(row=>row.route_id==='slow-tie').current_rank,1,'ranking evolution breaks equal Red shares by higher weighted PPSQFT before travel time');
+assert.equal(tiedEvolution.rank_intervals.find(row=>row.route_id==='fast-tie').current_rank,1,'ranking evolution breaks equal absolute Red miles by shorter returned travel time');
+assert.equal(tiedEvolution.algorithm,'possible_red_mileage_frontier_v2');
 const first=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
 const repeat=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
-assert.equal(first.algorithm,'rank_interval_red_frontier_v1');
+assert.equal(first.algorithm,'possible_red_mileage_frontier_v2');
 assert.equal(first.generation,1);
 assert.equal(first.maximum_attempts,1);
 assert.equal(first.provider_calls,0);
@@ -29,7 +30,19 @@ assert.equal(first.selected_cells[0].members[0].contender,true);
 assert.equal(JSON.stringify(first.selected_cells.map(x=>x.cell_id)),JSON.stringify(repeat.selected_cells.map(x=>x.cell_id)),'generation plan is reproducible from the seed');
 assert.equal(first.route_sampling.find(x=>x.route_id==='promising').rank_interval.best,1);
 assert.ok(first.route_sampling.find(x=>x.route_id==='promising').rank_interval.worst>1,'uncertain route carries a rank interval');
+assert.equal(first.route_sampling.find(x=>x.route_id==='promising').red_distance_bounds_m.lower,100,'partial evidence reports its absolute known-Red lower bound');
+assert.equal(first.route_sampling.find(x=>x.route_id==='promising').red_distance_bounds_m.upper,600,'partial evidence reports its conservative possible-Red upper bound');
 assert.equal(first.ranking_stable,false);
+
+const noEvidence=context.SurvivePool.evolve([{id:'unknown-only',name:'Unknown only',duration_s:100,cells:[cell(40,0,500,null)]}],{ranked_routes:[{route_id:'unknown-only',rank:1}],attempted_cell_ids:[],red_threshold_ppsqft:250},0,'unranked',5);
+assert.equal(noEvidence.rank_intervals[0].current_rank,null,'a stale supplied rank never ranks a route with no known evidence');
+assert.equal(noEvidence.rank_intervals[0].red_distance_bounds_m.lower,0,'unknown-only evidence has zero known Red lower bound');
+assert.equal(noEvidence.rank_intervals[0].red_distance_bounds_m.upper,500,'unknown-only evidence remains an absolute possible-Red interval');
+assert.equal(noEvidence.rank_intervals[0].contender,true,'an unranked route can still be selected for evidence');
+const unknownOnlySample=context.SurvivePool.evolve([{id:'unknown-only',name:'Unknown only',duration_s:100,cells:[cell(40,0,500,null)]}],{ranked_routes:[{route_id:'unknown-only',rank:1}],attempted_cell_ids:[],red_threshold_ppsqft:250},1,'unranked-sample',5);
+assert.equal(unknownOnlySample.rank_intervals[0].current_rank,null,'sampling does not fabricate a route rank');
+assert.equal(unknownOnlySample.selected_cells.length,1,'unknown-only routes remain eligible for bounded evidence selection');
+assert.equal(unknownOnlySample.selected_cells[0].members[0].contender,true);
 
 const shared=cell(10,10,80,null),sharedRoutes=[
   {id:'share-a',name:'Share A',cells:[cell(9,10,100,180),shared]},

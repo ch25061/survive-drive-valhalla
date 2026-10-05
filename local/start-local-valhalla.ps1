@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 $runtime = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..\work\valhalla-local')).Path
 $service = Join-Path $runtime '.venv\Lib\site-packages\valhalla\bin\valhalla_service.exe'
 $libraries = Join-Path $runtime '.venv\Lib\site-packages\pyvalhalla.libs'
+$serviceBin = Split-Path -Parent $service
+$pythonScripts = Join-Path $runtime '.venv\Scripts'
 $bridge = Join-Path $PSScriptRoot 'bridge.mjs'
 
 function Test-Service($url) {
@@ -12,7 +14,7 @@ function Test-Service($url) {
 }
 
 if (-not (Test-Service 'http://127.0.0.1:8002/status')) {
-    $env:PATH = "$libraries;$env:PATH"
+    $env:PATH = "$libraries;$serviceBin;$pythonScripts;$env:PATH"
     Start-Process -FilePath $service -ArgumentList 'valhalla.json','4' -WorkingDirectory $runtime -RedirectStandardOutput (Join-Path $runtime 'service.out.log') -RedirectStandardError (Join-Path $runtime 'service.err.log') -WindowStyle Hidden | Out-Null
 }
 if (-not (Test-Service 'http://127.0.0.1:8003/status')) {
@@ -21,7 +23,7 @@ if (-not (Test-Service 'http://127.0.0.1:8003/status')) {
     Start-Process -FilePath $node -ArgumentList ('"' + $bridge + '"') -WorkingDirectory $PSScriptRoot -RedirectStandardOutput (Join-Path $runtime 'bridge.out.log') -RedirectStandardError (Join-Path $runtime 'bridge.err.log') -WindowStyle Hidden | Out-Null
 }
 
-for ($attempt = 0; $attempt -lt 15; $attempt++) {
+for ($attempt = 0; $attempt -lt 45; $attempt++) {
     $status = Test-Service 'http://127.0.0.1:8003/status'
     if ($status -and $status.valhalla_ready) {
         Write-Output 'Local Valhalla is ready for Illinois, Indiana, Ohio, Kentucky, Florida, and Southern California at http://127.0.0.1:8002.'

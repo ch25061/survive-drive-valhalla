@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const EARTH_M=6371008.8,MILE_M=1609.344;
+  const EARTH_M=6371008.8,MILE_M=1609.344,MAX_BATCH_REQUESTS=4096;
   function finite(value,label){if(!Number.isFinite(value))throw Error(label+' must be a number.');return value;}
   function point(value,label='Point'){
     if(!Array.isArray(value)||value.length!==2)throw Error(label+' needs latitude and longitude.');
@@ -52,14 +52,9 @@
   function coord(g){return Number(g.latitude.toFixed(7))+','+Number(g.longitude.toFixed(7));}
   function fuzzyVia(g){return coord(g)+';radius=200';}
   function pairGates(startGates,destinationGates){
-    if(!Array.isArray(startGates)||!Array.isArray(destinationGates)||startGates.length>16||destinationGates.length>16||(!startGates.length&&!destinationGates.length))throw Error('Choose up to 16 reviewed gates for either end of the trip.');
-    const start=startGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),destination=destinationGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),pairs=[];
-    for(const startGate of [null,...start])for(const destinationGate of [null,...destination]){
-      if(!startGate&&!destinationGate)continue;
-      const bearingGap=startGate&&destinationGate?angularGap(Number.isFinite(startGate.bearing_deg)?startGate.bearing_deg:0,Number.isFinite(destinationGate.bearing_deg)?destinationGate.bearing_deg:0):null;
-      pairs.push({pair_number:pairs.length+1,start_gate:startGate,destination_gate:destinationGate,bearing_gap_deg:bearingGap});
-    }
-    if(pairs.length>288)throw Error('The cross-product plan exceeds its 288 gated-request ceiling.');return pairs;
+    if(!Array.isArray(startGates)||!Array.isArray(destinationGates)||startGates.length>16||destinationGates.length>16||(!startGates.length&&!destinationGates.length))throw Error('Choose up to 16 reviewed gates at either trip end.');
+    const start=startGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),destination=destinationGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),groups=[[null,...start],[null,...destination]],pairs=[];
+    const build=(index,selected)=>{if(index===groups.length){if(selected.every(g=>!g))return;const startGate=selected[0],destinationGate=selected[1],bearingGap=startGate&&destinationGate?angularGap(Number.isFinite(startGate.bearing_deg)?startGate.bearing_deg:0,Number.isFinite(destinationGate.bearing_deg)?destinationGate.bearing_deg:0):null;pairs.push({pair_number:pairs.length+1,start_gate:startGate,destination_gate:destinationGate,bearing_gap_deg:bearingGap});if(pairs.length>=MAX_BATCH_REQUESTS)throw Error('These gate selections would require more than '+MAX_BATCH_REQUESTS+' total Valhalla requests including the baseline. Reduce the selected gates.');return;}for(const gate of groups[index])build(index+1,[...selected,gate]);};build(0,[]);return pairs;
   }
   function buildBatch(baseDraft,startGates,destinationGates=[],uuid=()=>crypto.randomUUID()){
     if(typeof destinationGates==='function'){uuid=destinationGates;destinationGates=[];}

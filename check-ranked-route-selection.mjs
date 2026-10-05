@@ -21,20 +21,45 @@ const routes=[{id:'alpha',name:'Alpha',cells:[]},{id:'beta',name:'Beta',cells:[]
 state.poolScreening.results=[{route_id:'alpha',rank:1},{route_id:'beta',rank:2}];
 assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>[card.route.id,card.index]),[['alpha',0],['beta',1]]);
 
-// Equal Red shares use the higher distance-weighted PPSQFT, then travel time.
+// Known Red miles lead; Red Percent and Known Coverage resolve ties before returned travel time.
 state.redThresholdPpsqft=250;
 const evidenceCell=(id,distance,value)=>({cell_id:id,outside_here_distance_m:distance,estimate_ppsqft:value});
+const knownMilesFirst=[
+  {id:'few-known-red',name:'Few known Red miles, large unknown gap',duration_s:1800,cells:[evidenceCell('few-red',50,200),evidenceCell('few-unknown',1000,null)]},
+  {id:'more-known-red',name:'More known Red miles, complete',duration_s:300,cells:[evidenceCell('more-red-primary',100,200),evidenceCell('more-green-primary',900,300)]}
+];
+const knownMilesRanks=new Map(ui.rankPoolResults(knownMilesFirst,null,[]).map(row=>[row.route_id,row.rank]));
+assert.ok(knownMilesRanks.get('few-known-red')<knownMilesRanks.get('more-known-red'),'Known Red Miles Under stays primary even when unknown miles would make the old ceiling larger');
 const tieRoutes=[
   {id:'slow',name:'A slow route',duration_s:1200,cells:[evidenceCell('slow-red',100,200),evidenceCell('slow-green',100,300)]},
   {id:'fast',name:'Z fast route',duration_s:600,cells:[evidenceCell('fast-red',100,200),evidenceCell('fast-green',100,300),evidenceCell('fast-unknown',100,null)]},
   {id:'higher-value',name:'Higher value, longer trip',duration_s:1800,cells:[evidenceCell('higher-red',100,200),evidenceCell('higher-green',100,500)]},
   {id:'least-red',name:'Least Red',duration_s:1800,cells:[evidenceCell('least-green',200,300)]},
-  {id:'no-time',name:'No travel time',duration_s:null,cells:[evidenceCell('untimed-red',100,200),evidenceCell('untimed-green',100,300)]}
+  {id:'no-time',name:'No travel time',duration_s:null,cells:[evidenceCell('untimed-red',100,200),evidenceCell('untimed-green',100,300)]},
+  {id:'no-evidence',name:'No known AVM evidence',duration_s:300,cells:[evidenceCell('unknown-only',100,null)]}
 ];
 const tieResults=ui.rankPoolResults(tieRoutes,null,[]),tieRanks=new Map(tieResults.map(row=>[row.route_id,row.rank]));
-assert.deepEqual(Array.from(['least-red','higher-value','fast','slow','no-time'],id=>tieRanks.get(id)),[1,2,3,4,5]);
+assert.deepEqual(Array.from(['least-red','slow','higher-value','no-time','fast'],id=>tieRanks.get(id)),[1,2,3,4,5]);
+assert.equal(tieRanks.get('no-evidence'),null,'routes with no known AVM evidence remain unranked instead of receiving a zero-mile score');
+assert.ok(tieRanks.get('slow')<tieRanks.get('fast'),'equal Known Red Miles Under and Red Percent use higher Known Coverage before travel time');
 state.routes=tieRoutes;state.poolScreening.results=tieResults;
-assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['least-red','higher-value','fast','slow','no-time']);
+assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['least-red','slow','higher-value','no-time','fast','no-evidence']);
+assert.equal(tieResults.find(row=>row.route_id==='fast').red_distance_m,100,'the primary score remains known Red miles even when unknown miles are present');
+assert.equal(tieResults.find(row=>row.route_id==='fast').unknown_distance_m,100,'unknown exposure remains available as coverage context');
+
+const detourRoutes=[
+  {id:'short',name:'Short known route',duration_s:500,cells:[evidenceCell('short-red',100,200),evidenceCell('short-green',900,300)]},
+  {id:'detour',name:'Long non-Red detour',duration_s:600,cells:[evidenceCell('detour-red',100,200),evidenceCell('detour-green',4900,300)]},
+  {id:'more-red',name:'More Red, faster',duration_s:100,cells:[evidenceCell('more-red-cell',101,200),evidenceCell('more-green-cell',999,300)]},
+  {id:'partial-short',name:'Partial route',duration_s:700,cells:[evidenceCell('partial-red',50,200),evidenceCell('partial-unknown',50,null),evidenceCell('partial-known-green',100,300)]},
+  {id:'partial-detour',name:'Partial route with green detour',duration_s:800,cells:[evidenceCell('partial-detour-red',50,200),evidenceCell('partial-detour-unknown',50,null),evidenceCell('partial-detour-green',500,300)]}
+];
+const detourResults=ui.rankPoolResults(detourRoutes,null,[]),detourRanks=new Map(detourResults.map(row=>[row.route_id,row.rank]));
+assert.ok(detourRanks.get('detour')<detourRanks.get('short'),'Red Percent breaks equal known-Red-mile ties before travel time');
+assert.ok(detourRanks.get('more-red')>detourRanks.get('detour'),'one more known Red meter is worse even when the route is much faster');
+assert.equal(detourResults.find(row=>row.route_id==='partial-short').red_distance_m,50);
+assert.equal(detourResults.find(row=>row.route_id==='partial-detour').red_distance_m,50);
+assert.ok(detourRanks.get('partial-detour')<detourRanks.get('partial-short'),'lower Red Percent breaks equal known-Red-mile ties on partial routes');
 state.routes=routes;
 
 // A cutoff-driven rerank can reorder the visible cards; their stored indices

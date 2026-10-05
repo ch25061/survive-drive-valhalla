@@ -14,6 +14,16 @@ const lowCoverage=ranked.map((row,index)=>({...row,coverage_pct:index<6?10:50}))
 const protectedFirst=ui.SurvivePool.screenRoundZeroWithQuota(lowCoverage,ids,0.35);
 assert.equal(protectedFirst.enabled_route_ids.length,6,'all six low-coverage routes survive even above the quota of five');
 assert.deepEqual([1,2,3].map(round=>ui.SurvivePool.routeQuotaForCullRound(8,round,[0.35,0.5,0.25])),[5,2,1]);
+const hundredIds=Array.from({length:100},(_,index)=>`candidate-${String(index+1).padStart(3,'0')}`),hundredRanked=hundredIds.map((route_id,index)=>({route_id,rank:index+1,coverage_pct:50}));
+const baseline=ui.SurvivePool.screenRoundZeroWithQuota(hundredRanked,hundredIds,0.35,80);
+assert.equal(baseline.quota,80,'Round 0 accepts a manually selected absolute inclusion target');
+assert.equal(baseline.enabled_route_ids.length,80,'Round 0 includes the requested best-ranked 80');
+assert.equal(baseline.disabled_route_ids.length,20,'Round 0 excludes the other 20');
+assert.equal(baseline.cull_fraction,0.2,'the baseline records the matching initial cull fraction');
+const afterFirstRound=ui.SurvivePool.selectRoutesForCullRound(hundredRanked,hundredIds,baseline.enabled_route_ids,2,[],[0.2,0.5]);
+assert.equal(afterFirstRound.quota,40,'a 50% subsequent deactivation compounds from the new baseline of 80');
+assert.equal(afterFirstRound.enabled_route_ids.length,40);
+assert.equal(afterFirstRound.disabled_route_ids.length,60,'the 80-route baseline followed by a 50% cull leaves 60 excluded overall');
 
 const appSource=readFileSync('dist/app.js','utf8');
 const start=appSource.indexOf('function applyCullSelection(plan,roundLabel,advance=true)');

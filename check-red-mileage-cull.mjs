@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+const element=()=>({addEventListener(){},classList:{add(){},remove(){},toggle(){}},replaceChildren(){},append(){},setAttribute(){},removeAttribute(){}});
+const ui={document:{getElementById:element},fetch(){throw Error('Ranking/cull regression must stay offline');}};ui.window=ui;
+vm.createContext(ui);
+vm.runInContext(readFileSync('dist/pool-screening.js','utf8'),ui);
+vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),ui);
+ui.SurviveDrive.getState().redThresholdPpsqft=250;
+const cell=(q,d,value)=>({cell_id:`CHI1K-V1-Q+${q}-R+0`,latitude:41.91,longitude:-87.67+q*.0001,outside_here_distance_m:d,estimate_ppsqft:value});
+const fractionalBase={id:'fractional-base',name:'Base',duration_s:700,cells:[cell(10,123.456,200),cell(11,400.789,300),cell(12,21.123456789,null)]};
+const fractionalDetour={...fractionalBase,id:'fractional-detour',name:'Detour',cells:[...fractionalBase.cells,cell(13,1000000.123,300)]};
+const fractionalRows=ui.rankPoolResults([fractionalBase,fractionalDetour],null,[]);
+assert.equal(fractionalRows[0].unknown_distance_m,fractionalRows[1].unknown_distance_m,'unknown distance is summed independently of known non-Red detour miles');
+assert.equal(fractionalRows[0].red_distance_m,fractionalRows[1].red_distance_m,'known non-Red detour distance does not change the primary Known Red Miles Under score');
+const incumbent={id:'incumbent',name:'Incumbent',duration_s:600,cells:[cell(0,50,200),cell(1,950,300)]};
+const excluded={id:'excluded',name:'Excluded',duration_s:700,cells:[cell(2,50,200),cell(3,1000,null)]};
+const ids=[incumbent.id,excluded.id],before=ui.rankPoolResults([incumbent,excluded],null,[]);
+const initial=ui.SurvivePool.selectRoutesForCullRound(before,ids,ids,1,[],[0.5]);
+assert.deepEqual(Array.from(initial.enabled_route_ids),['incumbent'],'Red Percent breaks the equal known-Red-mile tie while the incomplete route has worse known Red Percent');
+assert.deepEqual(Array.from(initial.disabled_route_ids),['excluded']);
+assert.equal(before.find(x=>x.route_id==='excluded').red_distance_m,50);
+assert.equal(before.find(x=>x.route_id==='incumbent').red_distance_m,50);
+assert.ok(Math.abs(before.find(x=>x.route_id==='excluded').coverage_pct-100*50/1050)<1e-10);
+
+// Exact evidence is shared across candidates even when one is excluded.
+const other={id:'other',name:'Other',duration_s:800,cells:[cell(4,700,200),{...excluded.cells[1],outside_here_distance_m:250}]};
+const state=ui.SurviveDrive.getState();state.routes=[incumbent,excluded,other];
+const result={...excluded.cells[1],estimate_ppsqft:300,value_origin:'offline',acquired_at:'2026-10-02'};
+const affected=state.routes.filter(route=>ui.applyMapCellEvidenceToRoute(route,false,[result])).map(route=>route.id);
+assert.deepEqual(affected.sort(),['excluded','other'],'one exact-cell result updates every traversing candidate');
+assert.equal(excluded.cells[1].estimate_ppsqft,300);
+assert.equal(other.cells[1].estimate_ppsqft,300);
+const after=ui.rankPoolResults(state.routes,null,[]);
+const substitute=ui.SurvivePool.selectRoutesForCullRound(after,ids,initial.enabled_route_ids,1,[],[0.5]);
+assert.deepEqual(Array.from(substitute.enabled_route_ids),['excluded'],'full-pool reranking promotes the route whose newly known green miles improve its Red Percent tie-break');
+assert.deepEqual(Array.from(substitute.promoted_route_ids),['excluded']);
+assert.deepEqual(Array.from(substitute.demoted_route_ids),['incumbent']);
+assert.equal(substitute.quota,initial.quota,'reranking substitutes within the current quota');
+const evolution=ui.SurvivePool.evolve(state.routes,{red_threshold_ppsqft:250},0,'cull-consistency',1);
+assert.deepEqual(new Set(evolution.rank_intervals.map(x=>x.route_id)),new Set(after.map(x=>x.route_id)),'separate evidence-selection intervals remain available for every ranked route');
+
+const unknownOnly={id:'unknown-only',name:'Unknown only',duration_s:1,cells:[cell(5,500,null)]};
+const unknownRows=ui.rankPoolResults([incumbent,unknownOnly],null,[]);
+assert.equal(unknownRows.find(x=>x.route_id==='unknown-only').rank,null);
+const protectedZero=ui.SurvivePool.screenRoundZeroWithQuota(unknownRows,[incumbent.id,unknownOnly.id],0.5);
+assert.ok(protectedZero.enabled_route_ids.includes(unknownOnly.id),'Round 0 retains the existing under-20% protection');
+assert.deepEqual([1,2,3].map(round=>ui.SurvivePool.routeQuotaForCullRound(8,round,[0.35,0.5,0.25])),[5,2,1],'configurable culls still compound from the prior nominal quota');
+console.log('Known Red-mile cull regression passed primary mileage ordering, Red Percent/coverage tie-breaks, shared-cell updates, excluded-route promotion, unchanged rerank quota, no-evidence handling, coverage protection, and configurable compounding quotas. Live provider calls: 0.');

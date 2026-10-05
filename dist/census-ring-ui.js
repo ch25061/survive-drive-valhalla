@@ -10,13 +10,14 @@ function forgetPendingCensus(side,circleId){pendingCensusCircleSaves[side].delet
 function markCensusCircleSaved(side,circleId){state.uncertainAttempts=state.uncertainAttempts.filter(item=>!(item.provider==='Census TIGERweb'&&item.page_id===circleId&&item.side===side&&item.scope==='circle_not_cached'));providerCounts();}
 function censusCircleError(error){return ['TimeoutError','AbortError'].includes(error?.name)?Error('Census road request exceeded the 60-second limit.'):error;}
 async function checkCensusRing(origin,options,epoch,side,retry=false){
-  const label=side==='start'?'Start':'Destination',status=$('shotgun-status'+(side==='destination'?'-destination':'')),params={origin,inner_miles:options.inner_miles,outer_miles:options.outer_miles},expected=window.SurviveCensusRing.plan(params),current=()=>epoch===state.catalogFaultEpochs[side];
-  state.catalogRingSettled??={};state.catalogRingEpoch??={};
+  const label=side==='start'?'Start':'Destination',status=$(side==='start'?'shotgun-status':'shotgun-status-destination'),params={origin,inner_miles:options.inner_miles,outer_miles:options.outer_miles},expected=window.SurviveCensusRing.plan(params),current=()=>epoch===state.catalogFaultEpochs[side];
+  pendingCensusCircleSaves[side]??=new Map();state.catalogRingSettled??={};state.catalogRingEpoch??={};
   if(state.catalogBusy[side]){const sameEpoch=state.catalogRingEpoch[side]===epoch;await state.catalogRingSettled[side];if(sameEpoch||!current())return;}
   if(!current())return;
   state.catalogBusy[side]=true;state.catalogRingEpoch[side]=epoch;let settled;state.catalogRingSettled[side]=new Promise(resolve=>{settled=resolve;});const endWorking=beginWorking(status);let completed=0,attempted=0,stopped=false,failure=null;
-  state.catalogFaults[side]={kind:'ring',epoch,origin,options,page_id:expected.id};
+  state.catalogFaults[side]={kind:'ring',epoch,origin,options,page_id:expected.id};const activeCircles=new Set();
   const message=text=>{if(current()){status.textContent=text;workflowPhase(text);}};
+  const reportProgress=()=>{const active=[...activeCircles].sort((a,b)=>a-b).map(index=>index+1);const detail=failure?'Circle '+(failure.index+1)+' failed; finishing in-flight circles '+(active.length?active.join(', '):'none')+'.':active.length?'Checking circles '+active.join(', ')+'.':'Waiting for the next circle.';message('WAIT — '+label+': '+completed+' of '+expected.circles.length+' circles finished. '+detail+' Up to 3 at a time; no action needed.');};
   async function post(operation,extra={}){
     const maximumAttempts=operation==='ingest'?3:1;
     for(let attempt=1;attempt<=maximumAttempts;attempt++){
@@ -46,9 +47,8 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
         markCensusCircleSaved(side,circleId);
       }
       let cursor=0;
-      async function run(){while(!stopped&&current()&&cursor<expected.circles.length){const index=cursor++,circle=expected.circles[index];let sent=false,ingested=false;
+      async function run(){while(!stopped&&current()&&cursor<expected.circles.length){const index=cursor++,circle=expected.circles[index];let sent=false,ingested=false;activeCircles.add(index);reportProgress();
         try{
-          message('WAIT — '+label+': '+completed+' of '+expected.circles.length+' circles finished. Checking circle '+(index+1)+'. Up to 3 at a time; no action needed.');
           const claim=await post('claim',{circle_index:index,retry_requested:retry});
           if(claim.circle_id!==circle.id)throw Error('The returned circle does not match the plan.');
           if(!current()){
@@ -68,8 +68,8 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
             forgetPendingCensus(side,circle.id);
             markCensusCircleSaved(side,circle.id);
           }
-          completed++;
-        }catch(error){if(sent&&!ingested)state.uncertainAttempts.push({provider:'Census TIGERweb',page_id:circle.id,side,scope:'circle_not_cached'});if(!failure)failure={index,error:censusCircleError(error)};stopped=true;}
+          completed++;activeCircles.delete(index);reportProgress();
+        }catch(error){activeCircles.delete(index);if(sent&&!ingested)state.uncertainAttempts.push({provider:'Census TIGERweb',page_id:circle.id,side,scope:'circle_not_cached'});if(!failure)failure={index,error:censusCircleError(error)};stopped=true;reportProgress();}
       }}
       await Promise.all([run(),run(),run()]);if(!current())return;
       if(failure)throw Error(label+' search stopped at circle '+(failure.index+1)+' of '+expected.circles.length+'. '+failure.error.message+' '+completed+' completed circles were saved.');
@@ -80,7 +80,7 @@ async function checkCensusRing(origin,options,epoch,side,retry=false){
     state.intersectionCatalogs[side]=valid;if(side==='start')state.intersectionCatalog=valid;state.catalogFaults[side]=null;setCatalogRetryCue(side);
     log(label+' ring complete: '+expected.circles.length+' circles; '+attempted+' Census requests this run; '+(catalog.search_summary?.unique_roads??0)+' unique roads; '+(catalog.search_summary?.duplicate_roads_removed??0)+' duplicate road results removed.');
     suggestShotgunGates({side,skipPageFault:true});
-  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);const pending=[...pendingCensusCircleSaves[side].values()].filter(item=>item.ring_id===expected.id).length;status.textContent=error.message+' No automatic Census retry. Select Retry '+label+' Census lookup to resume using saved circles.'+(pending?' Retry first saves '+pending+' completed Census response'+(pending===1?'':'s')+' still held in this tab, without requesting those circles again.':'');notice(status.textContent);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
+  }catch(error){if(current()){setCatalogRetryCue(side,expected.id);const pending=[...pendingCensusCircleSaves[side].values()].filter(item=>item.ring_id===expected.id).length;const retryMessage=error.message+' No automatic Census retry. Select Retry '+label+' Census lookup to resume using saved circles.'+(pending?' Retry first saves '+pending+' completed Census response'+(pending===1?'':'s')+' still held in this tab, without requesting those circles again.':'');status.textContent=retryMessage;notice(retryMessage);const list=$('http-error-advisory-list');if(list&&typeof document.createElement==='function'){const row=document.createElement('li');row.textContent=status.textContent;list.append(row);if($('http-error-advisory').hidden){$('http-error-advisory').hidden=false;$('close-http-error-advisory').focus?.();}}}}
   finally{endWorking();state.catalogBusy[side]=false;settled();providerCounts();updateNextAction();}
 }
 
