@@ -57,6 +57,17 @@ assert.equal(fitCalls.at(-1).bounds.routeBounds,true,'route selection fits the w
 assert.equal(JSON.stringify(fitCalls.at(-1).bounds.points),JSON.stringify(selectedRoute.geometry.map(p=>[p[1],p[0]])),'both route endpoints and the full geometry are included');
 const fitsBefore=fitCalls.length;app.drawMap(focusRequests.at(-1));assert.equal(fitCalls.length,fitsBefore,'same-route evidence refresh preserves the current zoom');
 app.drawMap(focusRequests[1]);assert.equal(fitCalls.at(-1).bounds.routeBounds,true,'deliberate reselection fits the full route');
+// A different route already visible must leave the existing map footprint and view alone.
+ui.innerWidth=1200;visibleMap.getBoundingClientRect=()=>({top:540,left:0,width:1200,height:parseFloat(visibleMap.style.height),bottom:540+parseFloat(visibleMap.style.height)});
+map.latLngToContainerPoint=()=>({x:200,y:200});
+const beforeVisibleFits=fitCalls.length,beforeVisibleLayout=layoutEvents.length,beforeHeight=visibleMap.style.height;
+state.routes=[{geometry:[[1,1],[2,2]],cells:[]}];state.active=0;app.drawMap({fitBounds:true,fitViewport:true});
+assert.equal(fitCalls.length,beforeVisibleFits,'switching to an already visible route skips fitBounds');
+assert.equal(layoutEvents.length,beforeVisibleLayout,'it skips resize and delayed layout invalidation');
+assert.equal(visibleMap.style.height,beforeHeight,'the map height stays unchanged');
+map.latLngToContainerPoint=()=>({x:200,y:800});
+app.drawMap({fitBounds:true,fitViewport:true});assert.equal(fitCalls.length,beforeVisibleFits+1,'a genuinely clipped route is still fitted');
+delete map.latLngToContainerPoint;
 const routeOnly={geometry:[[1,2],[3,4]],cells:[cell(1,1,100,null)]};state.routes=[routeOnly];app.drawMap({fitBounds:true});
 assert.equal(fitCalls.at(-1).bounds.routeBounds,true,'routes without known Red values fit the whole route');
 app.drawMap({fitBounds:true});assert.equal(fitCalls.at(-1).bounds.routeBounds,true,'Show entire route still fits the whole route');

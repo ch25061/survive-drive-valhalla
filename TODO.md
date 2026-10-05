@@ -1,7 +1,7 @@
 # Survive Drive TODO
 
 - [x] **Default Escape Gate count is 6** for both Start and Destination. Saved explicit gate counts are preserved. Verified offline on October 5, 2026.
-- [x] **Fit the entire selected route within the map when a route is clicked.** Route selection and deliberate reselection fit the full route in the visible page, resizing the map and bringing it into view if needed. Show entire route uses the same viewport fit; routine evidence refreshes preserve zoom. Verified offline on October 5, 2026.
+- [x] **Fit the entire selected route within the map when a route is clicked.** Route selection and deliberate reselection fit the full route in the visible page, resizing the map and bringing it into view if needed. Show entire route uses the same viewport fit. A route that already fits in the visible map skips resizing, scrolling, panning, and zooming; routine evidence refreshes preserve zoom. Verified offline on October 5, 2026.
 - [x] **Add "Known Exclusion Zone Miles Under $[Exclusion Cutoff]" to each route card**, immediately after Known Red Miles. Counts known non-highway mileage strictly below the current independent Exclusion cutoff; unknown mileage stays unknown. Ranking order is unchanged. Verified offline on October 5, 2026.
 
 - [x] **HIGH PRIORITY — Rank routes by absolute Red overland mileage, rather than Red percentage.** Requested during the October 2, 2026 live demonstration; completed and verified offline on October 2, 2026. Adding non-red detour miles cannot improve the primary score when the route's red mileage is unchanged.
