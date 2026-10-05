@@ -7,7 +7,7 @@ assert.match(source,/button\.addEventListener\('click',\(\)=>handleCandidateCard
   'pointer and native keyboard clicks must share the route-card activation handler');
 assert.doesNotMatch(source,/selectRoute\(i,\{openFollowUp:true\}\)/,
   'selecting another card must not open the selected-route dialogue');
-assert.match(source,/function selectRoute\(index[\s\S]*?renderCandidates\(\);renderMetrics\(\);drawMap\(\{fitBounds:routeChanged\|\|source==='candidate-card'\}\);/,
+assert.match(source,/function selectRoute\(index[\s\S]*?renderCandidates\(\);renderMetrics\(\);drawMap\(\{fitBounds:routeChanged\|\|source==='candidate-card',fitViewport:source==='candidate-card'\}\);/,
   'selecting a different route must refresh its card, details, metrics, and map');
 assert.match(source,/function closeSelectedRoutePopup\(\)\{state\.selectedRoutePopupOpen=false;\$\('selected-route-popup'\)\.hidden=true;/,
   'the explicit close action must keep closing the dialogue');
