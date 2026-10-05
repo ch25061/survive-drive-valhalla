@@ -169,7 +169,8 @@ const mappedCell={cell_id:'test-cell',polygon:[[-87.602,41.898],[-87.598,41.898]
 const shownRoute={...highwayRoute,cells:[mappedCell]};appContext.window.SurviveDrive.getState().routes=[shownRoute];
 appContext.window.SurviveDrive.drawMap();
 assert.equal(renderedPolygons.at(-1).fillColor,'#8a96a6');
-assert.equal(renderedDots.filter(dot=>dot.fillColor==='#7138c9').length,4,'highway run boundaries render above the route without duplicate guidance dots');
+assert.equal(renderedDots.filter(dot=>dot.fillColor==='#fff').length,2,'highway entrances render as white dots without duplicate guidance dots');
+assert.equal(renderedDots.filter(dot=>dot.fillColor==='#000').length,2,'highway exits render as black dots without duplicate guidance dots');
 mappedCell.estimate_ppsqft=100;appContext.window.SurviveDrive.drawMap();
 assert.notEqual(renderedPolygons.at(-1).fillColor,'#8a96a6','known AVM color appears on repaint without a map click');
 assert.ok(sizeRefreshes>=2,'map layout refresh runs after drawing');

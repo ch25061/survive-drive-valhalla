@@ -10,7 +10,7 @@ assert.match(source,/ArrowRight[\s\S]*?ArrowLeft[\s\S]*?ArrowUp[\s\S]*?ArrowDown
 assert.match(source,/route-line-opacity[\s\S]*?setRouteLineOpacity/,'opacity control updates the route line');
 assert.match(source,/route-line-thickness[\s\S]*?setRouteLineThickness/,'thickness control updates the route line');
 assert.match(source,/line\.setAttribute\('stroke-width',String\(routeLineThickness\)\)/,'SVG redraws use selected thickness');
-assert.match(source,/\{color:routeLineColor,weight:routeLineThickness,opacity:routeLineOpacity\}/,'Leaflet redraws use selected color, thickness, and opacity');
+assert.match(source,/\{pane:'route-line',color:routeLineColor,weight:routeLineThickness,opacity:routeLineOpacity,interactive:false\}/,'Leaflet redraws use selected color, thickness, and opacity while allowing cell hover');
 assert.match(css,/radial-gradient\(circle,white 0%,transparent 82%\),conic-gradient/,'the wheel visualizes saturation from its center to edge');
 
 const elements=new Map(),stored=new Map(),presetButtons=['#0072B2','#D55E00','#009E73','#6A3D9A','#333333'].map(routeColor=>({dataset:{routeColor},attributes:{},setAttribute(key,value){this.attributes[key]=value;}}));
