@@ -725,10 +725,9 @@ function fitRouteMapToViewport(){
     window.scrollBy({top:rect.top-topLimit,left:0,behavior:'instant'});
     rect=element.getBoundingClientRect();
   }
-  const height=Math.floor(viewportBottom-Math.max(rect.top,topLimit)-gap);
-  if(height<=0||rect.top<viewportTop)return false;
-  element.style.height=height+'px';
-  // Resize first: Leaflet must fit against the visible map, not its old dimensions.
+  // Keep the CSS square even when its lower portion requires page scrolling.
+  // Clear any old viewport-sized height before Leaflet measures the map.
+  element.style.height='';
   map.invalidateSize?.({pan:false,animate:false});
   return true;
 }
