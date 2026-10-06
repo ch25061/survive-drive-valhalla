@@ -22,6 +22,10 @@ const originalRanking=JSON.stringify(state.poolScreening.results),originalCalls=
 assert.equal(state.redThresholdPpsqft,200);
 assert.equal(state.colorUpperPpsqft,500);
 assert.equal(app.color(200),'#f16b2f');
+for(const value of [0,50,100,199.99])assert.equal(app.color(value),'#f16b2f','the former red range uses the reddish-orange endpoint');
+assert.equal(app.color(null),'#8a96a6','unknown evidence remains gray');
+assert.equal(app.color(NaN),'#8a96a6');
+assert.equal(app.color(200.000001),'#f16b2f','the scale remains continuous at its lower bound');
 assert.equal(app.color(500),'#396bd0');
 assert.equal(app.color(2200),'#396bd0');
 assert.equal(vm.runInContext('confirmColorUpper(600)',ui),true);

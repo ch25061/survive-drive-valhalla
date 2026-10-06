@@ -7,7 +7,7 @@ const gateSelect=html.match(/<select id="shotgun-count">([^<]*(?:<option[^>]*>[^
 assert.ok(gateSelect);assert.match(gateSelect,/<option selected>6<\/option>/);
 assert.equal((gateSelect.match(/selected/g)??[]).length,1);
 assert.match(source,/const DEFAULT_ESCAPE_GATE_COUNT=6;/);
-assert.match(source,/async function init\(\)\{\$\('shotgun-count'\)\.value=String\(DEFAULT_ESCAPE_GATE_COUNT\)/,'cached preview HTML also starts new trips with six gates');
+assert.match(source,/async function init\(\)\{[^\n]*\$\('shotgun-count'\)\.value=String\(DEFAULT_ESCAPE_GATE_COUNT\)/,'cached preview HTML also starts new trips with six gates');
 assert.match(source,/maximum:Number\(\$\('shotgun-count'\)\.value\),sectors:Number\(\$\('shotgun-count'\)\.value\)/,'the shared control feeds both gate searches');
 
 const elements=new Map();
@@ -31,7 +31,7 @@ assert.equal(ui.knownExclusionZoneDistance(unknown),null,'unknown distance stays
 assert.equal(ui.knownExclusionZoneDistance(zero),0,'known evidence with no below-cutoff mileage is zero');
 ui.renderCandidates();
 const badges=()=>elements.get('candidate-list').children.flatMap(wrapper=>wrapper.children[0].children.filter(child=>child.className==='pool-screening-candidate-status').map(child=>child.textContent));
-assert.ok(badges().some(text=>text.includes('Known Red Miles Under $200: 1.75 mi · Known Exclusion Zone Miles Under $100: 0.50 mi · Red Percent')),'the rendered card puts the new stat directly after Known Red Miles');
+assert.ok(badges().some(text=>text.includes('Known Orange Miles Under $200: 1.75 mi · Known Exclusion Zone Miles Under $100: 0.50 mi · Orange Percent')),'the rendered card puts the new stat directly after Known Orange Miles');
 assert.ok(badges().some(text=>text.includes('Known Exclusion Zone Miles Under $100: Unknown')));
 assert.ok(badges().some(text=>text.includes('Known Exclusion Zone Miles Under $100: 0.00 mi')));
 state.exclusionZoneThresholdPpsqft=140;ui.renderCandidates();
