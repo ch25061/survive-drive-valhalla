@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 
 const elements=new Map();
-function element(){return{value:'',children:[],disabled:false,hidden:false,open:false,checked:true,textContent:'',listeners:{},style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},replaceChildren(...nodes){this.children=nodes;},append(...nodes){this.children.push(...nodes);},setAttribute(){},removeAttribute(){},addEventListener(type,fn){this.listeners[type]=fn;},focus(){},click(){},scrollIntoView(){},querySelector(){return null;},matches(){return false;}};}
+function element(){return{value:'',children:[],disabled:false,hidden:false,open:false,checked:true,textContent:'',listeners:{},style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},replaceChildren(...nodes){this.children=nodes;},after(){},before(){},append(...nodes){this.children.push(...nodes);},setAttribute(){},removeAttribute(){},addEventListener(type,fn){this.listeners[type]=fn;},focus(){},click(){},scrollIntoView(){},querySelector(){return null;},matches(){return false;}};}
 const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
 const ui={crypto:webcrypto,console,TextEncoder,TextDecoder,URL,AbortSignal,document:{getElementById:get,querySelectorAll(){return[];},querySelector(){return null;},createElement:element,createElementNS:element,addEventListener(){}},localStorage:{getItem(){return null;},setItem(){}}};ui.window=ui;vm.createContext(ui);
 for(const file of ['here-decoder.js','route-avm.js','shotgun-gates.js','pool-screening.js'])vm.runInContext(readFileSync('dist/'+file,'utf8'),ui);

@@ -1,5 +1,7 @@
 # Survive Drive TODO
 
+- [x] **Allow Exclusion Zone adjustment before regenerating routes on return to Set the Trip.** The shared slider is visible in every workflow stage with the fresh-route button below it. Returning to setup cancels queued automatic generation and waits for explicit generation; initial gate generation retains its automatic handoff. Static checks finishing after a return cannot launch a stale batch. Verified offline October 5, 2026.
+
 - [x] **Discard routes over a user-selected maximum travel time.** Added an always-visible slider (5–1,440 minutes, default 120) and nearby fresh-route button. Freeze the limit per batch; reject long baseline and gate-pair candidates before geometry conversion, ranking, or AVM evaluation. Empty completed searches clear old candidates and report “No routes found within your time limit and exclusion limit.” Saved sessions preserve the setting. Verified offline October 5, 2026.
 
 - [x] **Keep only the legend open below the map.** Moved Zone membership, live exclusion details, route statistics, and the evidence explanation into a collapsed Map notes control. Interior-pocket membership guidance remains accessible. Completed October 5, 2026.
