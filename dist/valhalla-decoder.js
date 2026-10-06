@@ -22,12 +22,18 @@
     for(let i=0;i<excluded.length;){if(!excluded[i]){i++;continue;}const start=i;while(i<excluded.length&&excluded[i])i++;ranges.push([start,i]);}
     return ranges;
   }
-  function convertRoutes(response,roundId){
+  function convertRoutes(response,roundId,{maximumDurationSeconds=Infinity}={}){
+    if(!(maximumDurationSeconds===Infinity||Number.isFinite(maximumDurationSeconds)&&maximumDurationSeconds>=0))throw Error('Choose a valid route time limit.');
     const candidates=[response,...(Array.isArray(response?.alternates)?response.alternates:[])];
     if(candidates.length<1||candidates.length>4)throw Error('Unexpected Valhalla route count.');
-    return candidates.map((candidate,index)=>{
+    let discarded=0;
+    const converted=candidates.map((candidate,index)=>{
       const trip=candidate?.trip??candidate;
       if(!Array.isArray(trip?.legs)||!trip.legs.length)throw Error('Valhalla trip has no legs.');
+      const returnedDuration=trip.legs.reduce((seconds,leg)=>{const time=leg.summary?.time;if(!Number.isFinite(time)||time<0)throw Error('Valhalla trip duration is incomplete.');return seconds+time;},0);
+      if(!Number.isFinite(returnedDuration))throw Error('Valhalla trip duration is invalid.');
+      // Reject long detours before decoding geometry or constructing AVM evidence.
+      if(returnedDuration>maximumDurationSeconds){discarded++;return null;}
       const geometry=[],highwayTransitions=[],segmentKinds=[];let length=0,duration=0,onHighway=null;
       for(const leg of trip.legs){const points=decodePolyline6(leg.shape);if(!Number.isFinite(leg.summary?.length)||!Number.isFinite(leg.summary?.time))throw Error('Valhalla trip summary is incomplete.');length+=leg.summary.length*1000;duration+=leg.summary.time;const duplicate=geometry.length&&geometry.at(-1)[0]===points[0][0]&&geometry.at(-1)[1]===points[0][1],offset=geometry.length-(duplicate?1:0);geometry.push(...(duplicate?points.slice(1):points));if(geometry.length>20000)throw Error('Valhalla route has too many points.');
         for(const maneuver of Array.isArray(leg.maneuvers)?leg.maneuvers:[]){if(!Number.isInteger(maneuver?.begin_shape_index)||maneuver.begin_shape_index<0||maneuver.begin_shape_index>=points.length)continue;const highway=typeof maneuver.highway==='boolean'?maneuver.highway:null,type=maneuver.type,index=offset+maneuver.begin_shape_index,exit=type===20||type===21,ramp=type===17||type===18||type===19;let kind=null;if(exit){if(onHighway!==false)kind='exit';onHighway=false;}else if(highway===true&&onHighway===false){kind='entry';onHighway=true;}else if(highway===false&&onHighway===true){kind='exit';onHighway=false;}else if(ramp&&onHighway!==true){kind='entry';onHighway=true;}else if(highway!==null)onHighway=highway;if(kind&&index>=0&&index<geometry.length&&highwayTransitions.length<100&&!highwayTransitions.some(item=>item.index===index&&item.kind===kind))highwayTransitions.push({index,kind});
@@ -39,7 +45,9 @@
       const ranges=highwayRanges(segmentKinds);
       const warnings=Array.isArray(trip.warnings)?trip.warnings.map(w=>String(w?.message??w)).slice(0,12):[];
       return{id:roundId+'-'+(index+1),route_number:index+1,name:'Valhalla route '+(index+1),geometry,length_m:length,duration_s:duration,cells:[],authority_ranges:ranges??[],authority_offsets:ranges?.length===1?ranges[0]:null,authority_only_cell_count:0,authority_source:ranges?'valhalla_maneuvers_v1':'unverified',authority_rule:ranges?'Valhalla highway maneuvers and their attached ramps are excluded from AVM screening.':'Valhalla highway maneuvers are incomplete; AVM evaluation is paused.',highway_transitions:highwayTransitions,exposure:null,live_valhalla:true,live_here:false,avm_status:'unevaluated',notices:warnings,valhalla_evidence:{locations:trip.locations??[],route_status:trip.status??null}};
-    });
+    }).filter(Boolean);
+    converted.raw_count=candidates.length;converted.discarded_duration_count=discarded;
+    return converted;
   }
   function restoreSavedTransitions(routes,records){
     if(!Array.isArray(routes)||!Array.isArray(records))return 0;

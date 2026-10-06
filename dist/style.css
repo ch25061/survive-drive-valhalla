@@ -116,3 +116,5 @@
 .http-error-panel{margin:12px 0;padding:14px 18px;border:2px solid #b77900;background:#fff4cb;color:#493600}.http-error-panel h2{margin:0 0 6px;font-size:1.1rem}.http-error-panel p{margin:0 0 8px}.http-error-panel ul{max-height:180px;overflow:auto;margin:8px 0 12px;padding-left:24px}.http-error-panel button{min-height:40px}
 
 .map-notes{margin:0;padding:8px 20px;color:var(--muted)}.map-notes>summary{font-size:13px}.map-notes .metrics{padding:12px 0}.map-notes .evidence-footer{margin-top:10px;border-radius:5px}
+
+.route-time-control label{margin-bottom:6px}.route-time-control output{display:block;font-weight:850;color:var(--ink)}.route-time-control input[type="range"]{width:100%;padding:0;border:0;accent-color:#007daf}.route-time-control .hint{margin:8px 0}.route-time-control button{margin-bottom:0}

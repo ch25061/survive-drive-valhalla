@@ -12,7 +12,7 @@ assert.ok(markup&&html.indexOf(markup)<html.indexOf('id="primary-ranking"'),'the
 assert.doesNotMatch(markup+helpers,/alertdialog|aria-modal|\.focus\(|scrollIntoView|appFetch\(|providerFetch\(/,'the advisory never interrupts or makes requests');
 assert.match(source,/function drawMap\([^\n]*renderRouteRegenerationNotice\(\)/,'map/evidence updates refresh the advisory');
 assert.match(source,/function renderFreshRouteCandidatesButton\(\)\{renderRouteRegenerationNotice\(\)/,'busy-state transitions refresh the button');
-assert.match(source,/state\.routes=merged\.routes;state\.routeExclusionEvidence=routeExclusionEvidenceSnapshot\(draft\.exclusion_zones\)/,'returned candidates retain the evidence frozen before route generation');
+assert.match(source,/state\.routeExclusionEvidence=routeExclusionEvidenceSnapshot\(draft\.exclusion_zones\)/,'returned candidates retain the evidence frozen before route generation');
 assert.match(source,/route_exclusion_evidence:state\.routeExclusionEvidence/,'session export preserves the batch baseline');
 assert.match(source,/state\.routeExclusionEvidence=isSession\?routeExclusionEvidenceSnapshot\(input\.route_exclusion_evidence\):null/,'session import restores the baseline and clears stale context');
 assert.match(source,/if\(state\.routes\.length&&!discardCandidatesForFreshRouteGeneration\('Fresh route generation requested'\)\)return false;try\{await stageDraft\(\)/,'a user-requested regeneration discards the old batch before starting the new one');

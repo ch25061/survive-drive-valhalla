@@ -33,6 +33,12 @@
 <div class="workbench">
 <section class="controls" aria-label="Workflow controls">
 <div class="section-top"><span id="stage-owner" class="eyebrow">USER</span><h2 id="stage-title">Set the trip</h2></div>
+<section id="route-time-control" class="inset route-time-control" aria-label="Route time limit">
+<label for="maximum-route-minutes">Discard any route longer than <output id="maximum-route-minutes-value" for="maximum-route-minutes">120 minutes</output></label>
+<input id="maximum-route-minutes" type="range" min="5" max="1440" step="1" value="120" aria-describedby="route-time-help">
+<p id="route-time-help" class="hint">Applies to returned Valhalla travel time, including all legs. Release the slider to set the limit and discard the previous candidate batch. Known AVM evidence and selected Escape Gates are kept.</p>
+<button id="generate-time-limited-routes" type="button" class="primary" disabled>Generate fresh route candidates</button>
+</section>
 <section data-panel="prepare">
 <form id="trip-form">
 <div id="trip-endpoints"><label>Starting point name<input id="origin-name" value="" maxlength="150" placeholder="Name your starting point"></label><label hidden>Find start by address<input id="origin-address" value="" maxlength="150" autocomplete="street-address" placeholder="Street address, city, state"></label><button id="find-origin-address" type="button" class="secondary address-find" hidden disabled>Find address and place S on map</button><p id="origin-address-status" class="hint address-status" role="status" aria-live="polite"></p><div id="origin-address-results" class="address-results" hidden></div><label>Latitude, longitude<input id="origin" value="" required placeholder="Enter coordinates or set start on map"></label>
