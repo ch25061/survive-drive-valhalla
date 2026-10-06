@@ -7,7 +7,7 @@ assert.match(html,/id="cell-color-opacity" type="range" min="10" max="100" step=
 const elements=new Map(),stored=new Map(),layers=[];let requests=0;
 function element(){return{value:'',checked:true,children:[],listeners:{},attributes:{},style:{},classList:{add(){},remove(){},toggle(){}},replaceChildren(...nodes){this.children=nodes;},append(...nodes){this.children.push(...nodes);},setAttribute(k,v){this.attributes[k]=v;},getAttribute(k){return this.attributes[k];},removeAttribute(k){delete this.attributes[k];},addEventListener(k,fn){this.listeners[k]=fn;},querySelectorAll(selector){return selector==='.avm-cell-colorable'?this.children.filter(child=>child.attributes.class==='avm-cell-colorable'):[];}};}
 const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
-const panes={},map={layers:[],on(){return this;},setView(){return this;},removeLayer(){},fitBounds(){},getPane:k=>panes[k],createPane(k){return panes[k]={style:{}};},getContainer(){return{addEventListener(){}};}};
+const panes={},map={layers:[],on(){return this;},setView(){return this;},removeLayer(){},fitBounds(){},panTo(){},getPane:k=>panes[k],createPane(k){return panes[k]={style:{}};},getContainer(){return{addEventListener(){}};}};
 function layer(kind,points,options={}){const item={kind,points,options,layers:[],handlers:{},addTo(parent){parent.layers?.push(this);return this;},on(k,fn){this.handlers[k]=fn;return this;},bindTooltip(){return this;},getBounds(){return{};},setStyle(style){Object.assign(this.options,style);},eachLayer(fn){this.layers.forEach(fn);}};layers.push(item);return item;}
 const L={map:()=>map,tileLayer:()=>layer('tiles'),layerGroup:()=>layer('group'),polygon:(p,o)=>layer('cell',p,o),polyline:(p,o)=>layer('line',p,o),circleMarker:(p,o)=>layer('transition',p,o),marker:(p,o)=>layer('marker',p,o),divIcon:o=>o,canvas:()=>({}),DomEvent:{stopPropagation(){}},latLngBounds:p=>p};
 const ui={L,crypto:webcrypto,document:{getElementById:get,querySelectorAll:()=>[],createElement:element,createElementNS:()=>element(),addEventListener(){}},localStorage:{getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)},fetch(){requests++;throw Error('Opacity checks must remain offline');}};ui.window=ui;
@@ -41,6 +41,19 @@ vm.runInContext('restoreColorScale({cell_color_opacity:9})',ui);assert.equal(app
 ui.L=null;app.drawMap();
 const svgCells=get('fallback-svg').querySelectorAll('.avm-cell-colorable');assert.ok(svgCells.length);assert.ok(svgCells.every(p=>p.attributes['fill-opacity']==='0.88'));
 app.setCellColorOpacity(.92);assert.ok(svgCells.every(p=>p.attributes['fill-opacity']==='0.92'),'SVG fills update immediately');
+ui.L=L;
+vm.runInContext('setStage=()=>{};renderCells=()=>{};renderReviewTarget=()=>{};updateNextAction=()=>{};',ui);
+app.selectCell(routeCells[0].avmCellId);
+assert.equal(routeCells[0].options.fillOpacity,.23,'clicking a cell makes its fill more transparent');
+assert.ok(routeCells.slice(1).every(c=>c.options.fillOpacity===.92),'unselected cells keep the slider opacity');
+app.setCellColorOpacity(.80);assert.equal(routeCells[0].options.fillOpacity,.20,'selected cells remain faint when the slider changes');
+app.selectCell(routeCells[1].avmCellId);
+assert.equal(routeCells[0].options.fillOpacity,.80,'moving selection restores the previous cell');assert.equal(routeCells[1].options.fillOpacity,.20);
+assert.equal(JSON.stringify(nonCells.map(l=>l.options)),nonCellStyles,'selection preserves route line and highway marker styles');
+vm.runInContext('mapInquiry={cell:state.reviewCell};drawMapInquiry()',ui);
+assert.equal(vm.runInContext('mapInquiryLayer.options.fillOpacity',ui),.20,'the inspection overlay is also faint');
+assert.ok(1-(1-.20)**2<.80,'overlapping selected fills are still lighter than an unselected cell');
+ui.L=null;app.drawMap();const selectedSvg=get('fallback-svg').children.find(p=>p.attributes['data-cell-id']===state.cell);assert.equal(selectedSvg.attributes['fill-opacity'],'0.2','selection stays faint in the SVG fallback');
 assert.equal(JSON.stringify(state.routes),evidence);assert.equal(JSON.stringify(state.poolScreening.results),rankings);assert.equal(JSON.stringify(state.providerCalls),providerCounts);assert.equal(requests,0);
 assert.equal(vm.runInContext("displayRouteName({name:'Start Escape Gate 6'})",ui),'Start Route Gate 6','old imported labels display current terminology');
 console.log('Passed live cell-opacity updates, separate route/marker styles, slider events, SVG fallback, saved preferences/session compatibility, unchanged evidence/ranking, and zero network/provider calls.');
