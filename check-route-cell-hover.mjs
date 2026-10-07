@@ -8,7 +8,7 @@ const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.g
 const mapContainer={listeners:{},addEventListener(k,fn){this.listeners[k]=fn;}},panes={},map={layers:[],handlers:{},on(k,fn){this.handlers[k]=fn;return this;},setView(){return this;},fitBounds(){fitBoundsCalls++;},getBounds(){return{getSouth:()=>40,getNorth:()=>42,getWest:()=>-88,getEast:()=>-86};},panTo(){},removeLayer(layer){layer.removed=true;},getPane:k=>panes[k],createPane(k){return panes[k]={style:{}};},getContainer(){return mapContainer;},mouseEventToLatLng(event){return event.latlng;}};
 function layer(type,point,options={}){const result={type,point,options,handlers:{},removed:false,tooltipOpen:false,on(k,fn){this.handlers[k]=fn;return this;},addTo(parent){parent.layers?.push(this);return this;},bindTooltip(value,options){this.tooltip=value;this.tooltipOptions=options;this.tooltipObject={setLatLng(point){this.point=point;}};return this;},getTooltip(){return this.tooltipObject;},openTooltip(point){this.tooltipOpen=true;this.tooltipObject?.setLatLng(point);this.handlers.tooltipopen?.({tooltip:this.tooltipObject});return this;},closeTooltip(){this.tooltipOpen=false;return this;},isTooltipOpen(){return this.tooltipOpen;},getBounds(){return{};},getLatLng(){return{lat:this.point[0],lng:this.point[1]};},setStyle(){},layers:[],eachLayer(fn){this.layers.forEach(fn);}};layers.push(result);return result;}
 const L={map:()=>map,tileLayer:()=>layer('tiles'),layerGroup:()=>{groupCreates++;return layer('group');},polygon:(p,o)=>layer('cell',p,o),polyline:(p,o)=>layer('route',p,o),circleMarker:(p,o)=>layer('authority',p,o),marker:(p,o)=>layer('marker',p,o),divIcon:o=>o,canvas:()=>({}),DomEvent:{stopPropagation(){}},latLngBounds:points=>points};
-const ui={L,crypto:webcrypto,Date:class extends Date{static now(){return now;}},document:{getElementById:get,querySelectorAll:()=>[],createElement:element,createElementNS:element,addEventListener(k,fn){events[k]=fn;}},fetch(){networkCalls++;throw Error('Map picking must not send requests.');},open(){streetViews++;}};ui.window=ui;vm.createContext(ui);vm.runInContext(readFileSync('dist/route-avm.js','utf8'),ui);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),ui);
+const ui={L,crypto:webcrypto,setTimeout:()=>1,clearTimeout(){},Date:class extends Date{static now(){return now;}},document:{getElementById:get,querySelectorAll:()=>[],createElement:element,createElementNS:element,addEventListener(k,fn){events[k]=fn;}},fetch(){networkCalls++;throw Error('Map picking must not send requests.');},open(){streetViews++;}};ui.window=ui;vm.createContext(ui);vm.runInContext(readFileSync('dist/route-avm.js','utf8'),ui);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),ui);
 const app=ui.SurviveDrive,state=app.getState(),reference=JSON.parse(readFileSync('dist/reference.json','utf8'));state.routes=reference.routes;state.active=0;
 
 app.drawMap();
@@ -34,9 +34,12 @@ state.routes=reference.routes;const routeCellStart=layers.length;app.drawMap();c
 app.setInspection([latlng.lat,latlng.lng],false,false);
 assert.equal(hoverCell.tooltipOpen,false,'placing the yellow pin closes a PPSQFT card already open in its cell');
 mapContainer.listeners.mousemove({latlng});
-assert.equal(hoverCell.tooltipOpen,false,'the pointer-through bridge suppresses the entire pin-containing cell');
+assert.equal(hoverCell.tooltipOpen,true,'the pin-containing cell still shows PPSQFT when hovering away from the yellow pin');
 hoverCell.openTooltip(latlng);
-assert.equal(hoverCell.tooltipOpen,false,'native Leaflet hover cannot reopen the PPSQFT card in the pin cell');
+assert.equal(hoverCell.tooltipOpen,true,'native Leaflet hover remains available throughout the selected cell');
+mapContainer.listeners.mousemove({target:{closest:selector=>selector==='.inspection-marker'?{}:null},latlng});
+assert.equal(hoverCell.tooltipOpen,false,'the yellow pin itself stays clear for Street View clicks');
+mapContainer.listeners.mousemove({latlng});assert.equal(hoverCell.tooltipOpen,true,'moving off the pin restores the card without clearing inspection');
 const neighbor=layers.slice(routeCellStart).find(l=>l.type==='cell'&&l!==hoverCell&&l.options.weight===2&&l.tooltip?.endsWith(' PPSQFT'));
 assert.ok(neighbor);const neighborRing=neighbor.point,neighborPoint={lat:neighborRing.reduce((sum,p)=>sum+p[0],0)/neighborRing.length,lng:neighborRing.reduce((sum,p)=>sum+p[1],0)/neighborRing.length};
 neighbor.openTooltip(neighborPoint);assert.equal(neighbor.tooltipOpen,true,'native PPSQFT hover remains available in other cells');
@@ -46,5 +49,49 @@ yellowPin.point=[neighborPoint.lat,neighborPoint.lng];yellowPin.handlers.dragend
 assert.equal(neighbor.tooltipOpen,false,'dragging the yellow pin closes the card in its new cell');
 mapContainer.listeners.mousemove({latlng});assert.equal(hoverCell.tooltipOpen,true,'moving the pin restores the previous cell card');
 state.inspection=null;neighbor.openTooltip(neighborPoint);assert.equal(neighbor.tooltipOpen,true,'clearing inspection restores all PPSQFT cards');
-assert.equal(networkCalls,0,'hover suppression and pin movement never call a provider');
-console.log('Passed route-cell AVM hover cards, yellow-pin suppression, native and pointer-through hover, pin drag, and restoration.');
+// Feed a simulated completed AVM lookup through the production persistence/repaint
+// path. This is off-route, selected by the yellow pin, and covered by a zone.
+const newCell={...ui.SurviveAvm.cellAt(30.37,-81.6,reference.routes[0]),estimate_ppsqft:123.45,value_origin:'mock_completed_lookup'};
+const point={lat:newCell.latitude,lng:newCell.longitude};
+app.setInspection([point.lat,point.lng],false,false);
+ui.integrateMapCellEvidence(newCell,reference.routes[0].id,reference.routes[0].name,true);
+const lookedUp=layers.filter(l=>!l.removed&&l.avmCellId===newCell.cell_id).at(-1);
+assert(lookedUp);assert.match(lookedUp.tooltip,/\$123\.45 PPSQFT/);assert.equal(lookedUp.tooltipOptions.sticky,true);
+mapContainer.listeners.mousemove({target:{className:'exclusion-zone'},latlng:point});
+assert.equal(lookedUp.tooltipOpen,true,'a freshly looked-up off-route cell shows its value through an exclusion overlay and with inspection still selected');
+assert.equal(state.inspection[0],point.lat,'hover does not dismiss or move inspection');
+assert.equal(state.map_cell_evidence.find(c=>c.cell_id===newCell.cell_id).estimate_ppsqft,123.45);
+
+state.routes=[];app.drawMap();
+assert.equal(lookedUp.tooltipOpen,false,'redraw closes the detached old tooltip');
+mapContainer.listeners.mousemove({latlng:point});
+const noTrip=layers.filter(l=>!l.removed&&l.avmCellId===newCell.cell_id).at(-1);
+assert.equal(noTrip.tooltipOpen,true,'the map card works without any route candidate or route-cell layer');
+assert.equal(lookedUp.tooltipOpen,false,'the hover index does not reopen detached layers');
+mapContainer.listeners.mouseleave();assert.equal(noTrip.tooltipOpen,false,'leaving the map dismisses the card');
+
+const cacheCell={...ui.SurviveAvm.cellAt(30.4,-81.65,reference.routes[0]),estimate_ppsqft:456.78};
+ui.testKnownCells=[cacheCell];vm.runInContext('knownCacheCells=testKnownCells;',ui);get('show-all-known-avm-cells').checked=true;
+app.drawMap();const cachedLayer=layers.filter(l=>!l.removed&&l.avmCellId===cacheCell.cell_id).at(-1);
+mapContainer.listeners.mousemove({target:{className:'exclusion-zone'},latlng:{lat:cacheCell.latitude,lng:cacheCell.longitude}});
+assert.equal(cachedLayer.tooltipOpen,true,'shared-cache known cells also show their card through overlapping zones');assert.match(cachedLayer.tooltip,/\$456\.78 PPSQFT/);
+get('show-all-known-avm-cells').checked=false;app.drawMap();
+mapContainer.listeners.mousemove({latlng:{lat:cacheCell.latitude,lng:cacheCell.longitude}});
+assert.equal(cachedLayer.tooltipOpen,false,'hidden known-cell overlays are removed from the hover index');
+mapContainer.listeners.mousemove({latlng:point});assert.equal(layers.filter(l=>!l.removed&&l.avmCellId===newCell.cell_id).at(-1).tooltipOpen,true,'inspected evidence remains hoverable when shared known cells are hidden');
+
+state.routes=[{...reference.routes[0],cells:[{...cacheCell,outside_here_distance_m:100,estimate_ppsqft:null}]}];get('show-all-known-avm-cells').checked=true;app.drawMap();
+mapContainer.listeners.mousemove({latlng:{lat:cacheCell.latitude,lng:cacheCell.longitude}});
+const overlap=layers.filter(l=>!l.removed&&l.tooltipOpen).at(-1);
+assert.match(overlap.tooltip,/\$456\.78 PPSQFT/,'a known background value takes precedence over an unknown route overlay for the same cell');
+
+// Large maps must not scan all cell polygons on every pointer event.
+const originalContains=ui.mapCellContainsLatLng;let polygonChecks=0;
+ui.mapCellContainsLatLng=(...args)=>{polygonChecks++;return originalContains(...args);};
+for(let i=0;i<2000;i++){
+  const lng=50+i*.01,lat=10,cell={cell_id:'distant-'+i,estimate_ppsqft:100,polygon:[[lng,lat],[lng+.001,lat],[lng+.001,lat+.001],[lng,lat+.001]]};
+  ui.bindAvmCellTooltip(layer('cell',[]),cell,'distant cell');
+}
+mapContainer.listeners.mousemove({latlng:point});assert(polygonChecks<10,'distant known cells do not add polygon checks to local hovering');
+assert.equal(networkCalls,0,'hover, simulated value integration and pin movement never call a provider');
+console.log('Passed route/saved/cache AVM hover cards, newly looked-up off-route cells through zone overlays, selected-cell hover, yellow-pin click clearance, no-trip hover, stale-layer cleanup, overlay toggles and pointer leave. Live provider calls: 0.');
