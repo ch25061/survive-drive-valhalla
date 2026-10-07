@@ -30,7 +30,7 @@ function harness(legacy=false){
   for(const id of ['origin','destination'])nodes.set(id,{value:id==='origin'?'41,-87':'42,-88'});
   if(!legacy)for(const id of ['route-regeneration-notice','route-regeneration-status','regenerate-after-evidence'])nodes.set(id,node(id));
   const state={routes:[{cells:[]}],map_cell_evidence:[],busy:false,routeExclusionEvidence:null};
-  const context=vm.createContext({state,knownCacheCells:[],routeHighwayMasks:{},
+  const context=vm.createContext({state,knownCacheCells:[],retainedRouteKnownCells:new Map(),routeHighwayMasks:{},
     document:{activeElement:active,createElement:()=>node()},$:id=>nodes.get(id),
     exclusionZoneThreshold:()=>cutoff,validMapEstimate:value=>Number.isFinite(value)&&value>0,
     coordinates:value=>value.split(',').map(Number),selectedShotgunGates:()=>[],
