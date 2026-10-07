@@ -424,7 +424,7 @@ function inspectKnownCell(cell,pair){dismissMapAvm();state.cell=cell.cell_id;sta
 function handleMapClick(pair,clickedCell=null){
   if(consumeTripMapClick(pair)||state.busy)return;const selected=inspectionCell();
   if(selected){if(!polygonContains([pair[1],pair[0]],selected.polygon))return clearInspection();if(mapInquiry?.cell?.cell_id===selected.cell_id)mapInquiry.point=pair.slice();setInspection(pair);if(current())setStage('inspect');return;}
-  if(!current()){const cell=clickedCell??visibleKnownCellAt(pair);if(cell)return inspectKnownCell(cell,pair);const zoneIndex=draftRedZoneAt(pair);if(zoneIndex>=0)return selectDraftRedZone(zoneIndex);return;}
+  if(!current()){const cell=clickedCell??visibleKnownCellAt(pair);if(cell&&validMapEstimate(cell.estimate_ppsqft))return inspectKnownCell(cell,pair);const zoneIndex=draftRedZoneAt(pair);if(zoneIndex>=0)selectDraftRedZone(zoneIndex);return inspectMapAvm(pair);}
   setStage('inspect');return inspectMapAvm(pair);
 }
 // Street View is opened by the yellow bubble, never by repeated cell clicks.
@@ -864,7 +864,7 @@ function drawMapInquiry(){if(!mapInquiry||!map||!window.L)return;if(mapInquiryLa
 async function inspectMapAvm(pair){
   if(state.busy)return;const epoch=++mapInquiryEpoch;let cell;
   try{cell=SurviveAvm.cellAt(pair[0],pair[1],current());if(!state.map_cell_evidence.some(item=>mapEvidenceKey(item)===mapEvidenceKey(cell))&&state.map_cell_evidence.length>=1000)throw Error('The saved map-cell evidence limit of 1,000 has been reached. Export your session before continuing.');}catch(error){notice(error.message);return;}
-  const inquiry=mapInquiry={cell,point:pair.slice(),route_id:current()?.id,route_name:current()?.name,epoch,ready:false,spent:false};state.reviewCell=cell;selectCell(cell.cell_id);$('map-avm-panel').hidden=false;$('map-avm-approve').hidden=false;$('map-avm-approve').disabled=true;$('map-avm-title').textContent=cell.cell_id;const endWorking=beginWorking('map-avm-status');
+  const inquiry=mapInquiry={cell,point:pair.slice(),route_id:current()?.id,route_name:current()?.name,epoch,ready:false,spent:false};state.reviewCell=cell;if(current())selectCell(cell.cell_id);else{state.cell=cell.cell_id;setInspection(pair,false);renderReviewTarget();}$('map-avm-panel').hidden=false;$('map-avm-approve').hidden=false;$('map-avm-approve').disabled=true;$('map-avm-title').textContent=cell.cell_id;const endWorking=beginWorking('map-avm-status');
   $('map-avm-status').textContent='Checking saved values for cell center '+cell.latitude+', '+cell.longitude+'. No provider call.';drawMapInquiry();
   try{
     const geometry=await appFetch('/api/honeycomb/construct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid_version:cell.grid_version,cells:[{cell_id:cell.cell_id,q:cell.q,r:cell.r}]})});await appJson(geometry,'Clicked-cell honeycomb');if(epoch!==mapInquiryEpoch)return;
