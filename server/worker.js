@@ -176,13 +176,13 @@ function hereFailure(error,roundId,phase){
 }
 async function sendValhalla(body,env){
   if(body?.approved!==true||!identifier(body.round_id))return json({error:'Review and approve one identified search round.'},400);
-  let params,payload,target;try{params=routingParams(body.params);payload=valhallaPayload(params);target=valhallaEndpoint(env.VALHALLA_BASE_URL);}catch(error){return json({error:error.message,provider_attempted:false},428);}
+  let params,payload,target,headers;try{params=routingParams(body.params);payload=valhallaPayload(params);target=valhallaEndpoint(env.VALHALLA_BASE_URL);headers=valhallaRequestHeaders(env.VALHALLA_API_KEY);}catch(error){return json({error:error.message,provider_attempted:false},428);}
   const db=database(env);
   const claim=await db.prepare('INSERT INTO provider_rounds (round_id, provider, settings, maximum_attempts, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(round_id) DO NOTHING RETURNING round_id').bind(body.round_id,'Valhalla',JSON.stringify(payload),1,new Date().toISOString()).first();
   if(!claim)return json({error:'This Valhalla round was already submitted. Prepare a new round to search again.',provider_attempted:false},409);
   let phase='fetch';
   try{
-    const response=await fetch(target,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(25000)});
+    const response=await fetch(target,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(25000)});
     if(!response.ok){console.error(JSON.stringify({provider:'Valhalla',round_id:body.round_id,error_code:'valhalla_http_error',provider_status:response.status}));return json({error:'Valhalla returned HTTP '+response.status+'. This round is spent; no retry was made.',error_code:'valhalla_http_error',provider_attempted:true,provider_status:response.status},502);}
     phase='decode_response';
     const data=validateValhallaResponse(JSON.parse(await boundedText(response,5*1024*1024)),payload.alternates+1);
@@ -193,8 +193,8 @@ async function sendValhallaRoadMask(body,env){
   if(!body||!Array.isArray(body.cells))return json({error:'Provide the known cells to check against Valhalla road-network geometry.'},400);
   const options=validatedRouteOptions(body.route_options),includeHighways=options.highways===1,includeTollways=options.tolls===1;
   if(!includeHighways&&!includeTollways)return json({highway_cell_ids:[],tollway_cell_ids:[],tile_count:0,road_source:'Valhalla static graph tiles'});
-  let origin;try{origin=valhallaEndpoint(env.VALHALLA_BASE_URL).origin;}catch(error){return json({error:error.message},428);}
-  try{const masks=await valhallaHighwayCellMasks({cells:body.cells,include_tollways:includeTollways},origin);return json({...masks,highway_cell_ids:includeHighways?masks.highway_cell_ids:[],tollway_cell_ids:includeTollways?masks.tollway_cell_ids:[]});}
+  let origin,headers;try{origin=valhallaEndpoint(env.VALHALLA_BASE_URL).origin;headers=valhallaRequestHeaders(env.VALHALLA_API_KEY);}catch(error){return json({error:error.message},428);}
+  try{const masks=await valhallaHighwayCellMasks({cells:body.cells,include_tollways:includeTollways},origin,{headers});return json({...masks,highway_cell_ids:includeHighways?masks.highway_cell_ids:[],tollway_cell_ids:includeTollways?masks.tollway_cell_ids:[]});}
   catch(error){console.error(JSON.stringify({provider:'Valhalla tile',event:'road_mask_failed',error:String(error?.message??'').slice(0,180)}));return json({error:error.message||'The Valhalla static road mask could not be built. No route request was sent.'},502);}
 }
 async function approveAvm(body,env){
@@ -372,7 +372,7 @@ export default {async fetch(request,env){const url=new URL(request.url);try{
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}
     if(url.pathname.startsWith('/api/intersections/ring/')&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.'},403);return await censusRing(request,env,url.pathname.split('/').pop());}
     if(['/api/intersections/lookup','/api/intersections/construct','/api/intersections/ingest'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',source_attempted:false,source_calls:0,here_calls:0,rentcast_calls:0},403);if(url.pathname==='/api/intersections/ingest')return await ingestIntersectionCatalog(request,env);return await intersectionCatalog(request,env,url.pathname.endsWith('/construct'));}
-    if(url.pathname==='/api/providers/status'&&request.method==='GET')return json({valhalla_ready:!!env.VALHALLA_BASE_URL,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
+    if(url.pathname==='/api/providers/status'&&request.method==='GET')return json({valhalla_ready:!!env.VALHALLA_BASE_URL&&!!env.VALHALLA_API_KEY,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
     if(url.pathname.startsWith('/api/providers/')&&request.method==='POST'){
       if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_attempted:false},403);
       let body;try{body=await readBody(request,['/api/providers/avm/approve','/api/providers/avm/round'].includes(url.pathname)?4*1024*1024:url.pathname==='/api/providers/valhalla/road-mask'?8*1024*1024:url.pathname==='/api/providers/valhalla'?2*1024*1024:50000);}catch(error){return json({error:error.message,provider_attempted:false},400);}

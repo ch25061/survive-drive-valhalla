@@ -162,9 +162,10 @@ assert.equal(noRawEvidence.cells.length,0,'old sessions without highway evidence
 const renderedPolygons=[],renderedDots=[],panes=new Map();let sizeRefreshes=0;
 const mapStub={setView(){return this;},on(){return this;},removeLayer(){},getPane(name){return panes.get(name);},createPane(name){const pane={style:{}};panes.set(name,pane);return pane;},fitBounds(){},invalidateSize(){sizeRefreshes++;}};
 const layer=(type,options={})=>({addTo(){if(type==='polygon')renderedPolygons.push(options);if(type==='circleMarker')renderedDots.push(options);return this;},on(){return this;},bindTooltip(){return this;},getBounds(){return{};}});
-const leaflet={map:()=>mapStub,tileLayer:()=>layer('tile'),layerGroup:()=>layer('group'),polygon:(_points,options)=>layer('polygon',options),polyline:(_points,options)=>layer('polyline',options),circleMarker:(_point,options)=>layer('circleMarker',options),canvas:()=>({})};
+const leaflet={map:()=>mapStub,tileLayer:()=>layer('tile'),layerGroup:()=>layer('group'),polygon:(_points,options)=>layer('polygon',options),polyline:(_points,options)=>layer('polyline',options),circleMarker:(_point,options)=>layer('circleMarker',options),marker:()=>layer('marker'),divIcon:options=>options,canvas:()=>({})};
 const ui=new Map(),getUi=id=>{if(!ui.has(id))ui.set(id,{value:'',hidden:false,classList:{toggle(){}},setAttribute(){},addEventListener(){}});return ui.get(id);};
 appContext.document.getElementById=getUi;appContext.document.addEventListener=()=>{};appContext.window.addEventListener=()=>{};appContext.window.L=leaflet;appContext.L=leaflet;appContext.requestAnimationFrame=callback=>callback();
+appContext.document.createElement=()=>({style:{},append(){}});
 const mappedCell={cell_id:'test-cell',polygon:[[-87.602,41.898],[-87.598,41.898],[-87.598,41.902],[-87.602,41.902]],outside_here_distance_m:1000,estimate_ppsqft:null};
 const shownRoute={...highwayRoute,cells:[mappedCell]};appContext.window.SurviveDrive.getState().routes=[shownRoute];
 appContext.window.SurviveDrive.drawMap();
