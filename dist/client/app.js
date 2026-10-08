@@ -768,12 +768,27 @@ function restoreDirectionEndpointAddresses(input){
   directionEndpointAddresses.clear();
   for(const entry of Array.isArray(input)?input.slice(0,100):[]){if(typeof entry?.key!=='string'||entry.source!=='OpenStreetMap'||typeof entry.address!=='string'||entry.address.length>500)continue;try{const pair=coordinates(entry.key);if(pair.map(value=>value.toFixed(6)).join(',')===entry.key)directionEndpointAddresses.set(entry.key,{status:'complete',address:entry.address,source:'OpenStreetMap',approximate:true});}catch{}}
 }
-let directionManeuverMarkers=new Map(),directionManeuverRoute=null,directionManeuverSteps=null,directionManeuverActive=null;
-function clearDirectionManeuver(){if(map)for(const marker of directionManeuverMarkers.values())map.removeLayer(marker);directionManeuverMarkers.clear();directionManeuverRoute=null;directionManeuverSteps=null;directionManeuverActive=null;}
+let directionManeuverMarkers=new Map(),directionManeuverLeaders=[],directionManeuverLayoutBound=false,directionManeuverRoute=null,directionManeuverSteps=null,directionManeuverActive=null;
+function clearDirectionManeuver(){if(map)for(const marker of [...directionManeuverMarkers.values(),...directionManeuverLeaders])map.removeLayer(marker);directionManeuverMarkers.clear();directionManeuverLeaders=[];directionManeuverRoute=null;directionManeuverSteps=null;directionManeuverActive=null;}
 function directionManeuverPoint(route,step){const index=step?.shape_index,point=Number.isInteger(index)&&index>=0?route?.geometry?.[index]:null;return Array.isArray(point)&&point.length===2&&point.every(Number.isFinite)&&Math.abs(point[0])<=180&&Math.abs(point[1])<=90?[point[1],point[0]]:null;}
+function positionDirectionManeuverLabels(){
+  if(!map?.latLngToLayerPoint||!map?.layerPointToLatLng)return;
+  for(const leader of directionManeuverLeaders)map.removeLayer(leader);directionManeuverLeaders=[];
+  const occupied=[];for(const point of [directionManeuverRoute?.geometry?.[0],directionManeuverRoute?.geometry?.at(-1)])if(point)occupied.push(map.latLngToLayerPoint([point[1],point[0]]));
+  for(const marker of directionManeuverMarkers.values()){
+    const base=map.latLngToLayerPoint(marker.directionPoint);let dx=0,dy=0,found=false;
+    for(let radius=0;radius<=32&&!found;radius++)for(let y=-radius;y<=radius&&!found;y++)for(let x=-radius;x<=radius&&!found;x++){
+      if(Math.max(Math.abs(x),Math.abs(y))!==radius)continue;const candidate={x:base.x+x*40,y:base.y+y*40};
+      if(occupied.some(point=>Math.abs(point.x-candidate.x)<38&&Math.abs(point.y-candidate.y)<38))continue;dx=x*40;dy=y*40;occupied.push(candidate);found=true;
+    }
+    marker.setIcon(L.divIcon({html:marker.directionContent,className:'direction-maneuver-marker',iconSize:[36,36],iconAnchor:[18-dx,18-dy],tooltipAnchor:[dx,dy]}));
+    if(dx||dy)directionManeuverLeaders.push(L.polyline([marker.directionPoint,map.layerPointToLatLng({x:base.x+dx,y:base.y+dy})],{color:'#075da6',weight:1.5,opacity:.9,interactive:false}).addTo(map));
+  }
+}
 function renderDirectionManeuvers(route=current()){
   if(!map||!window.L)return;if(!route){clearDirectionManeuver();return;}recoverRouteDirections(route);
-  const steps=route.route_directions?.steps??null;if(directionManeuverRoute===route&&directionManeuverSteps===steps)return;
+  if(!directionManeuverLayoutBound){map.on?.('zoomend',positionDirectionManeuverLabels);directionManeuverLayoutBound=true;}
+  const steps=route.route_directions?.steps??null;if(directionManeuverRoute===route&&directionManeuverSteps===steps){positionDirectionManeuverLabels();return;}
   clearDirectionManeuver();directionManeuverRoute=route;directionManeuverSteps=steps;
   // Keep a numbered marker for every verified maneuver, independent of map redraws and focus.
   const occupied=new Map();
@@ -784,10 +799,11 @@ function renderDirectionManeuvers(route=current()){
     const title='Step '+(stepIndex+1)+': '+(step.instruction?.trim()||'Maneuver'),icon=L.divIcon({html:markerContent,className:'direction-maneuver-marker',iconSize:[36,36],iconAnchor:[18-(overlap%3)*38,18-Math.floor(overlap/3)*38]});
     const nextIndex=stepIndex+1,hasNext=nextIndex<steps.length,canAdvance=hasNext&&!!directionManeuverPoint(route,steps[nextIndex]);
     const action=canAdvance?'Click marker for next turn →':hasNext?'Next maneuver has no saved map position.':'Final maneuver · no further turns.';
-    const marker=L.marker(point,{icon,title:title+' · '+action,interactive:true,keyboard:true,bubblingMouseEvents:false,zIndexOffset:300}).addTo(map);marker.directionContent=markerContent;
+    const marker=L.marker(point,{icon,title:title+' · '+action,interactive:true,keyboard:true,bubblingMouseEvents:false,zIndexOffset:300}).addTo(map);marker.directionContent=markerContent;marker.directionPoint=point;
     marker.on('click',event=>{L.DomEvent.stopPropagation(event);if(directionManeuverMarkers.get(stepIndex)===marker&&current()===route)focusDirectionManeuver(route,canAdvance?nextIndex:stepIndex);});
     const label=document.createElement('span');label.textContent=title;label.style.cssText='display:block;width:280px;max-width:60vw;white-space:normal;overflow-wrap:anywhere';const hint=document.createElement('small');hint.textContent=action;hint.style.cssText='display:block;margin-top:4px;color:#075da6;font-weight:700';label.append(hint);marker.bindTooltip(label,{direction:'top',offset:[0,-20],className:'direction-maneuver-tooltip'});directionManeuverMarkers.set(stepIndex,marker);
   }
+  positionDirectionManeuverLabels();
 }
 function focusDirectionManeuver(route,stepIndex){
   // A retained button or marker must never focus a route that is no longer selected.
