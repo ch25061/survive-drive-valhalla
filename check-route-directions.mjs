@@ -57,14 +57,15 @@ assert.match(text(get('route-directions-steps')),/<img src=x onerror=alert\(1\)>
 assert.ok(get('route-directions-steps').children.every(row=>row.innerHTML===undefined));
 // Click the actual button and exercise map focus, rather than duplicating its implementation.
 const focused=[],markers=[],removed=[];context.mapFixture={setView(point,zoom){focused.push({point:Array.from(point),zoom});},getZoom(){return 11;},invalidateSize(){},removeLayer(marker){removed.push(marker);}};
-context.L={divIcon(options){return options;},marker(point,options){const marker={point:Array.from(point),options,addTo(){markers.push(this);return this;},bindTooltip(label){this.label=label.textContent;return this;}};return marker;}};
+context.L={DomEvent:{stopPropagation(event){event.stopped=true;}},divIcon(options){return options;},marker(point,options){const marker={point:Array.from(point),options,events:{},on(name,callback){this.events[name]=callback;return this;},addTo(){markers.push(this);return this;},bindTooltip(label){this.label=label.textContent;this.hint=label.children.at(-1)?.textContent;return this;}};return marker;}};
 context.viewportMoves=0;vm.runInContext('map=mapFixture;fitRouteMapToViewport=()=>{viewportMoves++;};closeRouteCellHover=()=>{};',context);
 const buttons=element=>[...(element.type==='button'?[element]:[]),...element.children.flatMap(buttons)];
 const initialButtons=buttons(get('route-directions-steps'));assert.equal(initialButtons.length,2);initialButtons[1].events.click();
 assert.deepEqual(focused.at(-1),{point:[32,-96.99],zoom:17});assert.equal(context.viewportMoves,1,'click brings the main map into view');assert.match(markers.at(-1).label,/Step 2: <img/,'tooltip text remains literal');
 initialButtons[0].events.click();assert.deepEqual(focused.at(-1).point,[32,-97]);assert.equal(removed.length,1,'repeated clicks replace the previous marker');
+const firstMarker=markers.at(-1);assert.equal(firstMarker.options.interactive,true);assert.equal(firstMarker.options.keyboard,true);assert.equal(firstMarker.options.bubblingMouseEvents,false);assert.match(firstMarker.hint,/next turn/);const markerClick={};firstMarker.events.click(markerClick);assert.equal(markerClick.stopped,true,'advancing never triggers the map AVM click handler');assert.deepEqual(focused.at(-1).point,[32,-96.99]);const finalMarker=markers.at(-1);assert.match(finalMarker.hint,/Final maneuver/);assert.equal(finalMarker.options.interactive,false);assert.equal(finalMarker.events.click,undefined,'final step stays on the destination and never wraps');const beforeOldMarker=focused.length;firstMarker.events.click({});assert.equal(focused.length,beforeOldMarker,'removed markers cannot advance again');
 context.SurviveDrive.handleCandidateCardClick(1);
-assert.equal(removed.length,2,'switching routes clears the maneuver marker');const beforeStale=focused.length;initialButtons[0].events.click();assert.equal(focused.length,beforeStale,'stale buttons cannot focus the previous route');
+assert.equal(removed.length,3,'switching routes clears the maneuver marker');const beforeStale=focused.length;initialButtons[0].events.click();firstMarker.events.click({});assert.equal(focused.length,beforeStale,'stale buttons and markers cannot focus the previous route');
 assert.match(text(get('route-directions-steps')),/Second Avenue/);
 assert.doesNotMatch(text(get('route-directions-steps')),/Main Street|onerror/,'route switching clears stale directions');
 delete restored[1].route_directions;vm.runInContext('renderRouteDirections()',context);

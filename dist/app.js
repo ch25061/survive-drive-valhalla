@@ -778,7 +778,11 @@ function focusDirectionManeuver(route,stepIndex){
   fitRouteMapToViewport();map.invalidateSize?.({pan:false});map.setView(point,Math.min(19,Math.max(17,map.getZoom?.()??0)),{animate:false});
   const markerContent=document.createElement('div');markerContent.textContent=String(stepIndex+1);markerContent.style.cssText='width:30px;height:30px;display:grid;place-items:center;background:#fff;color:#075da6;border:3px solid #075da6;border-radius:50%;font-weight:800;box-shadow:0 2px 8px #0005';
   const title='Step '+(stepIndex+1)+': '+(step.instruction?.trim()||'Maneuver'),icon=L.divIcon({html:markerContent,className:'direction-maneuver-marker',iconSize:[36,36],iconAnchor:[18,18]});
-  directionManeuverMarker=L.marker(point,{icon,title,interactive:false}).addTo(map);directionManeuverRoute=route;const label=document.createElement('span');label.textContent=title;label.style.cssText='display:block;width:280px;max-width:60vw;white-space:normal;overflow-wrap:anywhere';directionManeuverMarker.bindTooltip(label,{permanent:true,direction:'top',offset:[0,-20],className:'direction-maneuver-tooltip'});return true;
+  const nextIndex=stepIndex+1,hasNext=nextIndex<route.route_directions.steps.length,canAdvance=hasNext&&!!directionManeuverPoint(route,route.route_directions.steps[nextIndex]);
+  const action=canAdvance?'Click marker for next turn →':hasNext?'Next maneuver has no saved map position.':'Final maneuver · no further turns.';
+  directionManeuverMarker=L.marker(point,{icon,title:title+' · '+action,interactive:canAdvance,keyboard:canAdvance,bubblingMouseEvents:false}).addTo(map);directionManeuverRoute=route;
+  const marker=directionManeuverMarker;if(canAdvance)marker.on('click',event=>{L.DomEvent.stopPropagation(event);if(directionManeuverMarker===marker&&current()===route)focusDirectionManeuver(route,nextIndex);});
+  const label=document.createElement('span');label.textContent=title;label.style.cssText='display:block;width:280px;max-width:60vw;white-space:normal;overflow-wrap:anywhere';const hint=document.createElement('small');hint.textContent=action;hint.style.cssText='display:block;margin-top:4px;color:#075da6;font-weight:700';label.append(hint);marker.bindTooltip(label,{permanent:true,direction:'top',offset:[0,-20],className:'direction-maneuver-tooltip'});return true;
 }
 function renderRouteDirections(){
   ensureRouteDirectionsPanel();
