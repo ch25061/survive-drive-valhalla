@@ -7,7 +7,7 @@ assert.ok(html.indexOf('id="route-directions"')>html.indexOf('class="map-legend"
 assert.ok(html.indexOf('id="route-directions"')<html.indexOf('id="map-notes"'));
 assert.match(source,/function renderCandidates\(\)\{\s*renderRouteDirections\(\)/);
 const nodes=new Map();
-function node(){return{children:[],style:{},events:{},hidden:false,textContent:'',value:'',addEventListener(name,callback){this.events[name]=callback;},before(){},after(){},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;},setAttribute(){}};}
+function node(){return{children:[],style:{},events:{},hidden:false,textContent:'',value:'',addEventListener(name,callback){this.events[name]=callback;},before(){},after(){},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;},setAttribute(){},removeAttribute(){}};}
 const get=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
 const context={document:{getElementById:get,createElement:node},fetch(){throw Error('No provider calls permitted');}};context.window=context;vm.createContext(context);
 vm.runInContext(readFileSync('dist/valhalla-decoder.js','utf8'),context);

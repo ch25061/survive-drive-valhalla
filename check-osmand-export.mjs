@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import vm from 'node:vm';
+const source=readFileSync('dist/app.js','utf8'),nodes=new Map();
+const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',disabled:false,hidden:false,style:{},addEventListener(){},attributes:{},setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];},replaceChildren(){}});return nodes.get(id);};
+let downloaded=null;
+const context={URL,Blob,setTimeout(){},document:{getElementById:get,body:{append(){}},createElement(){return{click(){downloaded={href:this.href,filename:this.download};},remove(){}};}},fetch(){throw Error('No network calls allowed');}};context.window=context;vm.createContext(context);vm.runInContext(source.replace(/\ninit\(\);\s*$/,''),context);
+const state=context.SurviveDrive.getState();
+const recovery=vm.runInContext('recoverRouteDirections',context);
+vm.runInContext("calculate=()=>({});log=()=>{};notice=()=>{};recoverRouteDirections=()=>{};",context);
+const handlerStart=source.indexOf("$('choose-route').addEventListener('click',")+"$('choose-route').addEventListener('click',".length;
+const handlerEnd=source.indexOf(");$('export-choice').addEventListener",handlerStart);
+const choose=vm.runInContext('('+source.slice(handlerStart,handlerEnd)+')',context);
+const a={id:'chosen/A',name:'A & <route> "one" 🐈\u0001',geometry:Array.from({length:3501},(_,i)=>[-96.123456789+i*.000001,32+i*.000001]),route_directions:{steps:[{shape_index:0,instruction:'Depart'},{shape_index:1200,instruction:'Right onto A & B <Street>'},{shape_index:null,instruction:'No guessed position'},{shape_index:3500,instruction:'Arrive'}]},live_valhalla:true};
+const b={id:'viewed-B',name:'Different candidate',geometry:[[-90,30],[-89,31]],route_directions:{steps:[]}};
+state.routes=[a,b];state.active=0;
+assert.throws(()=>context.chosenOsmAndGpx(),/Choose/);
+vm.runInContext('renderOsmAndExport()',context);assert.equal(get('export-osmand').disabled,true);
+choose();assert.equal(state.choice.candidate_id,a.id);assert.equal(state.choice.navigation_available,false);
+assert.equal(get('export-osmand').disabled,false);assert.match(get('osmand-export-status').textContent,/3501 path points/);assert.match(get('osmand-export-status').textContent,/1 turn reference point\(s\) omitted/);
+const result=context.chosenOsmAndGpx();
+assert.equal(context.osmAndAndroidIntent(result,'https://rs.example'),null,'the complete 3501-point route uses the file fallback');
+const directResult={xml:result.xml.replace(/<trkpt [^>]+\/>/g,(point,offset)=>offset<30000?point:'')};
+const launch=context.osmAndAndroidIntent(directResult,'https://rs.example');
+assert.match(launch,/^intent:\/\/navigate\/#Intent;scheme=rs-osmand;package=net\.routescrewtiny\.bridge;/);
+assert.equal(decodeURIComponent(launch.match(/;S.gpx=([^;]+);/)[1]),directResult.xml,'direct Android launch preserves the complete XML');
+assert.equal(decodeURIComponent(launch.match(/;S.browser_fallback_url=([^;]+);/)[1]),'https://rs.example/android.html');
+assert.equal(context.osmAndAndroidIntent({xml:'x'.repeat(240001)},'https://rs.example'),null,'large paths use the file fallback without thinning');
+assert.throws(()=>context.osmAndAndroidIntent(result,'http://rs.example'),/secure/);
+context.downloadOsmAndHandoff();assert.match(downloaded.filename,/\.rsnav$/);
+const fileResponse=await fetch(downloaded.href);assert.equal(await fileResponse.text(),result.xml,'download fallback preserves the complete chosen XML');assert.equal(fileResponse.headers.get('content-type'),'application/vnd.routescrewtiny.navigation');URL.revokeObjectURL(downloaded.href);
+assert.equal(result.points,3501);assert.equal(result.turns,3);assert.equal(result.omitted,1);
+assert.equal((result.xml.match(/<trkpt /g)||[]).length,a.geometry.length);
+const points=[...result.xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"\/>/g)].map(m=>[Number(m[2]),Number(m[1])]);assert.deepEqual(points,a.geometry,'every path coordinate is preserved in order and at its original precision');
+assert.match(result.xml,/A &amp; &lt;route&gt; &quot;one&quot; 🐈/);assert.doesNotMatch(result.xml,/\u0001|<route>|<rte>|estimate_ppsqft|RentCast/);assert.match(result.xml,/not native OsmAnd turn instructions/);assert.match(result.xml,/Exclusion zones do not transfer/);assert.equal(result.filename,'survive-drive-king-of-the-hill-chosen-A.gpx');
+state.active=1;vm.runInContext('renderOsmAndExport()',context);assert.equal(context.chosenOsmAndGpx().xml,result.xml,'viewing another route must not change the USER chosen export');
+a.geometry[0][0]+=1;a.route_directions.steps[0].instruction='Changed';assert.equal(context.chosenOsmAndGpx().xml,result.xml,'recorded geometry and turns are copied, not mutable references');
+choose();assert.equal(state.choice.candidate_id,b.id);assert.equal(context.chosenOsmAndGpx().points,2,'explicitly choosing another route replaces the export');
+state.choice=null;vm.runInContext('renderOsmAndExport()',context);assert.equal(get('export-osmand').disabled,true);assert.throws(()=>context.chosenOsmAndGpx(),/Choose/);
+for(const geometry of [[],[[0,0]],[[0,0],[null,1]],[[0,0],[NaN,1]],[[0,0],[181,0]],[[0,0],[0,91]],[[0,0],[1,1,1]],new Array(3)])assert.throws(()=>context.makeOsmAndTrack({geometry}),/valid path/);
+assert.equal(context.makeOsmAndTrack({geometry:[[0,0],[0,1]]}).geometry[0][0],0,'zero coordinates are valid');
+assert.throws(()=>context.chosenOsmAndGpx({candidate_id:'other',osmand_track:state.choice?.osmand_track}),/Choose/);
+if(process.argv[2]){
+  vm.runInContext(readFileSync('dist/valhalla-decoder.js','utf8'),context);
+  const fixture=JSON.parse(readFileSync(process.argv[2],'utf8'));state.hereResponses=fixture.here_responses;
+  let count=0;
+  for(const route of fixture.candidates.routes){
+    delete route.route_directions;recovery(route);state.routes=[route];state.active=0;choose();
+    const exported=context.chosenOsmAndGpx(),trackPoints=[...exported.xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"\/>/g)].map(m=>[Number(m[2]),Number(m[1])]);
+    assert.deepEqual(trackPoints,route.geometry);assert.equal(exported.turns,route.route_directions.steps.length);count++;
+  }
+  console.log('Actual saved session: '+count+' routes export every path point and every recovered turn position unchanged.');
+}
+// Full UI route tests separately exercise recovered provider geometry and multi-leg indices.
+writeFileSync(process.env.OSMAND_PROOF_PATH||'C:/Users/ch250/Documents/Codex/2026-10-02/sd-red-mileage-ranking/work/osmand-export-test.gpx',result.xml);
+console.log('Passed chosen OsmAnd export: all 3501 coordinates, choice binding, snapshot isolation, turn references, XML escaping, invalid-path rejection and reset; no network/provider calls.');

@@ -6,3 +6,4 @@ local-round-claims.jsonl
 *.tgz
 node_modules/
 work/
+android-companion/build/
