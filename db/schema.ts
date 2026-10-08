@@ -56,3 +56,13 @@ export const rentcastRateSeconds = sqliteTable("rentcast_rate_seconds", {
   second: integer("second").primaryKey(),
   usedCount: integer("used_count").notNull()
 });
+export const endpointAddressCache = sqliteTable("endpoint_address_cache", {
+  pointKey: text("point_key").primaryKey(),
+  resultJson: text("result_json").notNull(),
+  acquiredMs: integer("acquired_ms").notNull()
+});
+// A single atomic reservation limits the whole application's endpoint geocoder.
+export const endpointGeocoderRate = sqliteTable("endpoint_geocoder_rate", {
+  service: text("service").primaryKey(),
+  lastStartedMs: integer("last_started_ms").notNull()
+});

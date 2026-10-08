@@ -50,6 +50,13 @@
       "when": 1790205902981,
       "tag": "0007_rentcast_rate_seconds",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791476199450,
+      "tag": "0008_endpoint_addresses",
+      "breakpoints": true
     }
   ]
 }

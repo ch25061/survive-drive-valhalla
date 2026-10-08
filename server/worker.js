@@ -338,11 +338,36 @@ async function sendAvm(body,env){
   // Keep only geographic aggregate evidence, not addresses or comparables.
   return json({cell,estimate_ppsqft:estimate,acquired_at:now,source_kind:'live_rentcast',provider_attempted:true,cached,...(automatic?{plan_id:body.plan_id,attempt_index:body.attempt_index,round_index:body.round_index,route_id:body.route_id}: {})});
 }
+async function endpointAddress(request,env){
+  let body;try{body=await readBody(request,1024);}catch{return json({error:'Use a latitude and longitude.',lookup_attempted:false},400);}
+  const latitude=body?.latitude,longitude=body?.longitude;
+  if(!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180)return json({error:'Use valid GPS coordinates.',lookup_attempted:false},400);
+  // Server-configurable provider, identified requests, cached results and a shared 1.1-second gate.
+  const service=new URL(env.ENDPOINT_GEOCODER_URL||'https://nominatim.openstreetmap.org/reverse');
+  if(service.protocol!=='https:'||service.username||service.password)return json({error:'Nearby-address lookup is unavailable.',lookup_attempted:false},503);
+  const pointKey=service.href+'|'+latitude.toFixed(6)+','+longitude.toFixed(6),now=Date.now(),db=env.DB;
+  const cached=await db.prepare('SELECT result_json, acquired_ms FROM endpoint_address_cache WHERE point_key = ?').bind(pointKey).first();
+  if(cached&&now-cached.acquired_ms<30*86400000)return json({...JSON.parse(cached.result_json),cached:true,lookup_attempted:false});
+  await db.prepare('INSERT OR IGNORE INTO endpoint_geocoder_rate (service, last_started_ms) VALUES (?, 0)').bind('endpoint-address').run();
+  const reserved=await db.prepare('UPDATE endpoint_geocoder_rate SET last_started_ms = ? WHERE service = ? AND last_started_ms <= ? RETURNING last_started_ms').bind(now,'endpoint-address',now-1100).first();
+  if(!reserved)return json({error:'Address lookup is busy. Please try again in a moment.',lookup_attempted:false},429);
+  service.searchParams.set('lat',latitude.toFixed(6));service.searchParams.set('lon',longitude.toFixed(6));service.searchParams.set('format','jsonv2');service.searchParams.set('addressdetails','1');service.searchParams.set('zoom','18');service.searchParams.set('layer','address');service.searchParams.set('accept-language','en');
+  try{
+    const response=await fetch(service.href,{headers:{'User-Agent':'RouteScrewtiny/1.0 (+https://survive-drive-valhalla.choppy777.chatgpt.site/)','Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(8000)});
+    if(!response.ok)return json({error:'Nearby-address lookup could not complete. No automatic retry was made.',lookup_attempted:true},502);
+    const data=JSON.parse(await boundedText(response,64000)),label=typeof data.display_name==='string'?data.display_name.trim().slice(0,500):null;
+    const matchedLatitude=Number(data.lat),matchedLongitude=Number(data.lon),distance=Number.isFinite(matchedLatitude)&&Number.isFinite(matchedLongitude)?111195*Math.hypot(latitude-matchedLatitude,(longitude-matchedLongitude)*Math.cos(latitude*Math.PI/180)):Infinity;
+    const result={address:label&&distance<=1000?label:null,source:'OpenStreetMap',approximate:true,matched_distance_m:Number.isFinite(distance)?Math.round(distance):null};
+    await db.prepare('INSERT INTO endpoint_address_cache (point_key, result_json, acquired_ms) VALUES (?, ?, ?) ON CONFLICT(point_key) DO UPDATE SET result_json = excluded.result_json, acquired_ms = excluded.acquired_ms').bind(pointKey,JSON.stringify(result),now).run();
+    return json({...result,cached:false,lookup_attempted:true});
+  }catch{return json({error:'Nearby-address lookup could not complete. No automatic retry was made.',lookup_attempted:true},502);}
+}
 export default {async fetch(request,env){const url=new URL(request.url);try{
   if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,TUTORIAL_VIDEO_KEY,VIDEO_SEED);
   if(url.pathname==='/tutorial-la-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_VIDEO_KEY,LA_VIDEO_SEED);
   if(url.pathname==='/tutorial-la-session-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_SESSION_VIDEO_KEY,LA_SESSION_VIDEO_SEED);
   if(url.pathname.startsWith('/api/')){
+    if(url.pathname==='/api/locations/endpoint-address'&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',lookup_attempted:false},403);return await endpointAddress(request,env);}
     if(url.pathname==='/api/locations/geocode'&&request.method==='POST')return json({error:'Address lookup is not configured in this Valhalla offshoot. Place the trip points on the map or enter coordinates.',provider_attempted:false,provider_calls:0},501);
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}
     if(url.pathname.startsWith('/api/intersections/ring/')&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.'},403);return await censusRing(request,env,url.pathname.split('/').pop());}
