@@ -677,11 +677,12 @@ function validateRouteDirections(value){
   if(!value||value.source!=='valhalla'||!Array.isArray(value.steps)||value.steps.length>20000)throw Error('Invalid saved Valhalla directions.');
   return{source:'valhalla',steps:value.steps.map(step=>{
     if(!step||(step.instruction!==null&&(typeof step.instruction!=='string'||step.instruction.length>4000))||!Number.isInteger(step.leg_number)||step.leg_number<1||step.leg_number>20000||['length_m','duration_s'].some(key=>step[key]!==null&&(!Number.isFinite(step[key])||step[key]<0)))throw Error('Invalid saved Valhalla direction step.');
-    return{instruction:step.instruction,length_m:step.length_m,duration_s:step.duration_s,leg_number:step.leg_number};
+    if(step.shape_index!=null&&(!Number.isInteger(step.shape_index)||step.shape_index<0||step.shape_index>=20000))throw Error('Invalid saved maneuver position.');
+    return{instruction:step.instruction,length_m:step.length_m,duration_s:step.duration_s,leg_number:step.leg_number,shape_index:step.shape_index??null};
   })};
 }
 function recoverRouteDirections(route){
-  if(route.route_directions?.steps?.length||!route.live_valhalla)return;
+  if(!route.live_valhalla||route.route_directions?.steps?.length&&route.route_directions.steps.every(step=>Number.isInteger(step.shape_index)))return;
   for(const record of (state.hereResponses??[]).slice(0,1000)){
     if(record?.provider!=='Valhalla'||typeof record.round_id!=='string')continue;
     const index=[1,2,3,4].find(number=>route.id===record.round_id+'-'+number);if(!index)continue;
@@ -689,13 +690,14 @@ function recoverRouteDirections(route){
     try{
       const geometry=[],steps=[],multiplier=trip.units==='miles'?1609.344:1000;
       for(const [legIndex,leg] of trip.legs.entries()){
-        const points=window.SurviveValhalla.decodePolyline6(leg.shape),last=geometry.at(-1);geometry.push(...(last&&last[0]===points[0][0]&&last[1]===points[0][1]?points.slice(1):points));if(geometry.length>20000)throw Error('Too many route points.');
+        const points=window.SurviveValhalla.decodePolyline6(leg.shape),last=geometry.at(-1),duplicate=last&&last[0]===points[0][0]&&last[1]===points[0][1],offset=geometry.length-(duplicate?1:0);geometry.push(...(duplicate?points.slice(1):points));if(geometry.length>20000)throw Error('Too many route points.');
         const maneuvers=Array.isArray(leg.maneuvers)?leg.maneuvers:[];
         if(!maneuvers.length&&trip.legs.length>1)steps.push({instruction:null,length_m:Number.isFinite(leg.summary?.length)?leg.summary.length*multiplier:null,duration_s:Number.isFinite(leg.summary?.time)?leg.summary.time:null,leg_number:legIndex+1});
-        for(const maneuver of maneuvers){steps.push({instruction:typeof maneuver?.instruction==='string'?maneuver.instruction:null,length_m:Number.isFinite(maneuver?.length)&&maneuver.length>=0?maneuver.length*multiplier:null,duration_s:Number.isFinite(maneuver?.time)&&maneuver.time>=0?maneuver.time:null,leg_number:legIndex+1});if(steps.length>20000)throw Error('Too many route steps.');}
+        for(const maneuver of maneuvers){steps.push({instruction:typeof maneuver?.instruction==='string'?maneuver.instruction:null,length_m:Number.isFinite(maneuver?.length)&&maneuver.length>=0?maneuver.length*multiplier:null,duration_s:Number.isFinite(maneuver?.time)&&maneuver.time>=0?maneuver.time:null,leg_number:legIndex+1,shape_index:Number.isInteger(maneuver?.begin_shape_index)&&maneuver.begin_shape_index>=0&&maneuver.begin_shape_index<points.length?offset+maneuver.begin_shape_index:null});if(steps.length>20000)throw Error('Too many route steps.');}
       }
       if(route.geometry.length!==geometry.length||route.geometry.some((point,i)=>point[0]!==geometry[i][0]||point[1]!==geometry[i][1]))continue;
-      route.route_directions=validateRouteDirections({source:'valhalla',steps});return;
+      const prior=route.route_directions?.steps;if(prior?.length&&(prior.length!==steps.length||prior.some((step,index)=>step.instruction!==steps[index].instruction||step.leg_number!==steps[index].leg_number)))continue;
+      route.route_directions=validateRouteDirections({source:'valhalla',steps:prior?.length?prior.map((step,index)=>({...step,shape_index:steps[index].shape_index})):steps});return;
     }catch{continue;}
   }
 }
@@ -766,10 +768,22 @@ function restoreDirectionEndpointAddresses(input){
   directionEndpointAddresses.clear();
   for(const entry of Array.isArray(input)?input.slice(0,100):[]){if(typeof entry?.key!=='string'||entry.source!=='OpenStreetMap'||typeof entry.address!=='string'||entry.address.length>500)continue;try{const pair=coordinates(entry.key);if(pair.map(value=>value.toFixed(6)).join(',')===entry.key)directionEndpointAddresses.set(entry.key,{status:'complete',address:entry.address,source:'OpenStreetMap',approximate:true});}catch{}}
 }
+let directionManeuverMarker=null,directionManeuverRoute=null;
+function clearDirectionManeuver(){if(directionManeuverMarker&&map)map.removeLayer(directionManeuverMarker);directionManeuverMarker=null;directionManeuverRoute=null;}
+function directionManeuverPoint(route,step){const index=step?.shape_index,point=Number.isInteger(index)&&index>=0?route?.geometry?.[index]:null;return Array.isArray(point)&&point.length===2&&point.every(Number.isFinite)&&Math.abs(point[0])<=180&&Math.abs(point[1])<=90?[point[1],point[0]]:null;}
+function focusDirectionManeuver(route,stepIndex){
+  // A retained button must never focus a point from a route that is no longer selected.
+  if(current()!==route)return false;const step=route.route_directions?.steps?.[stepIndex],point=directionManeuverPoint(route,step);if(!point||!window.L)return false;
+  if(!map)drawMap();if(!map)return false;dismissMapAvm();closeRouteCellHover();clearDirectionManeuver();
+  fitRouteMapToViewport();map.invalidateSize?.({pan:false});map.setView(point,Math.min(19,Math.max(17,map.getZoom?.()??0)),{animate:false});
+  const markerContent=document.createElement('div');markerContent.textContent=String(stepIndex+1);markerContent.style.cssText='width:30px;height:30px;display:grid;place-items:center;background:#fff;color:#075da6;border:3px solid #075da6;border-radius:50%;font-weight:800;box-shadow:0 2px 8px #0005';
+  const title='Step '+(stepIndex+1)+': '+(step.instruction?.trim()||'Maneuver'),icon=L.divIcon({html:markerContent,className:'direction-maneuver-marker',iconSize:[36,36],iconAnchor:[18,18]});
+  directionManeuverMarker=L.marker(point,{icon,title,interactive:false}).addTo(map);directionManeuverRoute=route;const label=document.createElement('span');label.textContent=title;label.style.cssText='display:block;width:280px;max-width:60vw;white-space:normal;overflow-wrap:anywhere';directionManeuverMarker.bindTooltip(label,{permanent:true,direction:'top',offset:[0,-20],className:'direction-maneuver-tooltip'});return true;
+}
 function renderRouteDirections(){
   ensureRouteDirectionsPanel();
   const panel=$('route-directions'),list=$('route-directions-steps');if(!panel||!list)return;
-  const route=current();list.replaceChildren();panel.hidden=!route;if(!route)return;
+  const route=current();list.replaceChildren();panel.hidden=!route;if(directionManeuverRoute!==route)clearDirectionManeuver();if(!route)return;
   recoverRouteDirections(route);
   renderDirectionEndpoints(route);
   $('route-directions-title').textContent='Step-by-step directions · '+route.name;
@@ -777,10 +791,11 @@ function renderRouteDirections(){
   const steps=route.route_directions?.steps??[],empty=$('route-directions-empty');empty.hidden=steps.length>0;
   empty.textContent='Turn-by-turn instructions are unavailable for this saved route. Generate fresh routes to get Valhalla directions.';
   let priorLeg=null;
-  for(const step of steps){
+  for(const [stepIndex,step] of steps.entries()){
     const item=document.createElement('li');
     if(step.leg_number!==priorLeg&&steps.at(-1).leg_number>1){const leg=document.createElement('small');leg.className='route-directions-leg';leg.textContent='Leg '+step.leg_number;item.append(leg);}priorLeg=step.leg_number;
-    const instruction=document.createElement('div');instruction.textContent=step.instruction?.trim()||'Instruction unavailable for this step.';item.append(instruction);
+    const instruction=document.createElement('div');instruction.textContent=step.instruction?.trim()||'Instruction unavailable for this step.';
+    const row=document.createElement('div');row.style.cssText='display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap';instruction.style.cssText='flex:1 1 220px';const show=document.createElement('button');show.type='button';show.className='direction-map-link';show.textContent='Show on map';show.setAttribute('aria-label','Show step '+(stepIndex+1)+' on map: '+instruction.textContent);show.style.cssText='background:transparent;color:#075da6;border:1px solid #bccdde;border-radius:6px;padding:5px 10px;font-size:13px;box-shadow:none;cursor:pointer';show.disabled=!directionManeuverPoint(route,step);if(show.disabled){show.textContent='Map position unavailable';show.title='This saved step has no verified maneuver position.';}show.addEventListener('click',()=>focusDirectionManeuver(route,stepIndex));row.append(instruction,show);item.append(row);
     const detail=[];
     if(Number.isFinite(step.length_m))detail.push(step.length_m<160.9344?Math.round(step.length_m*3.28084)+' ft':(step.length_m/1609.344).toFixed(2)+' mi');
     if(Number.isFinite(step.duration_s))detail.push(step.duration_s<60?Math.round(step.duration_s)+' sec':(step.duration_s/60).toFixed(1)+' min');
@@ -789,6 +804,7 @@ function renderRouteDirections(){
   }
 }
 function selectRoute(index,{source='programmatic'}={}){
+  clearDirectionManeuver();
   if(!state.routes[index])return false;const routeChanged=current()!==state.routes[index];if(source!=='candidate-card')state.candidateCardArmedRouteId=null;dismissMapAvm();rememberReviewDraft();state.active=index;state.selectedRoutePopupOpen=false;if(!state.busy)resetAvmReview();state.cell=null;state.reviewCell=null;state.inspection=null;streetViewNearbyAnchor=null;streetViewNearbyVisited=[];$('streetview-nearby-status').textContent='If Google shows a black view, return here and try a nearby route point.';$('inspection-coords').value='';updateStreetView();
   if(inspectionMarker&&map){map.removeLayer(inspectionMarker);inspectionMarker=null;}
   $('cell-detail').textContent='Select a cell on the map or in the list.';$('assessment').value='unreviewed';$('cell-note').value='';
