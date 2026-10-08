@@ -60,3 +60,44 @@ state.routes=[];vm.runInContext('renderRouteDirections()',context);
 assert.equal(get('route-directions').hidden,true);
 assert.equal(get('route-directions-steps').children.length,0);
 console.log('Passed route directions: provider maneuvers, alternates, multi-leg order, unit conversion, saved-session preservation/recovery, safe text, route selection, missing instructions and clearing. No provider calls.');
+
+// Reproduce the running local preview: old markup and decoder, current app.js.
+for(const id of ['route-directions','route-directions-title','route-directions-summary','route-directions-empty','route-directions-steps'])nodes.delete(id);
+const legacyGet=id=>id.startsWith('route-directions')?(nodes.get(id)??null):get(id);
+context.document.getElementById=legacyGet;
+context.document.createElement=()=>{const element=node();element.style={};Object.defineProperty(element,'id',{set(id){this._id=id;nodes.set(id,this);},get(){return this._id;}});return element;};
+let insertedAfterLegend=null;
+context.document.querySelector=selector=>selector==='.map-legend'?{after(panel){insertedAfterLegend=panel;}}:null;
+delete api.validateDirections;
+state.hereResponses=[{provider:'Valhalla',round_id:'directions-fixture',response}];
+const legacyRoutes=JSON.parse(JSON.stringify(routes));for(const route of legacyRoutes)delete route.route_directions;
+state.routes=legacyRoutes;state.active=1;vm.runInContext('renderRouteDirections()',context);
+assert.equal(insertedAfterLegend,legacyGet('route-directions'),'missing panel is created directly after the map legend');
+assert.equal(legacyGet('route-directions').hidden,false);
+assert.match(text(legacyGet('route-directions-steps')),/Second Avenue/,'retained alternate response restores actual instructions with an old decoder');
+state.active=0;vm.runInContext('renderRouteDirections()',context);
+assert.match(text(legacyGet('route-directions-steps')),/Main Street/);
+assert.match(text(legacyGet('route-directions-steps')),/Leg 2/);
+assert.doesNotMatch(text(legacyGet('route-directions-steps')),/Second Avenue/);
+context.fixture={...saved,routes:legacyRoutes};
+assert.equal(vm.runInContext('validateCandidateSet(fixture)[0].route_directions.steps.length',context),2,'recovered directions can be imported even with a legacy decoder');
+const wrong=JSON.parse(JSON.stringify(legacyRoutes[0]));delete wrong.route_directions;wrong.geometry[0][0]+=.01;state.routes=[wrong];state.active=0;vm.runInContext('renderRouteDirections()',context);
+assert.equal(wrong.route_directions,undefined);
+assert.equal(legacyGet('route-directions-steps').children.length,0);
+console.log('Passed mixed-version preview: missing panel creation, exact-geometry raw-response recovery, alternate selection and legacy saved-direction validation.');
+
+if(process.argv[2]){
+  const session=JSON.parse(readFileSync(process.argv[2],'utf8'));
+  state.hereResponses=session.here_responses;state.routes=session.candidates.routes;
+  let stepCount=0;
+  for(const [index,route] of state.routes.entries()){
+    delete route.route_directions;state.active=index;vm.runInContext('renderRouteDirections()',context);
+    assert.ok(route.route_directions?.steps?.some(step=>step.instruction),'actual saved route '+index+' has recovered directions');
+    const record=session.here_responses.find(item=>[1,2,3,4].some(number=>route.id===item.round_id+'-'+number));
+    const number=Number(route.id.slice(record.round_id.length+1));
+    const raw=[record.response,...(record.response.alternates??[])][number-1],trip=raw.trip??raw;
+    assert.deepEqual(Array.from(route.route_directions.steps,step=>step.instruction),trip.legs.flatMap(leg=>(leg.maneuvers??[]).map(step=>step.instruction??null)));
+    stepCount+=route.route_directions.steps.length;
+  }
+  console.log('Actual saved session verified: '+state.routes.length+' routes, '+stepCount+' original turn instructions; zero provider calls.');
+}

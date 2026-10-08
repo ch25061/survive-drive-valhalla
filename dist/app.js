@@ -663,9 +663,46 @@ function handleCandidateCardClick(index){
   if(!poolScreenReady())return false;
   state.selectedRoutePopupOpen=true;renderEvaluationFlow();$('close-selected-route-popup')?.focus?.();updateNextAction();return true;
 }
+function ensureRouteDirectionsPanel(){
+  if($('route-directions'))return;
+  const anchor=document.querySelector?.('.map-legend')??$('map-work-area');if(!anchor)return;
+  const panel=document.createElement('section');panel.id='route-directions';panel.className='route-directions';panel.hidden=true;panel.setAttribute('aria-labelledby','route-directions-title');
+  // Older preview servers retain their original HTML/CSS while serving current app.js.
+  panel.style.cssText='padding:16px 20px;border-top:1px solid #d7e1ed';
+  for(const [tag,id,className] of [['h3','route-directions-title',''],['p','route-directions-summary','hint'],['p','route-directions-empty','hint'],['ol','route-directions-steps','']]){const element=document.createElement(tag);element.id=id;element.className=className;panel.append(element);}
+  const summary=panel.children[1];summary.setAttribute('role','status');summary.setAttribute('aria-live','polite');anchor.after(panel);
+}
+function validateRouteDirections(value){
+  if(!value||value.source!=='valhalla'||!Array.isArray(value.steps)||value.steps.length>20000)throw Error('Invalid saved Valhalla directions.');
+  return{source:'valhalla',steps:value.steps.map(step=>{
+    if(!step||(step.instruction!==null&&(typeof step.instruction!=='string'||step.instruction.length>4000))||!Number.isInteger(step.leg_number)||step.leg_number<1||step.leg_number>20000||['length_m','duration_s'].some(key=>step[key]!==null&&(!Number.isFinite(step[key])||step[key]<0)))throw Error('Invalid saved Valhalla direction step.');
+    return{instruction:step.instruction,length_m:step.length_m,duration_s:step.duration_s,leg_number:step.leg_number};
+  })};
+}
+function recoverRouteDirections(route){
+  if(route.route_directions?.steps?.length||!route.live_valhalla)return;
+  for(const record of (state.hereResponses??[]).slice(0,1000)){
+    if(record?.provider!=='Valhalla'||typeof record.round_id!=='string')continue;
+    const index=[1,2,3,4].find(number=>route.id===record.round_id+'-'+number);if(!index)continue;
+    const raw=[record.response,...(Array.isArray(record.response?.alternates)?record.response.alternates:[])][index-1],trip=raw?.trip??raw;if(!Array.isArray(trip?.legs))continue;
+    try{
+      const geometry=[],steps=[],multiplier=trip.units==='miles'?1609.344:1000;
+      for(const [legIndex,leg] of trip.legs.entries()){
+        const points=window.SurviveValhalla.decodePolyline6(leg.shape),last=geometry.at(-1);geometry.push(...(last&&last[0]===points[0][0]&&last[1]===points[0][1]?points.slice(1):points));if(geometry.length>20000)throw Error('Too many route points.');
+        const maneuvers=Array.isArray(leg.maneuvers)?leg.maneuvers:[];
+        if(!maneuvers.length&&trip.legs.length>1)steps.push({instruction:null,length_m:Number.isFinite(leg.summary?.length)?leg.summary.length*multiplier:null,duration_s:Number.isFinite(leg.summary?.time)?leg.summary.time:null,leg_number:legIndex+1});
+        for(const maneuver of maneuvers){steps.push({instruction:typeof maneuver?.instruction==='string'?maneuver.instruction:null,length_m:Number.isFinite(maneuver?.length)&&maneuver.length>=0?maneuver.length*multiplier:null,duration_s:Number.isFinite(maneuver?.time)&&maneuver.time>=0?maneuver.time:null,leg_number:legIndex+1});if(steps.length>20000)throw Error('Too many route steps.');}
+      }
+      if(route.geometry.length!==geometry.length||route.geometry.some((point,i)=>point[0]!==geometry[i][0]||point[1]!==geometry[i][1]))continue;
+      route.route_directions=validateRouteDirections({source:'valhalla',steps});return;
+    }catch{continue;}
+  }
+}
 function renderRouteDirections(){
+  ensureRouteDirectionsPanel();
   const panel=$('route-directions'),list=$('route-directions-steps');if(!panel||!list)return;
   const route=current();list.replaceChildren();panel.hidden=!route;if(!route)return;
+  recoverRouteDirections(route);
   $('route-directions-title').textContent='Step-by-step directions · '+route.name;
   $('route-directions-summary').textContent=[routeGateLabel(route),Number.isFinite(route.length_m)?(route.length_m/1609.344).toFixed(1)+' miles':null,Number.isFinite(route.duration_s)?(route.duration_s/60).toFixed(1)+' minutes':null].filter(Boolean).join(' · ');
   const steps=route.route_directions?.steps??[],empty=$('route-directions-empty');empty.hidden=steps.length>0;
@@ -949,7 +986,7 @@ function validateCandidateSet(input,allowEmpty=false){
   const subject=input?.subject_profile;
   if(!subject||subject.propertyType!=='Single Family'||String(subject.bedrooms)!=='3'||String(subject.bathrooms)!=='2'||String(subject.squareFootage)!=='1500'||subject.lookupSubjectAttributes!==false)throw Error('Candidate sets must use the standardized Single Family / 3 bed / 2 bath / 1,500 sq ft subject with no attribute lookup.');
   const routes=baseValidateCandidateSet(input,allowEmpty);
-  for(let i=0;i<routes.length;i++)if(input.routes[i].route_directions!==undefined)routes[i].route_directions=window.SurviveValhalla.validateDirections(input.routes[i].route_directions);
+  for(let i=0;i<routes.length;i++)if(input.routes[i].route_directions!==undefined)routes[i].route_directions=validateRouteDirections(input.routes[i].route_directions);
   for(let i=0;i<routes.length;i++){const raw=input.routes[i];if(raw.here_evidence&&Array.isArray(raw.section_offsets)){routes[i].here_evidence=raw.here_evidence;routes[i].section_offsets=raw.section_offsets;}if(raw.avm_status==='no_eligible_non_highway_cells')routes[i].avm_status=raw.avm_status;if(raw.live_valhalla===true&&raw.live_here!==true){routes[i].live_valhalla=true;routes[i].live_here=false;}if(raw.highway_transitions!==undefined){if(!Array.isArray(raw.highway_transitions)||raw.highway_transitions.length>100||raw.highway_transitions.some(item=>!item||!Number.isInteger(item.index)||item.index<0||item.index>=routes[i].geometry.length||!['entry','exit'].includes(item.kind)))throw Error('Saved Valhalla highway transition markers must match route geometry.');routes[i].highway_transitions=raw.highway_transitions.map(item=>({index:item.index,kind:item.kind}));}if(raw.shotgun_gates!==undefined||raw.shotgun_destination_gates!==undefined){const clean=(items,role)=>{if(items!==undefined&&(!Array.isArray(items)||items.length>16))throw Error('Shotgun provenance must contain at most 16 gates per end.');const ids=new Set(),numbers=new Set();return(items??[]).map((g,index)=>{if(!g||typeof g.id!=='string'||!g.id||g.id.length>150||ids.has(g.id)||typeof g.name!=='string'||!g.name||g.name.length>200)throw Error('Invalid '+role+' gate provenance.');ids.add(g.id);coordinates(g.latitude+','+g.longitude);const n=g.gate_number===undefined?index+1:g.gate_number;if(!Number.isInteger(n)||n<1||n>16||numbers.has(n))throw Error('Invalid '+role+' gate number.');numbers.add(n);return{id:g.id,gate_number:n,name:g.name,latitude:g.latitude,longitude:g.longitude,bearing_deg:Number.isFinite(g.bearing_deg)?g.bearing_deg:null,distance_m:Number.isFinite(g.distance_m)&&g.distance_m>=0?g.distance_m:null};});};routes[i].shotgun_gates=clean(raw.shotgun_gates,'Start Escape');routes[i].shotgun_destination_gates=clean(raw.shotgun_destination_gates,'Destination Approach');routes[i].shotgun_duplicate_count=Number.isInteger(raw.shotgun_duplicate_count)&&raw.shotgun_duplicate_count>0?raw.shotgun_duplicate_count:routes[i].shotgun_gates.length+routes[i].shotgun_destination_gates.length;}if(raw.shotgun_route_pairs!==undefined){if(!Array.isArray(raw.shotgun_route_pairs)||!raw.shotgun_route_pairs.length||raw.shotgun_route_pairs.length>292)throw Error('Shotgun route provenance must contain 1–292 combinations.');const pairIds=new Set();routes[i].shotgun_route_pairs=raw.shotgun_route_pairs.map(pair=>{const kind=pair?.request_kind??(pair?.gate_number==null?'baseline':'gate'),baseline=kind==='baseline',start=pair?.start_gate_number??(kind==='gate'?pair.gate_number:null),dest=pair?.destination_gate_number??null,pairNo=pair?.pair_number??(kind==='gate'?pair.gate_number:null),startName=pair?.start_gate_name??(kind==='gate'?pair.gate_name:null),destName=pair?.destination_gate_name??null,middle=[];if(!pair||!['baseline','gate','gate_pair'].includes(kind)||!Number.isInteger(pair.route_number)||pair.route_number<1||pair.route_number>7||baseline&&(start!==null||dest!==null)||!baseline&&(start===null&&dest===null)||start!==null&&(!Number.isInteger(start)||start<1||start>16||typeof startName!=='string'||!routes[i].shotgun_gates?.some(g=>g.gate_number===start&&g.name===startName))||dest!==null&&(!Number.isInteger(dest)||dest<1||dest>16||typeof destName!=='string'||!routes[i].shotgun_destination_gates?.some(g=>g.gate_number===dest&&g.name===destName))||!baseline&&(!Number.isInteger(pairNo)||pairNo<1||pairNo>288))throw Error('Invalid gate-combination-to-route provenance.');const key=kind+'|'+(pairNo??'')+'|'+(start??'')+'|'+(dest??'')+'|'+pair.route_number;if(pairIds.has(key))throw Error('Duplicate Shotgun route provenance.');pairIds.add(key);return{request_kind:baseline?'baseline':'gate_pair',pair_number:baseline?null:pairNo,start_gate_number:baseline?null:start,start_gate_name:baseline?null:startName,destination_gate_number:baseline?null:dest,destination_gate_name:baseline?null:destName,route_number:pair.route_number};});}}  for(let i=0;i<routes.length;i++){const raw=input.routes[i],ranges=Array.isArray(raw.authority_ranges)?raw.authority_ranges:Array.isArray(raw.authority_offsets)?[raw.authority_offsets]:null;if(ranges){if(ranges.length>100||ranges.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isInteger)||p[0]<0||p[0]>=p[1]||p[1]>=routes[i].geometry.length))throw Error('Saved highway-authority offsets must match this route geometry.');routes[i].authority_ranges=ranges.map(p=>p.slice());routes[i].authority_offsets=ranges.length===1?ranges[0].slice():null;}if(routes[i].live_valhalla)routes[i].authority_source=raw.authority_source==='valhalla_maneuvers_v1'?'valhalla_maneuvers_v1':'unverified';}
   for(let i=0;i<routes.length;i++)for(let j=0;j<routes[i].cells.length;j++){
     const raw=input.routes[i].cells[j],cell=routes[i].cells[j];
