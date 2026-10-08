@@ -798,9 +798,10 @@ function renderDirectionManeuvers(route=current()){
     const markerContent=document.createElement('div');markerContent.textContent=String(stepIndex+1);markerContent.style.cssText='width:30px;height:30px;display:grid;place-items:center;background:#fff;color:#075da6;border:3px solid #075da6;border-radius:50%;font-weight:800;box-shadow:0 2px 8px #0005';
     const title='Step '+(stepIndex+1)+': '+(step.instruction?.trim()||'Maneuver'),icon=L.divIcon({html:markerContent,className:'direction-maneuver-marker',iconSize:[36,36],iconAnchor:[18-(overlap%3)*38,18-Math.floor(overlap/3)*38]});
     const nextIndex=stepIndex+1,hasNext=nextIndex<steps.length,canAdvance=hasNext&&!!directionManeuverPoint(route,steps[nextIndex]);
-    const action=canAdvance?'Click marker for next turn →':hasNext?'Next maneuver has no saved map position.':'Final maneuver · no further turns.';
+    const previousIndex=stepIndex-1,hasPrevious=stepIndex>0,canRetreat=hasPrevious&&!!directionManeuverPoint(route,steps[previousIndex]);
+    const action=(canAdvance?'Click marker for next turn →':hasNext?'Next maneuver has no saved map position.':'Final maneuver · no further turns.')+' · '+(canRetreat?'Ctrl-click for previous turn ←':hasPrevious?'Previous maneuver has no saved map position.':'First maneuver · no preceding turn.');
     const marker=L.marker(point,{icon,title:title+' · '+action,interactive:true,keyboard:true,bubblingMouseEvents:false,zIndexOffset:300}).addTo(map);marker.directionContent=markerContent;marker.directionPoint=point;
-    marker.on('click',event=>{L.DomEvent.stopPropagation(event);if(directionManeuverMarkers.get(stepIndex)===marker&&current()===route)focusDirectionManeuver(route,canAdvance?nextIndex:stepIndex);});
+    marker.on('click',event=>{L.DomEvent.stopPropagation(event);if(directionManeuverMarkers.get(stepIndex)===marker&&current()===route)focusDirectionManeuver(route,event.originalEvent?.ctrlKey?(canRetreat?previousIndex:stepIndex):(canAdvance?nextIndex:stepIndex));});
     const label=document.createElement('span');label.textContent=title;label.style.cssText='display:block;width:280px;max-width:60vw;white-space:normal;overflow-wrap:anywhere';const hint=document.createElement('small');hint.textContent=action;hint.style.cssText='display:block;margin-top:4px;color:#075da6;font-weight:700';label.append(hint);marker.bindTooltip(label,{direction:'top',offset:[0,-20],className:'direction-maneuver-tooltip'});directionManeuverMarkers.set(stepIndex,marker);
   }
   positionDirectionManeuverLabels();
