@@ -363,15 +363,17 @@ async function endpointAddress(request,env){
   }catch{return json({error:'Nearby-address lookup could not complete. No automatic retry was made.',lookup_attempted:true},502);}
 }
 async function providerStatus(env){
-  let ready=false,connectionError=null;
+  let ready=false,connectionError=null,healthPhase='configuration';
   const configured=!!env.VALHALLA_BASE_URL&&!!env.VALHALLA_API_KEY;
   if(configured){
     try{
       const endpoint=valhallaEndpoint(env.VALHALLA_BASE_URL);endpoint.pathname='/status';
-      const response=await fetch(endpoint.href,{headers:valhallaRequestHeaders(env.VALHALLA_API_KEY),redirect:'error',signal:AbortSignal.timeout(4000)});
+      const headers=valhallaRequestHeaders(env.VALHALLA_API_KEY);healthPhase='network';
+      const response=await fetch(endpoint.href,{headers,redirect:'error',signal:AbortSignal.timeout(4000)});
+      healthPhase='response';
       if(response.ok){const status=JSON.parse(await boundedText(response,16000));ready=typeof status.version==='string'&&status.version.length>0;}
       if(!ready)connectionError=response.status===401||response.status===403?'The desktop Valhalla gateway rejected the hosted app authentication (HTTP '+response.status+'). No route request was sent.':'The desktop Valhalla engine is unavailable through its protected connection (HTTP '+response.status+'). No route request was sent.';
-    }catch(error){connectionError=error?.name==='TimeoutError'||error?.name==='AbortError'?'The hosted app timed out while checking the desktop Valhalla connection. No route request was sent.':'The hosted app could not read the desktop Valhalla health response. No route request was sent.';}
+    }catch(error){connectionError=healthPhase==='configuration'?'The hosted desktop Valhalla address or authentication key is invalid. No route request was sent.':error?.name==='TimeoutError'||error?.name==='AbortError'?'The hosted app timed out while checking the desktop Valhalla connection. No route request was sent.':healthPhase==='network'?'The hosted app could not reach the protected desktop Valhalla address. No route request was sent.':'The protected desktop connection returned an unreadable Valhalla health response. No route request was sent.';}
   }
   return json({valhalla_ready:ready,valhalla_configured:configured,valhalla_connection_error:connectionError,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
 }
