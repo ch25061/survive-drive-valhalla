@@ -370,8 +370,8 @@ async function providerStatus(env){
       const endpoint=valhallaEndpoint(env.VALHALLA_BASE_URL);endpoint.pathname='/status';
       const response=await fetch(endpoint.href,{headers:valhallaRequestHeaders(env.VALHALLA_API_KEY),redirect:'error',signal:AbortSignal.timeout(4000)});
       if(response.ok){const status=JSON.parse(await boundedText(response,16000));ready=typeof status.version==='string'&&status.version.length>0;}
-      if(!ready)connectionError='The desktop Valhalla engine is unavailable. No route request was sent.';
-    }catch{connectionError='The desktop Valhalla engine is unavailable. No route request was sent.';}
+      if(!ready)connectionError=response.status===401||response.status===403?'The desktop Valhalla gateway rejected the hosted app authentication (HTTP '+response.status+'). No route request was sent.':'The desktop Valhalla engine is unavailable through its protected connection (HTTP '+response.status+'). No route request was sent.';
+    }catch(error){connectionError=error?.name==='TimeoutError'||error?.name==='AbortError'?'The hosted app timed out while checking the desktop Valhalla connection. No route request was sent.':'The hosted app could not read the desktop Valhalla health response. No route request was sent.';}
   }
   return json({valhalla_ready:ready,valhalla_configured:configured,valhalla_connection_error:connectionError,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
 }

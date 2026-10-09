@@ -51,10 +51,18 @@ try{
   globalThis.fetch=async()=>{healthChecks++;return new Response('{}',{status:502});};
   const unavailable=await (await worker.fetch(statusRequest(),env)).json();
   assert.equal(unavailable.valhalla_ready,false);assert.equal(unavailable.valhalla_configured,true);
-  assert.match(unavailable.valhalla_connection_error,/desktop Valhalla engine is unavailable/);
+  assert.match(unavailable.valhalla_connection_error,/desktop Valhalla engine is unavailable.*HTTP 502/);
+  globalThis.fetch=async()=>{healthChecks++;return new Response('{}',{status:401});};
+  const rejected=await (await worker.fetch(statusRequest(),env)).json();
+  assert.match(rejected.valhalla_connection_error,/authentication.*HTTP 401/);
+  assert.equal(JSON.stringify(rejected).includes(secret),false);
+  globalThis.fetch=async()=>{healthChecks++;throw new DOMException('private upstream details','TimeoutError');};
+  const timeout=await (await worker.fetch(statusRequest(),env)).json();
+  assert.match(timeout.valhalla_connection_error,/timed out/);
+  assert.equal(JSON.stringify(timeout).includes('private upstream details'),false);
   globalThis.fetch=async()=>{healthChecks++;return new Response('<html>Sign in</html>');};
   assert.equal((await (await worker.fetch(statusRequest(),env)).json()).valhalla_ready,false);
   assert.equal((await (await worker.fetch(statusRequest(),{...env,VALHALLA_API_KEY:undefined})).json()).valhalla_ready,false);
-  assert.equal(healthChecks,3);assert.equal(claims.size,spent,'health checks do not reserve or replay route rounds');
+  assert.equal(healthChecks,5);assert.equal(claims.size,spent,'health checks do not reserve or replay route rounds');
 }finally{globalThis.fetch=actualFetch;}
 console.log('Desktop gateway: authentication, exact payloads, bounded requests, road tiles, and one-attempt Worker claims passed. Live provider requests: 0.');
