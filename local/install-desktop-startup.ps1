@@ -11,4 +11,11 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
 $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+# Check the engine independently: a healthy gateway process can outlive it.
+$engineLauncher = Join-Path $PSScriptRoot 'start-local-valhalla.ps1'
+$engineAction = New-ScheduledTaskAction -Execute $powerShell -Argument ('-NoProfile -WindowStyle Hidden -File "' + $engineLauncher + '"') -WorkingDirectory $PSScriptRoot
+$healthTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)
+$healthSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName 'Route Screwtiny Valhalla Health Check' -Action $engineAction -Trigger @($trigger,$healthTrigger) -Principal $principal -Settings $healthSettings -Force | Out-Null
 Write-Output 'RS desktop routing will start after this Windows user signs in. The existing Cloudflare service remains unchanged.'
+Write-Output 'An independent one-minute health check restores a stopped engine or bridge without sending route or AVM requests.'

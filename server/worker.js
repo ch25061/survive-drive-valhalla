@@ -362,6 +362,19 @@ async function endpointAddress(request,env){
     return json({...result,cached:false,lookup_attempted:true});
   }catch{return json({error:'Nearby-address lookup could not complete. No automatic retry was made.',lookup_attempted:true},502);}
 }
+async function providerStatus(env){
+  let ready=false,connectionError=null;
+  const configured=!!env.VALHALLA_BASE_URL&&!!env.VALHALLA_API_KEY;
+  if(configured){
+    try{
+      const endpoint=valhallaEndpoint(env.VALHALLA_BASE_URL);endpoint.pathname='/status';
+      const response=await fetch(endpoint.href,{headers:valhallaRequestHeaders(env.VALHALLA_API_KEY),redirect:'error',signal:AbortSignal.timeout(4000)});
+      if(response.ok){const status=JSON.parse(await boundedText(response,16000));ready=typeof status.version==='string'&&status.version.length>0;}
+      if(!ready)connectionError='The desktop Valhalla engine is unavailable. No route request was sent.';
+    }catch{connectionError='The desktop Valhalla engine is unavailable. No route request was sent.';}
+  }
+  return json({valhalla_ready:ready,valhalla_configured:configured,valhalla_connection_error:connectionError,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
+}
 export default {async fetch(request,env){const url=new URL(request.url);try{
   if(url.pathname==='/tutorial-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,TUTORIAL_VIDEO_KEY,VIDEO_SEED);
   if(url.pathname==='/tutorial-la-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_VIDEO_KEY,LA_VIDEO_SEED);
@@ -372,7 +385,7 @@ export default {async fetch(request,env){const url=new URL(request.url);try{
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}
     if(url.pathname.startsWith('/api/intersections/ring/')&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.'},403);return await censusRing(request,env,url.pathname.split('/').pop());}
     if(['/api/intersections/lookup','/api/intersections/construct','/api/intersections/ingest'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',source_attempted:false,source_calls:0,here_calls:0,rentcast_calls:0},403);if(url.pathname==='/api/intersections/ingest')return await ingestIntersectionCatalog(request,env);return await intersectionCatalog(request,env,url.pathname.endsWith('/construct'));}
-    if(url.pathname==='/api/providers/status'&&request.method==='GET')return json({valhalla_ready:!!env.VALHALLA_BASE_URL&&!!env.VALHALLA_API_KEY,rentcast_server_key:!!env.RENTCAST_API_KEY,valhalla_maximum_alternates:3,retries:0});
+    if(url.pathname==='/api/providers/status'&&request.method==='GET')return await providerStatus(env);
     if(url.pathname.startsWith('/api/providers/')&&request.method==='POST'){
       if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_attempted:false},403);
       let body;try{body=await readBody(request,['/api/providers/avm/approve','/api/providers/avm/round'].includes(url.pathname)?4*1024*1024:url.pathname==='/api/providers/valhalla/road-mask'?8*1024*1024:url.pathname==='/api/providers/valhalla'?2*1024*1024:50000);}catch(error){return json({error:error.message,provider_attempted:false},400);}

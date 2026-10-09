@@ -44,5 +44,17 @@ try{
   body.round_id='desktop-fixture-0002';globalThis.fetch=async()=>{attempts++;throw Error('network failure');};
   const failure=await worker.fetch(makeRequest(),env);assert.equal(failure.status,502);assert.equal((await failure.text()).includes(secret),false);
   assert.equal((await worker.fetch(makeRequest(),env)).status,409);assert.equal(attempts,2);
+  const statusRequest=()=>new Request('https://rs.example.com/api/providers/status');
+  const spent=claims.size;let healthChecks=0;
+  globalThis.fetch=async(url,options)=>{healthChecks++;assert.equal(new URL(url).pathname,'/status');assert.equal(options.headers.Authorization,'Bearer '+secret);assert.equal(options.method,undefined);return new Response(JSON.stringify({version:'3.9.0'}));};
+  assert.equal((await (await worker.fetch(statusRequest(),env)).json()).valhalla_ready,true);
+  globalThis.fetch=async()=>{healthChecks++;return new Response('{}',{status:502});};
+  const unavailable=await (await worker.fetch(statusRequest(),env)).json();
+  assert.equal(unavailable.valhalla_ready,false);assert.equal(unavailable.valhalla_configured,true);
+  assert.match(unavailable.valhalla_connection_error,/desktop Valhalla engine is unavailable/);
+  globalThis.fetch=async()=>{healthChecks++;return new Response('<html>Sign in</html>');};
+  assert.equal((await (await worker.fetch(statusRequest(),env)).json()).valhalla_ready,false);
+  assert.equal((await (await worker.fetch(statusRequest(),{...env,VALHALLA_API_KEY:undefined})).json()).valhalla_ready,false);
+  assert.equal(healthChecks,3);assert.equal(claims.size,spent,'health checks do not reserve or replay route rounds');
 }finally{globalThis.fetch=actualFetch;}
 console.log('Desktop gateway: authentication, exact payloads, bounded requests, road tiles, and one-attempt Worker claims passed. Live provider requests: 0.');
