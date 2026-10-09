@@ -353,7 +353,7 @@ async function endpointAddress(request,env){
   if(!reserved)return json({error:'Address lookup is busy. Please try again in a moment.',lookup_attempted:false},429);
   service.searchParams.set('lat',latitude.toFixed(6));service.searchParams.set('lon',longitude.toFixed(6));service.searchParams.set('format','jsonv2');service.searchParams.set('addressdetails','1');service.searchParams.set('zoom','18');service.searchParams.set('layer','address');service.searchParams.set('accept-language','en');
   try{
-    const response=await fetch(service.href,{headers:{'User-Agent':'RouteScrewtiny/1.0 (+https://survive-drive-valhalla.choppy777.chatgpt.site/)','Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(8000)});
+    const response=await fetch(service.href,{headers:{'User-Agent':'RouteScrewtiny/1.0 (+https://survive-drive-valhalla.choppy777.chatgpt.site/)','Accept':'application/json'},redirect:'manual',signal:AbortSignal.timeout(8000)});
     if(!response.ok)return json({error:'Nearby-address lookup could not complete. No automatic retry was made.',lookup_attempted:true},502);
     const data=JSON.parse(await boundedText(response,64000)),label=typeof data.display_name==='string'?data.display_name.trim().slice(0,500):null;
     const matchedLatitude=Number(data.lat),matchedLongitude=Number(data.lon),distance=Number.isFinite(matchedLatitude)&&Number.isFinite(matchedLongitude)?111195*Math.hypot(latitude-matchedLatitude,(longitude-matchedLongitude)*Math.cos(latitude*Math.PI/180)):Infinity;
@@ -369,7 +369,7 @@ async function providerStatus(env){
     try{
       const endpoint=valhallaEndpoint(env.VALHALLA_BASE_URL);endpoint.pathname='/status';
       const headers=valhallaRequestHeaders(env.VALHALLA_API_KEY);healthPhase='network';
-      const response=await fetch(endpoint.href,{headers,redirect:'error',signal:AbortSignal.timeout(4000)});
+      const response=await fetch(endpoint.href,{headers,redirect:'manual',signal:AbortSignal.timeout(4000)});
       healthPhase='response';
       if(response.ok){const status=JSON.parse(await boundedText(response,16000));ready=typeof status.version==='string'&&status.version.length>0;}
       if(!ready)connectionError=response.status===401||response.status===403?'The desktop Valhalla gateway rejected the hosted app authentication (HTTP '+response.status+'). No route request was sent.':'The desktop Valhalla engine is unavailable through its protected connection (HTTP '+response.status+'). No route request was sent.';

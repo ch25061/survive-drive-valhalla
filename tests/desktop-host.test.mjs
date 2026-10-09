@@ -46,7 +46,7 @@ try{
   assert.equal((await worker.fetch(makeRequest(),env)).status,409);assert.equal(attempts,2);
   const statusRequest=()=>new Request('https://rs.example.com/api/providers/status');
   const spent=claims.size;let healthChecks=0;
-  globalThis.fetch=async(url,options)=>{healthChecks++;assert.equal(new URL(url).pathname,'/status');assert.equal(options.headers.Authorization,'Bearer '+secret);assert.equal(options.method,undefined);return new Response(JSON.stringify({version:'3.9.0'}));};
+  globalThis.fetch=async(url,options)=>{healthChecks++;assert.equal(new URL(url).pathname,'/status');assert.equal(options.headers.Authorization,'Bearer '+secret);assert.equal(options.method,undefined);assert.equal(options.redirect,'manual','Worker health checks reject redirects without an unsupported redirect mode');return new Response(JSON.stringify({version:'3.9.0'}));};
   assert.equal((await (await worker.fetch(statusRequest(),env)).json()).valhalla_ready,true);
   globalThis.fetch=async()=>{healthChecks++;return new Response('{}',{status:502});};
   const unavailable=await (await worker.fetch(statusRequest(),env)).json();
