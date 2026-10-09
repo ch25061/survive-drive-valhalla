@@ -36,6 +36,14 @@ assert.match(result.xml,/A &amp; &lt;route&gt; &quot;one&quot; 🐈/);assert.doe
 state.active=1;vm.runInContext('renderOsmAndExport()',context);assert.equal(context.chosenOsmAndGpx().xml,result.xml,'viewing another route must not change the USER chosen export');
 a.geometry[0][0]+=1;a.route_directions.steps[0].instruction='Changed';assert.equal(context.chosenOsmAndGpx().xml,result.xml,'recorded geometry and turns are copied, not mutable references');
 choose();assert.equal(state.choice.candidate_id,b.id);assert.equal(context.chosenOsmAndGpx().points,2,'explicitly choosing another route replaces the export');
+context.navigator={userAgent:'Mozilla/5.0 Android'};context.location={origin:'https://rs.example'};
+vm.runInContext('renderOsmAndExport()',context);
+assert.equal(get('navigate-osmand').attributes['aria-disabled'],'false');
+assert.match(get('osmand-ranking-selection').textContent,/Different candidate.*ready to send/);
+state.active=0;vm.runInContext('renderOsmAndExport()',context);
+assert.equal(get('navigate-osmand').attributes['aria-disabled'],'true','viewing another candidate cannot send the prior choice as the selected route');
+assert.equal(get('navigate-osmand').attributes.href,undefined);
+assert.equal(context.chosenOsmAndGpx().points,2,'selection alone still preserves the recorded choice');
 state.choice=null;vm.runInContext('renderOsmAndExport()',context);assert.equal(get('export-osmand').disabled,true);assert.throws(()=>context.chosenOsmAndGpx(),/Choose/);
 for(const geometry of [[],[[0,0]],[[0,0],[null,1]],[[0,0],[NaN,1]],[[0,0],[181,0]],[[0,0],[0,91]],[[0,0],[1,1,1]],new Array(3)])assert.throws(()=>context.makeOsmAndTrack({geometry}),/valid path/);
 assert.equal(context.makeOsmAndTrack({geometry:[[0,0],[0,1]]}).geometry[0][0],0,'zero coordinates are valid');
