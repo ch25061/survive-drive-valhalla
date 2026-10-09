@@ -268,8 +268,9 @@ function updateNextAction(){
     else if(route.cells.length)choose('#review-cell','Choose a mapped cell to review, or place the inspection marker on the map.');
     else choose('#inspection-coords','Place an inspection point after the route cells are mapped.');
   }else if(state.stage==='choose'){
-    if(state.choice&& !$('export-choice').disabled)choose('#export-choice','Download your recorded route decision to keep it.');
-    else choose('#choose-route','Record your choice for the selected route. The decision stays with you.');
+    if(state.choice?.candidate_id===route?.id&&$('navigate-osmand')?.getAttribute('aria-disabled')==='false')choose('#navigate-osmand','Send your chosen route to OsmAnd through the RS Android companion.');
+    else if(state.choice?.candidate_id===route?.id&& !$('export-choice').disabled)choose('#export-choice','Download your recorded route decision to keep it. Open Android setup beside the rankings for the phone handoff.');
+    else choose('#choose-ranked-osmand-route','Record your choice for the selected route, then send it to OsmAnd.');
   }
   let element=selector?selectElement(selector):null;
   if(!nextActionVisible(element)){suppressNextActionScroll=false;clearNextActionTarget();panel.hidden=true;return null;}
@@ -301,7 +302,7 @@ function updateNextAction(){
     else if(selector==='#save-note'){scopeSelector='#cell-review-group';modifierSelectors=['#assessment','#cell-note'];}
     else if(selector==='#assessment'){scopeSelector='#cell-review-group';modifierSelectors=['#cell-note'];}
   }else if(state.stage==='choose'){
-    scopeSelector='[data-panel="choose"]';if(selector==='#choose-route')modifierSelectors=['#choice-reason'];
+    scopeSelector=selector==='#export-choice'?'[data-panel="choose"]':'#osmand-export';
   }
   const scopeCandidate=scopeSelector?selectElement(scopeSelector):null,scope=nextActionVisible(scopeCandidate)&&scopeCandidate!==marker?scopeCandidate:null;
   const describe=described=>{if(!nextActionDescriptions.has(described))nextActionDescriptions.set(described,described.getAttribute?.('aria-describedby')??null);const original=nextActionDescriptions.get(described),ids=(original||'').split(/\s+/).filter(Boolean);if(!ids.includes('next-action'))ids.push('next-action');described.setAttribute?.('aria-describedby',ids.join(' '));};
