@@ -39,13 +39,14 @@ function oldTrip(h){
   h.state.providerCalls.RentCast=5;h.state.map_cell_evidence=[{cell_id:'manual-evidence',estimate_ppsqft:450}];
   h.get('route-ranking-progress').textContent='Manual round 3 still running';
 }
-for(const mode of ['map-start','map-destination','coordinates','address']){
+for(const mode of ['map-start','map-destination','coordinates','address','zip']){
   const h=harness();oldTrip(h);h.context.setStage('prepare');h.context.bindTripPointControls();
   const epoch=vm.runInContext('gateGenerationEpoch',h.context),catalogEpoch=h.state.catalogFaultEpochs.start;
   if(mode==='map-start')assert(h.context.setTripPoint('origin',[41.9,-88.1]));
   if(mode==='map-destination')assert(h.context.setTripPoint('destination',[41.7,-87.8]));
   if(mode==='coordinates'){h.get('origin').value='41.9,-88.1';h.get('origin').listeners.input();}
   if(mode==='address'){h.get('origin-address').value='A different start';h.get('origin-address').listeners.input();assert.equal(h.get('origin').value,'');}
+  if(mode==='zip'){h.get('origin-zip').value='60104';h.get('origin-zip').listeners.input();assert.equal(h.get('origin').value,'');}
   assert.equal(h.state.routes.length,0,mode+' discards old candidates');
   assert.equal(h.state.choice,null);assert.equal(h.state.avmPlan,null);assert.equal(h.state.inspection,null);
   assert.equal(h.state.poolScreening.plan,null);assert.equal(h.state.poolScreening.results.length,0);assert.equal(h.state.poolScreening.round_zero,null);assert.equal(h.state.poolScreening.cull_round,0);
