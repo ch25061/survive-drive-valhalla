@@ -1,0 +1,3 @@
+# Preserve the pinned geometry library bytes on every checkout.
+dist/h3-pinned.js -text
+dist/client/h3-pinned.js -text

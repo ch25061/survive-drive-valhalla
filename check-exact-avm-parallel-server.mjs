@@ -7,7 +7,7 @@ const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').f
 function prepare(sql){const statement=db.prepare(sql);return{args:[],bind(...args){this.args=args;return this;},first(){return statement.get(...this.args)??null;},all(){return{results:statement.all(...this.args)};},execute(){if(statement.columns().length)return{results:statement.all(...this.args)};statement.run(...this.args);return{results:[]};}};}
 const env={DB:{prepare,batch(statements){return statements.map(s=>s.execute());}},RENTCAST_API_KEY:'offline-key'},origin='https://exact-parallel.test';
 const call=(path,body)=>worker.fetch(new Request(origin+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)}),env);
-const cells=Array.from({length:70},(_,i)=>({cell_id:'exact-cell-'+i,latitude:40+i*.0001,longitude:-80}));
+const cells=globalThis.h3.gridDisk(globalThis.h3.latLngToCell(40,-80,8),6).slice(0,70).map(index=>{const c=globalThis.SurviveAvm.cellFromId('H3R8-V1-'+index);return{cell_id:c.cell_id,latitude:c.latitude,longitude:c.longitude};});
 const approval={plan_id:'exact-parallel-01',approved:true,subject_profile:'rentcast-value-v1|Single Family|3bed|2bath|1500sqft|lookup=false',maximum_attempts:70,cells,execution:'parallel_exact_cells_v1'};
 const approved=await call('/api/providers/avm/approve',approval);assert.equal(approved.status,200);const grant=await approved.json();assert.equal(grant.serial,false);assert.equal(grant.maximum_concurrency,64);assert.equal(grant.requests_per_second,18);assert.deepEqual(grant.cells,cells);
 const originalFetch=globalThis.fetch,releases=[];let outbound=0;
@@ -42,7 +42,7 @@ try{
   const failure=await call('/api/providers/avm/attempt',{plan_id:failurePlan.plan_id,attempt_index:0});assert.equal(failure.status,502);assert.equal((await failure.json()).provider_attempted,true);
   assert.equal((await call('/api/providers/avm/attempt',{plan_id:failurePlan.plan_id,attempt_index:1})).status,200,'confirmed failure consumes its slot but permits other approved cells');
   assert.equal(failureCalls,2,'confirmed failure is not retried');
-  const uncertainPlan={...approval,plan_id:'parallel-uncertain-01',cells:[{cell_id:'unknown-0',latitude:42,longitude:-80},{cell_id:'unknown-1',latitude:43,longitude:-80}],maximum_attempts:2};
+  const uncertainPlan={...approval,plan_id:'parallel-uncertain-01',cells:[[42,-80],[43,-80]].map(p=>{const c=globalThis.SurviveAvm.cellAt(...p);return{cell_id:c.cell_id,latitude:c.latitude,longitude:c.longitude};}),maximum_attempts:2};
   assert.equal((await call('/api/providers/avm/approve',uncertainPlan)).status,200);
   let unknownCalls=0;globalThis.fetch=async()=>{unknownCalls++;throw Error('mock network failure');};
   const uncertain=await call('/api/providers/avm/attempt',{plan_id:uncertainPlan.plan_id,attempt_index:0});assert.equal((await uncertain.json()).uncertain,true);

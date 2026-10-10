@@ -5,8 +5,8 @@
   const EVOLUTION_ALGORITHM='possible_red_mileage_frontier_v2';
   function seedState(seed){let h=2166136261;for(const ch of seed)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0||0x9e3779b9;}
   function random(state){state.value^=state.value<<13;state.value^=state.value>>>17;state.value^=state.value<<5;return (state.value>>>0)/4294967296;}
-  function axial(id){const m=/^(CHI1K-V1|REG1K-V1-LAT[+-]\d+-LON[+-]\d+)-Q([+-]?\d+)-R([+-]?\d+)$/.exec(id||'');return m?{grid:m[1],q:Number(m[2]),r:Number(m[3])}:null;}
-  function hops(a,b){if(!a||!b||a.grid!==b.grid)return null;return(Math.abs(a.q-b.q)+Math.abs(a.r-b.r)+Math.abs(a.q-b.q+a.r-b.r))/2;}
+  function axial(id){if(/^H3R8-V1-[0-9a-f]{15}$/.test(id??''))return{grid:'H3R8-V1',cell_id:id};const m=/^(CHI1K-V1|REG1K-V1-LAT[+-]\d+-LON[+-]\d+)-Q([+-]?\d+)-R([+-]?\d+)$/.exec(id||'');return m?{grid:m[1],q:Number(m[2]),r:Number(m[3])}:null;}
+  function hops(a,b){if(!a||!b||a.grid!==b.grid)return null;if(a.grid==='H3R8-V1')return global.SurviveAvm?.hops(a.cell_id,b.cell_id)??null;return(Math.abs(a.q-b.q)+Math.abs(a.r-b.r)+Math.abs(a.q-b.q+a.r-b.r))/2;}
   function pruneLowestRankedRoutes(results,enabledRouteIds,fraction=3/8){
     if(!Array.isArray(results)||!Array.isArray(enabledRouteIds)||!Number.isFinite(fraction)||fraction<0||fraction>=1)throw Error('Automatic route pruning needs ranked routes, enabled route IDs, and a fraction from 0 to less than 1.');
     const enabled=new Set(enabledRouteIds),ranked=results.filter(row=>enabled.has(row.route_id)).slice().sort((a,b)=>{

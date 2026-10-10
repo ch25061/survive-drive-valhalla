@@ -83,7 +83,7 @@ state.map_cell_evidence=[cachedB];app.drawMap();await map.handlers.click(event([
 assert.equal(calls.length,requestsBefore,'no-route cached inspection makes no network requests');assert.equal(state.routes.length,0);assert.equal(JSON.stringify(state.providerCalls),providers);
 // Unknown cells are inspectable without any candidate, including a clear pocket
 // inside an exclusion overlay. Use the real regional honeycomb at the reported area.
-vm.runInContext(readFileSync('dist/route-avm.js','utf8'),ui);
+vm.runInContext(readFileSync('dist/h3-pinned.js','utf8'),ui);vm.runInContext(readFileSync('dist/route-avm.js','utf8'),ui);
 const unknownPoint=[30.33,-81.5],unknown=ui.SurviveAvm.cellAt(...unknownPoint,null);
 const enclosing=[[-81.52,30.31],[-81.48,30.31],[-81.48,30.35],[-81.52,30.35],[-81.52,30.31]];
 ui.RedExclusionZones={clusterRedCells:()=>[{rings:[enclosing],cell_count:1}]};

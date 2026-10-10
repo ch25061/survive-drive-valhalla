@@ -1,0 +1,144 @@
+{
+  "contract": "H3R8-V1",
+  "library": "h3-js@4.3.0",
+  "resolution": 8,
+  "center_decimals": 8,
+  "library_sha256": "e94af6f0413d7b3fd1326c350ee7f476af34559a9758916c8b538742ee6fd926",
+  "cells": [
+    {
+      "input": [
+        26.43,
+        -81.8
+      ],
+      "cell_id": "H3R8-V1-8844130aa1fffff",
+      "center_tag": "26.43177515,-81.80250162",
+      "polygon_sha256": "539b7ff8676e4fc1e4b95f408a3e712ff271876dbfb0aadb1f90a2f66376497c"
+    },
+    {
+      "input": [
+        41.9,
+        -87.67
+      ],
+      "cell_id": "H3R8-V1-882664cac3fffff",
+      "center_tag": "41.89956088,-87.67213390",
+      "polygon_sha256": "0b2ae00ecdb45baeeb3a058c6d089e98ac7ec6d6b90e72b50e02fa2d6178aa43"
+    },
+    {
+      "input": [
+        40.71,
+        -74.01
+      ],
+      "cell_id": "H3R8-V1-882a107289fffff",
+      "center_tag": "40.70968027,-74.00767418",
+      "polygon_sha256": "3dd7a437392b78acfd419f370674ee75a1d30a24b80dfdde91f91dc4eff36e01"
+    },
+    {
+      "input": [
+        34.05,
+        -118.25
+      ],
+      "cell_id": "H3R8-V1-8829a1d753fffff",
+      "center_tag": "34.05029215,-118.25138289",
+      "polygon_sha256": "3403a73d52423b978251ad3d30ff15435fe7445d23ddc6383d45233fe4ad31ca"
+    },
+    {
+      "input": [
+        47.6,
+        -122.33
+      ],
+      "cell_id": "H3R8-V1-8828d55527fffff",
+      "center_tag": "47.60212472,-122.32715797",
+      "polygon_sha256": "1104fda14efba1dcaf8ecea3976d9db94c2fdfa6230ecad29095bc684f73510c"
+    },
+    {
+      "input": [
+        61.22,
+        -149.9
+      ],
+      "cell_id": "H3R8-V1-880c733a27fffff",
+      "center_tag": "61.22228101,-149.90350185",
+      "polygon_sha256": "6a66d60e4ebfe296f884f616f77d0ac0d3b64db87da741927b2f6b9bb369e6af"
+    },
+    {
+      "input": [
+        21.31,
+        -157.86
+      ],
+      "cell_id": "H3R8-V1-88464b9685fffff",
+      "center_tag": "21.31239801,-157.85724269",
+      "polygon_sha256": "952911ed4d352fe35b06e711c987f83807176ed6bfc2f0d4b18bcd937ce910e2"
+    },
+    {
+      "input": [
+        38.9,
+        -77.03
+      ],
+      "cell_id": "H3R8-V1-882aa845a9fffff",
+      "center_tag": "38.90188238,-77.02614223",
+      "polygon_sha256": "09eaf203345c1b7893c0bf07f95b13f9e8390165da2db2bb148a27c88d7778b2"
+    },
+    {
+      "input": [
+        18.46,
+        -66.1
+      ],
+      "cell_id": "H3R8-V1-884cee7b4dfffff",
+      "center_tag": "18.46256432,-66.09853614",
+      "polygon_sha256": "044e02805bdb86ba664daf8d47310969e1c3317a970b08c68fbc365736db7ad0"
+    },
+    {
+      "input": [
+        13.44,
+        144.79
+      ],
+      "cell_id": "H3R8-V1-884f49b849fffff",
+      "center_tag": "13.43821981,144.78892996",
+      "polygon_sha256": "8e61f580d933af3fc979e2f888179ad0dd85af73d6bbe769726b19b996b4a71e"
+    },
+    {
+      "input": [
+        43.65,
+        -79.4
+      ],
+      "cell_id": "H3R8-V1-882b9bc465fffff",
+      "center_tag": "43.64825818,-79.39618893",
+      "polygon_sha256": "e7454ec165fce44c6453b76030627abcc81de4485ac27106bed9b2de3da2d620"
+    },
+    {
+      "input": [
+        51.5,
+        -0.1
+      ],
+      "cell_id": "H3R8-V1-88194ad33dfffff",
+      "center_tag": "51.50136297,-0.09375790",
+      "polygon_sha256": "7be81ab15471b796ce158eb1a47d91cafa3a0e563e782adecc802d2dc3a5d660"
+    },
+    {
+      "input": [
+        -33.87,
+        151.2
+      ],
+      "cell_id": "H3R8-V1-88be0e35ddfffff",
+      "center_tag": "-33.86695161,151.19548744",
+      "polygon_sha256": "313d43edd2474c4aacf3f8cf218049b238f09266d473cff46cdba97c9739251d"
+    },
+    {
+      "input": [
+        89.9,
+        30
+      ],
+      "cell_id": "H3R8-V1-88032630b1fffff",
+      "center_tag": "89.89838371,27.62879038",
+      "polygon_sha256": "72c94caf04b86e0e528623397e742dc22ce2460d655d3227cb63c78d9d59f033"
+    },
+    {
+      "input": [
+        10,
+        179.999
+      ],
+      "cell_id": "H3R8-V1-885ba5c699fffff",
+      "center_tag": "9.99791501,179.99878156",
+      "polygon_sha256": "7e0d47b319be240745b091efa361a82b8d0dfd7a9de40f3fafac25cfa839ac68"
+    }
+  ]
+}

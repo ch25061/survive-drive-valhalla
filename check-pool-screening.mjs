@@ -9,10 +9,10 @@ import worker from './dist/server/index.js';
 // bounded offline API mocks. RentCast authorization and attempt calls are
 // recorded and answered locally; no external provider is contacted.
 const elements=new Map();
-function element(){return{value:'',children:[],disabled:false,hidden:false,open:false,checked:true,textContent:'',listeners:{},classList:{add(){},remove(){},toggle(){}},replaceChildren(...nodes){this.children=nodes;},append(...nodes){this.children.push(...nodes);},setAttribute(){},removeAttribute(){},addEventListener(type,fn){this.listeners[type]=fn;},focus(){},click(){},scrollIntoView(){},querySelector(){return null;},matches(){return false;}};}
+function element(){return{value:'',style:{},children:[],disabled:false,hidden:false,open:false,checked:true,textContent:'',listeners:{},classList:{add(){},remove(){},toggle(){}},replaceChildren(...nodes){this.children=nodes;},before(){},after(){},append(...nodes){this.children.push(...nodes);},setAttribute(){},removeAttribute(){},addEventListener(type,fn){this.listeners[type]=fn;},focus(){},click(){},scrollIntoView(){},querySelector(){return null;},matches(){return false;}};}
 const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
 const ui={crypto:webcrypto,console,TextEncoder,document:{getElementById:get,querySelectorAll(){return[];},createElement:element,createElementNS:element,addEventListener(){}},localStorage:{getItem(){return null;},setItem(){}}};ui.window=ui;vm.createContext(ui);
-for(const file of ['here-decoder.js','route-avm.js','shotgun-gates.js','pool-screening.js'])vm.runInContext(readFileSync('dist/'+file,'utf8'),ui);
+for(const file of ['h3-pinned.js','here-decoder.js','route-avm.js','shotgun-gates.js','pool-screening.js'])vm.runInContext(readFileSync('dist/'+file,'utf8'),ui);
 const shared={cell_id:'CHI1K-V1-Q+0-R+0',latitude:41.91063814,longitude:-87.66769738,outside_here_distance_m:120,estimate_ppsqft:null};
 const left={cell_id:'CHI1K-V1-Q-1-R+0',latitude:41.91063814,longitude:-87.6785,outside_here_distance_m:80,estimate_ppsqft:null};
 const right={cell_id:'CHI1K-V1-Q+1-R+0',latitude:41.91063814,longitude:-87.6568,outside_here_distance_m:160,estimate_ppsqft:null};
