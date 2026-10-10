@@ -15,8 +15,11 @@ assert.deepEqual(excluded.exclude_polygons,[exclusionRing],'reviewed exclusion r
 assert.throws(()=>valhallaPayload({...baseline,exclude_polygons:[[[-87.65,41.9],[-87.64,41.9],[-87.64,41.91],[-87.65,41.91]]]}),/must be closed/);
 assert.throws(()=>valhallaPayload({...baseline,exclude_polygons:[[[0,0],[1,1],[2,2],[0,0]]]}),/enclose an area/);
 const gated=valhallaPayload({...baseline,via:['41.91,-87.61;radius=800','41.99,-87.69;radius=800']});
-assert.deepEqual(gated.locations.map(p=>p.type),['break','through','through','break']);
+assert.deepEqual(gated.locations.map(p=>p.type),['break','via','via','break']);
 assert.equal(gated.locations[1].radius,800);
+assert.equal(gated.locations[1].rank_candidates,false);
+assert.equal(gated.locations[2].rank_candidates,false);
+assert.equal(payload.locations[0].rank_candidates,undefined,'endpoint snapping retains its normal proximity ranking');
 assert.equal(gated.alternates,0);
 assert.equal(valhallaPayload({...baseline,routingMode:'short'}).costing_options.auto.use_distance,0.5);
 assert.throws(()=>valhallaPayload({...baseline,departureTime:'now'}));

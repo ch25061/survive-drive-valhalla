@@ -44,10 +44,12 @@ export function valhallaPayload(params) {
     if (suffix && suffix !== 'radius=800') throw Error('Unsupported Route Gate radius.');
     const pair = coordinate.split(',').map(Number);
     if (pair.length !== 2 || !pair.every(Number.isFinite) || Math.abs(pair[0]) > 90 || Math.abs(pair[1]) > 180) throw Error('Invalid route location.');
-    return { lat: pair[0], lon: pair[1], type, ...(suffix ? { radius: 800 } : {}) };
+    // Gates shape route diversity. Do not reward proximity to the gate pin,
+    // and permit a U-turn there without creating a stop or a separate leg.
+    return { lat: pair[0], lon: pair[1], type, ...(type === 'via' ? { rank_candidates: false } : {}), ...(suffix ? { radius: 800 } : {}) };
   };
   const via = params.via ?? [];
-  const locations = [point(params.origin, 'break'), ...via.map(value => point(value, 'through')), point(params.destination, 'break')];
+  const locations = [point(params.origin, 'break'), ...via.map(value => point(value, 'via')), point(params.destination, 'break')];
   const alternates = via.length ? 0 : Math.min(params.alternatives, 3);
   const options = validatedRouteOptions(params.routeOptions);
   const excludePolygons = validatedExclusionPolygons(params.exclude_polygons);

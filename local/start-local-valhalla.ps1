@@ -5,6 +5,7 @@ $libraries = Join-Path $runtime '.venv\Lib\site-packages\pyvalhalla.libs'
 $serviceBin = Split-Path -Parent $service
 $pythonScripts = Join-Path $runtime '.venv\Scripts'
 $bridge = Join-Path $PSScriptRoot 'bridge.mjs'
+& (Join-Path $PSScriptRoot 'set-valhalla-gate-policy.ps1') -ConfigPath (Join-Path $runtime 'valhalla.json')
 
 function Test-Service($url) {
     try {
