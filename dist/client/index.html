@@ -40,6 +40,7 @@
 </section>
 <fieldset id="exclusion-zone-level-group" class="exclusion-zone-level"><legend>Set the absolute-avoid Exclusion Zone level</legend><label for="exclusion-zone-level">Known cells below this value define Exclusion Zones <output id="exclusion-zone-level-value">$200 PPSQFT</output></label><input id="exclusion-zone-level" type="range" min="1" max="1000" step="1" value="200" aria-describedby="exclusion-zone-level-help exclusion-zone-level-status"><details class="exclusion-help"><summary>How exclusion zones work</summary><p id="exclusion-zone-level-help" class="hint">This independent cutoff controls the candidate MUST AVOID zones. The Orange Cell slider remains the more lenient PREFER TO AVOID signal used by normal route ranking. Release this slider to recompute the map preview and the polygons used by the next route batch. Each new batch uses all known qualifying cells within 30 miles of its Start, Destination, and selected gates, whether visible on the current map or not. When Highways or Toll roads is set to Prefer, only the matching road class is masked using the static Valhalla road graph. Known Start and Destination cells below this level are also kept outside Exclusion Zones. A narrow connector may leave a few nearby orange cells outside the hard-avoid polygons so a protected road cell is not accidentally enclosed. Changing this level discards current route candidates and rankings; use Generate fresh route candidates to rebuild from the same Route Gates. Orange-cell colors are unchanged.</p></details><p id="exclusion-zone-level-status" class="inset" role="status" aria-live="polite">Zone preview uses cells below $200 PPSQFT.</p><button id="generate-time-limited-routes" type="button" class="primary" disabled>Generate fresh route candidates</button></fieldset>
 <section data-panel="prepare">
+<div data-pps-bound-controls="prepare"></div>
 <form id="trip-form">
 <div id="trip-endpoints"><label>Starting point name<input id="origin-name" value="" maxlength="150" placeholder="Name your starting point"></label><label hidden>Find start by address<input id="origin-address" value="" maxlength="150" autocomplete="street-address" placeholder="Street address, city, state"></label><button id="find-origin-address" type="button" class="secondary address-find" hidden disabled>Find address and place S on map</button><p id="origin-address-status" class="hint address-status" role="status" aria-live="polite"></p><div id="origin-address-results" class="address-results" hidden></div><label>Latitude, longitude<input id="origin" value="" required placeholder="Enter coordinates or set start on map"></label>
 <button id="pick-origin" type="button" class="primary" aria-pressed="false">Set start on map</button>
@@ -73,6 +74,7 @@
 </form>
 </section>
 <section data-panel="search" hidden>
+<div data-pps-bound-controls="search"></div>
 <p>Every search covers the full Start × Destination cross product, including no gate at either end. With 16 gates on each side, the batch contains 289 Valhalla requests.</p>
 <div id="here-approval-panel" class="here-approval-panel" aria-label="Valhalla request budget">
 <button id="check-local-valhalla" type="button" class="secondary">Check desktop Valhalla connection</button>
@@ -137,6 +139,7 @@
 <details><summary>Saved evidence details</summary><div id="cache-status" class="hint" role="status">Checking saved evidence…</div><div id="cache-lookup-result" class="hint" role="status">Exact matching values and acquisition dates are retained.</div><button id="lookup-cache" class="text-button">Check saved values again</button><button id="seed-cache" class="text-button">Save the bundled Route 5 values</button></details>
 </section>
 <section data-panel="inspect" hidden>
+<div data-pps-bound-controls="inspect"></div>
 <p>Choose a mapped route cell or pick any map cell for AVM retrieval and contingency review. Look around in Street View, then save your assessment for that same canonical cell.</p>
 <div id="inspect-location-group"><label>Cell to review<select id="review-cell"><option value="">Choose a mapped or picked cell</option></select></label><div id="cell-detail" class="inset">Select a route cell or pick any map cell for AVM retrieval and review.</div>
 <label>Inspection latitude, longitude<input id="inspection-coords" placeholder="Select a point on the map"></label><a id="streetview" class="primary disabled" aria-disabled="true" target="_blank" rel="noopener noreferrer">Open Google Street View ↗</a>
@@ -147,6 +150,7 @@
 <h3>Orange cells to inspect</h3><div id="red-cell-list" class="cell-list"></div>
 </section>
 <section data-panel="choose" hidden>
+<div data-pps-bound-controls="choose"></div>
 <p>Compare the evidence and your own observations. The decision stays with you.</p>
 <div id="choice-summary" class="inset"></div><label>Why this route?<textarea id="choice-reason" rows="3" maxlength="2000" placeholder="Trade-offs you are comfortable with"></textarea></label><button id="choose-route" class="primary">Choose the selected candidate</button>
 <div id="chosen" class="inset" hidden></div><hr><h3>Continue the dialogue</h3><p>Change the Orange cutoff, trip, Valhalla preference, or Route Gates, then prepare one more bounded round. Existing evidence stays attached to its original candidate.</p><button id="adjust" class="secondary">Adjust the next search</button><button id="export-choice" class="text-button" disabled>Download my route decision</button>
