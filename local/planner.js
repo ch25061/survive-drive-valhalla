@@ -23,7 +23,7 @@ function renderMarkers(){
 }
 function renderWaypoints(){
   const list=$('waypoints');list.replaceChildren();
-  waypoints.forEach((p,i)=>{const li=document.createElement('li');li.append(document.createTextNode(coordinate(p)+' · 200 m radius'));
+  waypoints.forEach((p,i)=>{const li=document.createElement('li');li.append(document.createTextNode(coordinate(p)+' · 800 m radius'));
     const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';remove.addEventListener('click',()=>{waypoints.splice(i,1);renderWaypoints();renderMarkers();clearRoutes();});li.append(remove);list.append(li);});
   $('count').disabled=waypoints.length>0;
 }
@@ -43,7 +43,7 @@ async function search(){
   let origin,destination;try{origin=point($('origin').value);destination=point($('destination').value);}catch(error){message(error.message,true);return;}
   if(!await status()){message('Start the local Valhalla service, then refresh this page.',true);return;}
   busy=true;$('search').disabled=true;message('Searching this computer’s road map…');clearRoutes();
-  const params={origin:coordinate(origin),destination:coordinate(destination),via:waypoints.map(p=>coordinate(p)+';radius=200'),transportMode:'car',routingMode:$('mode').value,departureTime:'any',alternatives:waypoints.length?0:Number($('count').value)-1};
+  const params={origin:coordinate(origin),destination:coordinate(destination),via:waypoints.map(p=>coordinate(p)+';radius=800'),transportMode:'car',routingMode:$('mode').value,departureTime:'any',alternatives:waypoints.length?0:Number($('count').value)-1};
   try{
     const response=await fetch('/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:true,round_id:crypto.randomUUID(),params}),signal:AbortSignal.timeout(30000)});
     const data=await response.json();if(!response.ok)throw Error(data.error||'Route request failed.');

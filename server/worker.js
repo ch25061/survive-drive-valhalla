@@ -158,7 +158,7 @@ function routingParams(input){
   if(input['avoid[features]']!==undefined)throw Error('Old HERE road preferences are unsupported. Choose Valhalla road preferences instead.');
   result.routeOptions=validatedRouteOptions(input.routeOptions);
   if(input.exclude_polygons!==undefined)result.exclude_polygons=validatedExclusionPolygons(input.exclude_polygons);
-  if(input.via!==undefined){if(!Array.isArray(input.via)||input.via.length>20)throw Error('Use at most 20 waypoints.');result.via=input.via.map(value=>{const radius=';radius=200';return typeof value==='string'&&value.endsWith(radius)?point(value.slice(0,-radius.length))+radius:point(value);});}
+  if(input.via!==undefined){if(!Array.isArray(input.via)||input.via.length>20)throw Error('Use at most 20 waypoints.');result.via=input.via.map(value=>{const radius=';radius=800';return typeof value==='string'&&value.endsWith(radius)?point(value.slice(0,-radius.length))+radius:point(value);});}
   return result;
 }
 async function finishAttempt(db,id,status){await db.batch([db.prepare('UPDATE provider_attempts SET status = ? WHERE attempt_id = ?').bind(status,id)]);}

@@ -41,10 +41,10 @@ export function valhallaPayload(params) {
   if (params.departureTime && params.departureTime !== 'any') throw Error('Timed routing is not enabled in this traffic-free offshoot. Choose Time independent.');
   const point = (value, type) => {
     const [coordinate, suffix] = String(value).split(';');
-    if (suffix && suffix !== 'radius=200') throw Error('Unsupported Route Gate radius.');
+    if (suffix && suffix !== 'radius=800') throw Error('Unsupported Route Gate radius.');
     const pair = coordinate.split(',').map(Number);
     if (pair.length !== 2 || !pair.every(Number.isFinite) || Math.abs(pair[0]) > 90 || Math.abs(pair[1]) > 180) throw Error('Invalid route location.');
-    return { lat: pair[0], lon: pair[1], type, ...(suffix ? { radius: 200 } : {}) };
+    return { lat: pair[0], lon: pair[1], type, ...(suffix ? { radius: 800 } : {}) };
   };
   const via = params.via ?? [];
   const locations = [point(params.origin, 'break'), ...via.map(value => point(value, 'through')), point(params.destination, 'break')];

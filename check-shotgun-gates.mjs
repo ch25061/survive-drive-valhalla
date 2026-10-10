@@ -36,15 +36,32 @@ for(const request of batch.requests.slice(1)){
   assert.equal(request.params.alternatives,0);
   assert.equal(request.maximum_candidates,1);
   assert.equal(request.params.via.length,Number(!!request.start_gate)+Number(!!request.destination_gate));
-  assert.ok(request.params.via.every(value=>value.endsWith(';radius=200')));
+  assert.ok(request.params.via.every(value=>value.endsWith(';radius=800')));
 }
 const route=(id,offset=0,route_number=1)=>({id,route_number,geometry:[[-87.7+offset,41.9],[-87.6+offset,42]],cells:[]});
 const same=s.deduplicateRoutes(batch.requests.map((request,index)=>({route:route(`same-${index}`),request_kind:request.request_kind,pair_number:request.pair_number,start_gate:request.start_gate,destination_gate:request.destination_gate})));
 assert.equal(same.raw_count,12);
 assert.equal(same.routes.length,1);
-assert.equal(same.routes[0].shotgun_route_pairs.length,12);
+assert.equal(same.routes[0].shotgun_route_pairs.length,1);
 const different=s.deduplicateRoutes([{route:route('a')},{route:route('b',.01)}]);
 assert.equal(different.routes.length,2);
+const simplePath=[[-80.25,25.75],[-80.15,25.85],[-80.15,26.05]];
+const subdividedPath=[[-80.25,25.75],[-80.25,25.75],[-80.20,25.80],[-80.15,25.85],[-80.15,25.95],[-80.15,26.05]];
+const repeatedPath=s.deduplicateRoutes([
+  {route:{...route('plain'),geometry:simplePath},start_gate:start[0],destination_gate:destination[0],pair_number:1},
+  {route:{...route('subdivided'),geometry:subdividedPath},start_gate:start[1],destination_gate:destination[1],pair_number:2}
+]);
+assert.equal(repeatedPath.routes.length,1,'gate-induced duplicate and straight-line vertices must not produce duplicate routes');
+assert.equal(repeatedPath.duplicate_count,1);
+assert.equal(repeatedPath.routes[0].shotgun_route_pairs.length,1,'merged paths keep one representative gate combination');
+assert.equal(repeatedPath.routes[0].shotgun_gates.length,1);
+assert.equal(repeatedPath.routes[0].shotgun_destination_gates.length,1);
+assert.equal(repeatedPath.routes[0].shotgun_gates[0].id,start[0].id);
+assert.equal(repeatedPath.routes[0].shotgun_destination_gates[0].id,destination[0].id);
+assert.equal(repeatedPath.routes[0].shotgun_route_pairs[0].pair_number,1);
+for(const geometry of [simplePath.slice().reverse(),[simplePath[0],[-80.20,25.81],...simplePath.slice(1)],[simplePath[0],simplePath[1],simplePath[0],...simplePath.slice(1)]]){
+  assert.equal(s.deduplicateRoutes([{route:{...route('plain'),geometry:simplePath}},{route:{...route('distinct'),geometry}}]).routes.length,2,'reverse travel, different bends and backtracking must remain distinct');
+}
 const maxStart=Array.from({length:16},(_,i)=>({...start[i%start.length],id:`ms${i}`,gate_number:i+1}));
 const maxDest=Array.from({length:16},(_,i)=>({...destination[i%destination.length],id:`md${i}`,gate_number:i+1}));
 const ceiling=s.buildBatch({...draft,here:{...draft.here,maximum_candidates:4}},maxStart,maxDest,nextId);

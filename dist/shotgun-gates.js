@@ -50,7 +50,7 @@
     const dispersion=gpsDispersion(chosen);chosen.sort((a,b)=>a.bearing_deg-b.bearing_deg||a.id.localeCompare(b.id));return{schema:'survive_drive_escape_gate_suggestions_v1',catalog_version:catalog.version,catalog_source:catalog.source,origin,inner_miles:innerMiles,outer_miles:outerMiles,minimum_spacing_miles:minimumSpacingMiles,minimum_bearing_gap_deg:minimumBearingGap,sectors,sectors_covered:new Set(chosen.map(g=>g.sector)).size,maximum,eligible_count:eligible.length,search_seed_count:seeds.length,spacing_limited:spacingLimited,direction_limited:directionLimited,corridor_limited:false,gps_cluster_limited:chosen.length<maximum&&gpsCluster>0,gps_dispersion:dispersion,rejection_counts:{spacing_only:spacingOnly,direction_only:directionOnly,spacing_and_direction:both,duplicate_corridor:0,gps_cluster:gpsCluster,lower_dispersion:lowerDispersion,total:unused.length},gates:chosen.map(({score,...g},index)=>({...g,gate_number:index+1}))};
   }
   function coord(g){return Number(g.latitude.toFixed(7))+','+Number(g.longitude.toFixed(7));}
-  function fuzzyVia(g){return coord(g)+';radius=200';}
+  function fuzzyVia(g){return coord(g)+';radius=800';}
   function pairGates(startGates,destinationGates){
     if(!Array.isArray(startGates)||!Array.isArray(destinationGates)||startGates.length>16||destinationGates.length>16||(!startGates.length&&!destinationGates.length))throw Error('Choose up to 16 reviewed gates at either trip end.');
     const start=startGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),destination=destinationGates.slice().sort((a,b)=>(a.gate_number??0)-(b.gate_number??0)),groups=[[null,...start],[null,...destination]],pairs=[];
@@ -66,11 +66,29 @@
     pairs.forEach(pair=>{const startGate=asGate(pair.start_gate,'start',pair.pair_number-1),destinationGate=asGate(pair.destination_gate,'destination',pair.pair_number-1),roundId=uuid();if(typeof roundId!=='string'||!roundId)throw Error('Each gate combination needs an ID.');const via=[];if(startGate)via.push(fuzzyVia(startGate));if(destinationGate)via.push(fuzzyVia(destinationGate));requests.push({index:pair.pair_number,request_kind:'gate_pair',round_id:roundId,pair_number:pair.pair_number,start_gate:startGate,destination_gate:destinationGate,bearing_gap_deg:pair.bearing_gap_deg,params:{...baseDraft.here.params,alternatives:0,via},maximum_candidates:1,status:'prepared_not_authorized_or_sent'});});
     return{schema:'survive_drive_shotgun_batch_v1',batch_id:uuid(),prepared_at:new Date().toISOString(),maximum_requests:requests.length,maximum_candidates:requests.reduce((sum,request)=>sum+request.maximum_candidates,0),baseline_candidates:baselineMaximum,gate_request_count:pairs.length,start_gate_count:startGates.length,destination_gate_count:destinationGates.length,start_only_request_count:startGates.length,destination_only_request_count:destinationGates.length,both_gate_request_count:startGates.length*destinationGates.length,pairing_policy:'full_cartesian_with_no_gate_v1',serial:true,retries:0,stop_on_unknown:true,requests};
   }
-  function geometryKey(route){if(!route||!Array.isArray(route.geometry)||route.geometry.length<2)return null;const points=[];for(const p of route.geometry){if(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))return null;points.push(p[0].toFixed(6)+','+p[1].toFixed(6));}return points.join('|');}
+  function geometryKey(route){
+    if(!route||!Array.isArray(route.geometry)||route.geometry.length<2)return null;
+    // Canonical polyline6 geometry: extra repeated or straight-line vertices
+    // introduced at a gate do not create a different driving path. Preserve
+    // bends, direction, loops and backtracking; never merge nearby roads.
+    const points=[];
+    for(const p of route.geometry){
+      if(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))return null;
+      const next=p.map(value=>Math.round(value*1e6)),last=points.at(-1);
+      if(last&&last[0]===next[0]&&last[1]===next[1])continue;
+      while(points.length>=2){
+        const a=points.at(-2),b=points.at(-1),dx=b[0]-a[0],dy=b[1]-a[1],nx=next[0]-b[0],ny=next[1]-b[1];
+        if(dx*ny-dy*nx!==0||dx*nx+dy*ny<0)break;
+        points.pop();
+      }
+      points.push(next);
+    }
+    return points.map(p=>p.join(',')).join('|');
+  }
   function deduplicateRoutes(items){
     if(!Array.isArray(items))throw Error('Use a list of routes with gate provenance.');const unique=[],byKey=new Map();
-    for(const item of items){const route=item?.route;if(!route)throw Error('Each candidate needs its returned HERE route.');const routeNumber=route.route_number;if(!Number.isInteger(routeNumber)||routeNumber<1||routeNumber>7)throw Error('Each route needs its original HERE route number.');const start=item.start_gate??item.gate??null,destination=item.destination_gate??null,baseline=item.request_kind==='baseline'||(!start&&!destination),pair=baseline?{request_kind:'baseline',pair_number:null,start_gate_number:null,start_gate_name:null,destination_gate_number:null,destination_gate_name:null,route_number:routeNumber}:{request_kind:'gate_pair',pair_number:item.pair_number??item.gate?.gate_number??start?.gate_number,start_gate_number:start?.gate_number??null,start_gate_name:start?.name??null,destination_gate_number:destination?.gate_number??null,destination_gate_name:destination?.name??null,route_number:routeNumber},key=geometryKey(route)??route.id;if(!byKey.has(key)){const copy={...route,shotgun_gates:start?[start]:[],shotgun_destination_gates:destination?[destination]:[],shotgun_route_pairs:[pair],shotgun_duplicate_count:1};byKey.set(key,copy);unique.push(copy);}else{const found=byKey.get(key),pairKey=p=>p.request_kind+'|'+(p.pair_number??'')+'|'+(p.start_gate_number??'')+'|'+(p.destination_gate_number??'')+'|'+p.route_number;if(start&&!found.shotgun_gates.some(g=>g.id===start.id))found.shotgun_gates.push(start);if(destination&&!found.shotgun_destination_gates.some(g=>g.id===destination.id))found.shotgun_destination_gates.push(destination);if(!found.shotgun_route_pairs.some(p=>pairKey(p)===pairKey(pair)))found.shotgun_route_pairs.push(pair);found.shotgun_duplicate_count++;}}
-    for(const route of unique)route.shotgun_route_pairs.sort((a,b)=>Number(a.request_kind!=='baseline')-Number(b.request_kind!=='baseline')||(a.pair_number??0)-(b.pair_number??0)||a.route_number-b.route_number);
+    for(const item of items){const route=item?.route;if(!route)throw Error('Each candidate needs its returned HERE route.');const routeNumber=route.route_number;if(!Number.isInteger(routeNumber)||routeNumber<1||routeNumber>7)throw Error('Each route needs its original HERE route number.');const start=item.start_gate??item.gate??null,destination=item.destination_gate??null,baseline=item.request_kind==='baseline'||(!start&&!destination),pair=baseline?{request_kind:'baseline',pair_number:null,start_gate_number:null,start_gate_name:null,destination_gate_number:null,destination_gate_name:null,route_number:routeNumber}:{request_kind:'gate_pair',pair_number:item.pair_number??item.gate?.gate_number??start?.gate_number,start_gate_number:start?.gate_number??null,start_gate_name:start?.name??null,destination_gate_number:destination?.gate_number??null,destination_gate_name:destination?.name??null,route_number:routeNumber},key=geometryKey(route)??route.id;if(!byKey.has(key)){const copy={...route,shotgun_gates:start?[start]:[],shotgun_destination_gates:destination?[destination]:[],shotgun_route_pairs:[pair],shotgun_duplicate_count:1};byKey.set(key,copy);unique.push(copy);}else{byKey.get(key).shotgun_duplicate_count++;}}
+    // Keep one complete representative gate combination from the first result.
     unique.sort((a,b)=>Number(!a.shotgun_route_pairs.some(p=>p.request_kind==='baseline'))-Number(!b.shotgun_route_pairs.some(p=>p.request_kind==='baseline')));
     return{routes:unique,raw_count:items.length,duplicate_count:items.length-unique.length};
   }

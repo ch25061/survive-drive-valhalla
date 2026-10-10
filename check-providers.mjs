@@ -17,7 +17,7 @@ globalThis.fetch=async(input,options)=>{
   const url=new URL(input);
   assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');
   if(url.origin==='https://router.hereapi.com'){
-    hereCalls++;assert.equal(url.pathname,'/v8/routes');assert.equal(url.searchParams.get('alternatives'),'6');if(url.searchParams.has('via'))assert.deepEqual(url.searchParams.getAll('via'),['41.9,-87.7;radius=200','41.8,-87.7;radius=200']);assert.equal(url.searchParams.get('apiKey'),'dummy-here-key');
+    hereCalls++;assert.equal(url.pathname,'/v8/routes');assert.equal(url.searchParams.get('alternatives'),'6');if(url.searchParams.has('via'))assert.deepEqual(url.searchParams.getAll('via'),['41.9,-87.7;radius=800','41.8,-87.7;radius=800']);assert.equal(url.searchParams.get('apiKey'),'dummy-here-key');
     assert.equal(url.searchParams.get('return'),'polyline,summary,turnByTurnActions,routeLabels');
     if(mode==='timeout')throw new DOMException('simulated timeout','TimeoutError');if(mode==='failure')return new Response('{}',{status:500});if(mode==='redirect')return new Response(null,{status:302,headers:{Location:'https://other.example/'}});
     return Response.json({apiKey:'dummy-here-key',message:'dummy-here-key',routes:Array.from({length:7},()=>candidate)});
@@ -50,7 +50,7 @@ try{
   mode='failure';assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0002'})).status,502);assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0002'})).status,409);assert.equal(hereCalls,2);
   mode='timeout';assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0003'})).status,502);assert.equal(hereCalls,3);
   mode='redirect';const redirected=await call('/api/providers/here',{...draft,round_id:'round-test-0004'});assert.equal(redirected.status,502);assert.equal((await redirected.json()).provider_status,302);assert.equal(hereCalls,4);assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0004'})).status,409);assert.equal(hereCalls,4);
-  mode='success';assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0005',params:{...params,via:['41.9,-87.7;radius=201']}})).status,400);assert.equal(hereCalls,4);assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0006',params:{...params,via:['41.9,-87.7;radius=200','41.8,-87.7;radius=200']}})).status,200);assert.equal(hereCalls,5);
+  mode='success';assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0005',params:{...params,via:['41.9,-87.7;radius=801']}})).status,400);assert.equal(hereCalls,4);assert.equal((await call('/api/providers/here',{...draft,round_id:'round-test-0006',params:{...params,via:['41.9,-87.7;radius=800','41.8,-87.7;radius=800']}})).status,200);assert.equal(hereCalls,5);
   const cells=[{cell_id:'test-a',latitude:41.9,longitude:-87.7},{cell_id:'test-b',latitude:41.8,longitude:-87.7}];
   const plan={plan_id:'plan-test-0001',approved:true,subject_profile:subject,maximum_attempts:2,cells};
   assert.equal((await call('/api/providers/avm/approve',plan,{DB:env.DB})).status,428);
