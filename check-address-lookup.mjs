@@ -1,44 +1,65 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {DatabaseSync} from 'node:sqlite';
 import worker from './dist/server/index.js';
 
-const origin='https://test.example',env={HERE_API_KEY:'test-here-key'};
+const db=new DatabaseSync(':memory:');
+db.exec(readFileSync('drizzle/0008_endpoint_addresses.sql','utf8'));
+function prepare(sql){const statement=db.prepare(sql);return{args:[],bind(...args){this.args=args;return this;},first(){return statement.get(...this.args)??null;},run(){return statement.run(...this.args);}};}
+const origin='https://test.example',env={DB:{prepare},HERE_API_KEY:'must-never-be-used'};
 const post=(query,headers={Origin:origin},environment=env)=>worker.fetch(new Request(origin+'/api/locations/geocode',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify({query})}),environment);
 const originalFetch=globalThis.fetch;
-let sent=0,mode='ok';
+let sent=0,mode='ok',release;
+const resetRate=()=>db.exec('UPDATE endpoint_geocoder_rate SET last_started_ms=0');
 globalThis.fetch=async(url,options)=>{
   sent++;const target=new URL(url);
-  assert.equal(target.origin,'https://geocode.search.hereapi.com');
-  assert.equal(target.pathname,'/v1/geocode');
-  assert.equal(target.searchParams.get('in'),'countryCode:USA');
-  assert.equal(target.searchParams.get('limit'),'5');
-  assert.equal(target.searchParams.get('apiKey'),'test-here-key');
+  assert.equal(target.origin,'https://geocoding.geo.census.gov');
+  assert.equal(target.pathname,'/geocoder/locations/onelineaddress');
+  assert.equal(target.searchParams.get('benchmark'),'Public_AR_Current');
+  assert.equal(target.searchParams.get('format'),'json');
+  assert.ok(target.searchParams.get('address'));
+  assert.equal(target.searchParams.has('apiKey'),false);
   assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');
+  assert.match(options.headers['User-Agent'],/RouteScrewtiny/);
+  if(mode==='pending')await new Promise(resolve=>{release=resolve;});
   if(mode==='http')return new Response('{}',{status:503});
-  return Response.json({items:[{resultType:'houseNumber',address:{label:'305 Mansfield Ct, Bartlett, IL 60103, United States'},position:{lat:41.9,lng:-88.2},access:[{lat:41.91,lng:-88.21}]},{resultType:'street',address:{label:'Mansfield Ct, Bartlett, IL'},position:{lat:41.92,lng:-88.22}}]});
+  if(mode==='malformed')return new Response('not JSON');
+  if(mode==='badshape')return Response.json({result:{}});
+  if(mode==='empty')return Response.json({result:{addressMatches:[]}});
+  return Response.json({result:{addressMatches:[{matchedAddress:'305 MANSFIELD CT, BARTLETT, IL, 60103',coordinates:{y:41.91,x:-88.21}},{matchedAddress:'Alternate match',coordinates:{y:41.92,x:-88.22}},{matchedAddress:'Invalid point',coordinates:{y:100,x:0}},{matchedAddress:'',coordinates:{y:40,x:-88}}]}});
 };
 try{
   assert.equal((await post('305 Mansfield Ct',{})).status,403);
-  assert.equal((await post('x')).status,400);
-  assert.equal((await post('305 Mansfield Ct',{Origin:origin},{})).status,428);
+  for(const query of ['x','a'.repeat(101),'305 Main\u0000 St'])assert.equal((await post(query)).status,400);
+  assert.equal((await post('305 Mansfield Ct',{Origin:origin},{})).status,503);
   assert.equal(sent,0);
   const response=await post('305 Mansfield Ct');assert.equal(response.status,200);
   const result=await response.json();assert.equal(sent,1);assert.equal(result.provider_calls,1);
-  assert.equal(result.matches[0].latitude,41.91);assert.equal(result.matches[0].longitude,-88.21);
-  assert.equal(result.matches[1].latitude,41.92);
-  assert.equal(JSON.stringify(result).includes('test-here-key'),false);
-  mode='http';const failed=await post('305 Mansfield Ct');assert.equal(failed.status,502);assert.equal((await failed.json()).provider_calls,1);assert.equal(sent,2);
-}finally{globalThis.fetch=originalFetch;}
+  assert.equal(result.matches.length,2);assert.equal(result.matches[0].latitude,41.91);assert.equal(result.matches[0].longitude,-88.21);
+  assert.equal(result.source,'U.S. Census Bureau');assert.equal(result.approximate,true);
+  assert.equal(JSON.stringify(result).includes('must-never-be-used'),false);
+  const cached=await(await post(' 305 MANSFIELD  Ct ')).json();assert.equal(cached.cached,true);assert.equal(cached.provider_calls,0);assert.equal(sent,1);
+  assert.equal((await post('200 Main St')).status,429);assert.equal(sent,1);
+  resetRate();mode='pending';const pending=post('200 Main St');
+  for(let i=0;i<30&&!release;i++)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(release);assert.equal((await post('300 Main St')).status,429);assert.equal(sent,2);release();assert.equal((await pending).status,200);
+  for(const [failureMode,query] of [['http','400 Main St'],['malformed','500 Main St'],['badshape','600 Main St']]){
+    resetRate();mode=failureMode;const before=sent;const failed=await post(query);
+    assert.equal(failed.status,502);assert.equal((await failed.json()).provider_calls,1);assert.equal(sent,before+1,'no automatic retry');
+  }
+  resetRate();mode='empty';const empty=await(await post('700 Main St')).json();assert.deepEqual(empty.matches,[]);
+  const before=sent;assert.equal((await(await post('700 Main St')).json()).cached,true);assert.equal(sent,before,'empty results are cached too');
+}finally{globalThis.fetch=originalFetch;db.close();}
 
 const elements=new Map();
 const makeElement=()=>({value:'',textContent:'',disabled:false,hidden:false,children:[],listeners:{},classList:{add(){},remove(){},toggle(){}},addEventListener(type,listener){this.listeners[type]=listener;},replaceChildren(...children){this.children=children;},append(child){this.children.push(child);},setAttribute(){},scrollIntoView(){}});
 const get=id=>{if(id==='next-action'||id==='next-action-text')return null;if(!elements.has(id))elements.set(id,makeElement());return elements.get(id);};
 let browserCalls=0;
-const ui={document:{getElementById:get,createElement:makeElement,addEventListener(){}},fetch:async(path,options)=>{browserCalls++;assert.equal(path,'/api/locations/geocode');const query=JSON.parse(options.body).query;if(query==='305 Mansfield Ct, Bartlett, IL')return Response.json({matches:[{label:'305 Mansfield Ct, Bartlett, IL 60103, United States',latitude:41.91,longitude:-88.21},{label:'Mansfield Ct, Bartlett, IL',latitude:41.92,longitude:-88.22}],provider_calls:1});assert.equal(query,'200 Main St, Bartlett, IL');return Response.json({matches:[{label:'200 Main St, Bartlett, IL',latitude:41.97,longitude:-88.19}],provider_calls:1});}};
+const ui={document:{getElementById:get,createElement:makeElement,addEventListener(){}},fetch:async(path,options)=>{browserCalls++;assert.equal(path,'/api/locations/geocode');const body=JSON.parse(options.body);assert.deepEqual(Object.keys(body),['query']);const query=body.query;if(query==='305 Mansfield Ct, Bartlett, IL')return Response.json({matches:[{label:'305 Mansfield Ct, Bartlett, IL 60103, United States',latitude:41.91,longitude:-88.21},{label:'Mansfield Ct, Bartlett, IL',latitude:41.92,longitude:-88.22}],provider_calls:1});assert.equal(query,'200 Main St, Bartlett, IL');return Response.json({matches:[{label:'200 Main St, Bartlett, IL',latitude:41.97,longitude:-88.19}],provider_calls:1});}};
 ui.window=ui;vm.createContext(ui);
 vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),ui);
-const app=ui.SurviveDrive,state=app.getState();state.providerStatus.here_server_key=true;
+const app=ui.SurviveDrive,state=app.getState();
 get('origin-address').value='305 Mansfield Ct, Bartlett, IL';
 assert.equal(browserCalls,0);
 await app.findAddress('origin');
@@ -50,8 +71,22 @@ assert.equal(get('origin-address-results').children[0].disabled,true);
 get('origin-address-results').children[1].listeners.click();assert.equal(get('origin').value,'41.92,-88.22');
 get('destination-address').value='200 Main St, Bartlett, IL';await app.findAddress('destination');
 assert.equal(get('destination').value,'41.97,-88.19');assert.equal(get('destination-name').value,'200 Main St, Bartlett, IL');
-assert.equal(state.providerCalls.Geocode,2);assert.equal(state.providerCalls.HERE,0);
+assert.equal(state.providerCalls.Geocode,2);assert.equal(state.providerCalls.HERE??0,0);
 app.bindTripPointControls();get('origin-address').value='Different address';get('origin-address').listeners.input();
 assert.equal(get('origin').value,'');
 get('origin').value='41.91,-88.21';get('origin-name').value='Custom label';get('origin-name').listeners.input();assert.equal(get('origin').value,'41.91,-88.21');
-console.log('Passed address lookup: one explicit HERE call, same-origin/key/validation guards, sanitized street-access coordinates, no retry, automatic Start/Destination placement, optional match correction, and stale-coordinate clearing.');
+
+const callsBeforeLock=browserCalls;state.poolScreening.automatic_evolution_status='running';await app.findAddress('destination');assert.equal(browserCalls,callsBeforeLock,'locked route conditioning blocks lookups');state.poolScreening.automatic_evolution_status='idle';
+let resolveLate;ui.fetch=()=>{browserCalls++;return new Promise(resolve=>{resolveLate=resolve;});};
+get('origin-address').value='800 Main St';const late=app.findAddress('origin');
+get('origin-address').value='900 Main St';get('origin-address').listeners.input();
+resolveLate(Response.json({matches:[{label:'Old result',latitude:40,longitude:-90}],provider_calls:1}));await late;
+assert.equal(get('origin').value,'','a late result cannot overwrite an edited address');
+get('origin-address').value='1000 Main St';const mapLate=app.findAddress('origin');
+app.setTripPoint('origin',[42,-89]);resolveLate(Response.json({matches:[{label:'Old result',latitude:40,longitude:-90}],provider_calls:1}));await mapLate;
+assert.equal(get('origin').value,'42,-89','map-picked coordinates survive a late lookup');
+ui.fetch=async()=>Response.json({matches:[],provider_calls:1});get('destination-address').value='No match street';get('destination-address').listeners.input();await app.findAddress('destination');assert.equal(get('destination').value,'');assert.match(get('destination-address-status').textContent,/No address matches/);
+assert.equal(state.providerCalls.HERE??0,0);assert.equal(state.providerCalls.Valhalla,0);assert.equal(state.providerCalls.RentCast,0);assert.equal(state.routes.length,0);
+const page=readFileSync('dist/index.html','utf8');
+for(const target of ['origin','destination']){assert.match(page,new RegExp('<label>Find (?:start|destination) by address<input id="'+target+'-address"'));assert.match(page,new RegExp('<button id="find-'+target+'-address" type="button" class="secondary address-find">'));}
+console.log('Address lookup passed: visible Start/Destination fields, Census request without keys, validation, shared cache/rate gate, concurrent reservations, bounded/sanitized results, no retry, pin placement, alternate matches, conditioning locks and late-result protection. All external responses mocked; no route or AVM calls.');

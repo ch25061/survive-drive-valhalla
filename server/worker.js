@@ -126,19 +126,35 @@ async function readBody(request,limit=50000){const raw=await boundedText(request
 async function geocodeAddress(request,env){
   let body;try{body=await readBody(request,2048);}catch{return json({error:'Use a short JSON address request.',provider_attempted:false,provider_calls:0},400);}
   const query=typeof body?.query==='string'?body.query.trim():'';
-  if(query.length<5||query.length>150||/[\x00-\x1f\x7f]/.test(query))return json({error:'Enter an address of 5–150 characters.',provider_attempted:false,provider_calls:0},400);
-  const apiKey=env.HERE_API_KEY||body.api_key;
-  if(typeof apiKey!=='string'||!apiKey.trim()||apiKey.length>512)return json({error:'Enter a HERE API key or configure HERE_API_KEY on the server. No address lookup sent.',provider_attempted:false,provider_calls:0},428);
-  const target=new URL('https://geocode.search.hereapi.com/v1/geocode');target.searchParams.set('q',query);target.searchParams.set('in','countryCode:USA');target.searchParams.set('limit','5');target.searchParams.set('apiKey',apiKey.trim());
+  if(query.length<5||query.length>100||/[\x00-\x1f\x7f]/.test(query))return json({error:'Enter a U.S. street address of 5–100 characters.',provider_attempted:false,provider_calls:0},400);
+  // Explicit Find only: cache queries and reserve one shared slot before contacting Census.
+  const db=env.DB,now=Date.now(),key='census-forward|'+await sha256Hex(query.toLowerCase().replace(/\s+/g,' '));
   try{
-    const response=await fetch(target,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(15000)});
-    if(!response.ok)return json({error:'HERE address lookup returned HTTP '+response.status+'. No automatic retry was made.',provider_attempted:true,provider_calls:1,provider_status:response.status},502);
-    const raw=await boundedText(response,1024*1024);let data;try{data=JSON.parse(raw);}catch{return json({error:'HERE address results could not be read. No automatic retry was made.',provider_attempted:true,provider_calls:1},502);}
-    if(!Array.isArray(data?.items))return json({error:'HERE returned an invalid address result. No automatic retry was made.',provider_attempted:true,provider_calls:1},502);
-    const validPoint=point=>point&&Number.isFinite(point.lat)&&Math.abs(point.lat)<=90&&Number.isFinite(point.lng)&&Math.abs(point.lng)<=180;
-    const matches=data.items.slice(0,5).flatMap(item=>{const point=validPoint(item?.access?.[0])?item.access[0]:item?.position;if(!validPoint(point)||typeof item?.address?.label!=='string'||!item.address.label.trim())return[];return[{label:item.address.label.slice(0,180),latitude:point.lat,longitude:point.lng,result_type:String(item.resultType??'address').slice(0,40)}];});
-    return json({matches,provider_attempted:true,provider_calls:1});
-  }catch{return json({error:'HERE address lookup could not complete. No automatic retry was made.',provider_attempted:true,provider_calls:1},502);}
+    if(!db?.prepare)throw Error('Address cache unavailable');
+    const cached=await db.prepare('SELECT result_json, acquired_ms FROM endpoint_address_cache WHERE point_key = ?').bind(key).first();
+    if(cached&&now-cached.acquired_ms<30*86400000)return json({...JSON.parse(cached.result_json),cached:true,provider_attempted:false,provider_calls:0});
+    await db.prepare('INSERT OR IGNORE INTO endpoint_geocoder_rate (service, last_started_ms) VALUES (?, 0)').bind('census-forward').run();
+    const reserved=await db.prepare('UPDATE endpoint_geocoder_rate SET last_started_ms = ? WHERE service = ? AND last_started_ms <= ? RETURNING last_started_ms').bind(now,'census-forward',now-1100).first();
+    if(!reserved)return json({error:'Address lookup is busy. Wait a moment, then press Find again.',provider_attempted:false,provider_calls:0},429);
+  }catch{return json({error:'Address lookup storage is unavailable. No lookup was sent.',provider_attempted:false,provider_calls:0},503);}
+  const target=new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
+  target.searchParams.set('address',query);target.searchParams.set('benchmark','Public_AR_Current');target.searchParams.set('format','json');
+  let result;
+  try{
+    const response=await fetch(target.href,{method:'GET',headers:{'User-Agent':'RouteScrewtiny/1.0 (+https://survive-drive-valhalla.choppy777.chatgpt.site/)','Accept':'application/json'},redirect:'manual',signal:AbortSignal.timeout(15000)});
+    if(!response.ok)return json({error:'Census address lookup returned HTTP '+response.status+'. No automatic retry was made.',provider_attempted:true,provider_calls:1},502);
+    const data=JSON.parse(await boundedText(response,1024*1024));
+    if(!Array.isArray(data?.result?.addressMatches))throw Error('Invalid Census result');
+    const matches=data.result.addressMatches.slice(0,5).flatMap(item=>{
+      const latitude=item?.coordinates?.y,longitude=item?.coordinates?.x,label=item?.matchedAddress;
+      if(!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180||typeof label!=='string'||!label.trim())return[];
+      return[{label:label.trim().slice(0,180),latitude,longitude,result_type:'address'}];
+    });
+    result={matches,source:'U.S. Census Bureau',approximate:true};
+  }catch{return json({error:'Census address lookup could not complete. No automatic retry was made.',provider_attempted:true,provider_calls:1},502);}
+  // A cache write failure must not discard an already successful lookup or cause a retry.
+  try{await db.prepare('INSERT INTO endpoint_address_cache (point_key, result_json, acquired_ms) VALUES (?, ?, ?) ON CONFLICT(point_key) DO UPDATE SET result_json = excluded.result_json, acquired_ms = excluded.acquired_ms').bind(key,JSON.stringify(result),now).run();}catch{}
+  return json({...result,cached:false,provider_attempted:true,provider_calls:1});
 }
 async function sha256Hex(value){const bytes=new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');}
 async function boundedText(response,limit){const reader=response.body?.getReader();if(!reader)return '';const chunks=[];let size=0;while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw Error('Response is too large.');}chunks.push(value);}const all=new Uint8Array(size);let offset=0;for(const chunk of chunks){all.set(chunk,offset);offset+=chunk.byteLength;}return new TextDecoder().decode(all);}
@@ -389,7 +405,7 @@ export default {async fetch(request,env){const url=new URL(request.url);try{
   if(url.pathname==='/tutorial-la-session-video.mp4'&&(request.method==='GET'||request.method==='HEAD'))return await tutorialVideoResponse(request,env,LA_SESSION_VIDEO_KEY,LA_SESSION_VIDEO_SEED);
   if(url.pathname.startsWith('/api/')){
     if(url.pathname==='/api/locations/endpoint-address'&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',lookup_attempted:false},403);return await endpointAddress(request,env);}
-    if(url.pathname==='/api/locations/geocode'&&request.method==='POST')return json({error:'Address lookup is not configured in this Valhalla offshoot. Place the trip points on the map or enter coordinates.',provider_attempted:false,provider_calls:0},501);
+    if(url.pathname==='/api/locations/geocode'&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_attempted:false,provider_calls:0},403);return await geocodeAddress(request,env);}
     if(['/api/honeycomb/lookup','/api/honeycomb/construct'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',provider_calls:0},403);return await honeycomb(request,env,url.pathname.endsWith('/construct'));}
     if(url.pathname.startsWith('/api/intersections/ring/')&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.'},403);return await censusRing(request,env,url.pathname.split('/').pop());}
     if(['/api/intersections/lookup','/api/intersections/construct','/api/intersections/ingest'].includes(url.pathname)&&request.method==='POST'){if(request.headers.get('Origin')!==url.origin)return json({error:'Same-origin request required.',source_attempted:false,source_calls:0,here_calls:0,rentcast_calls:0},403);if(url.pathname==='/api/intersections/ingest')return await ingestIntersectionCatalog(request,env);return await intersectionCatalog(request,env,url.pathname.endsWith('/construct'));}

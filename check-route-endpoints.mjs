@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import worker from './dist/server/index.js';
 
 const nodes=new Map(),order=[],listeners=new Map(),observers=[],maps=[];
-function element(){return{children:[],style:{},value:'',hidden:false,textContent:'',append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;},setAttribute(){},addEventListener(name,fn){listeners.set(this.id+'|'+name,fn);},before(item){order.push(['before',this.id,item.id]);},after(item){order.push(['after',this.id,item.id]);}};}
+function element(){return{children:[],style:{},value:'',hidden:false,textContent:'',append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;},setAttribute(){},removeAttribute(){},addEventListener(name,fn){listeners.set(this.id+'|'+name,fn);},before(item){order.push(['before',this.id,item.id]);},after(item){order.push(['after',this.id,item.id]);}};}
 function create(){const node=element();Object.defineProperty(node,'id',{set(value){this._id=value;nodes.set(value,this);},get(){return this._id;}});return node;}
 const get=id=>{if(!nodes.has(id)){const node=create();node.id=id;}return nodes.get(id);};
 const layer=()=>({addTo(){return this;}});
@@ -39,7 +39,7 @@ const db=new DatabaseSync(':memory:');for(const file of readdirSync('drizzle').f
 function prepare(sql){const statement=db.prepare(sql);return{args:[],bind(...args){this.args=args;return this;},first(){return statement.get(...this.args)??null;},run(){return statement.run(...this.args);}};}
 const env={DB:{prepare}},origin='https://test.example',request=(point,headers={Origin:origin},override=env)=>worker.fetch(new Request(origin+'/api/locations/endpoint-address',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(point)}),override);
 const originalFetch=globalThis.fetch;let requests=0,mode='valid',release;
-globalThis.fetch=async(url,options)=>{requests++;const target=new URL(url);assert.equal(target.origin,'https://nominatim.openstreetmap.org');assert.equal(target.searchParams.get('format'),'jsonv2');assert.match(options.headers['User-Agent'],/RouteScrewtiny/);assert.equal(options.redirect,'error');if(mode==='pending')await new Promise(resolve=>{release=resolve;});if(mode==='failure')return new Response('{}',{status:503});return Response.json({display_name:'Test street, Test town',lat:target.searchParams.get('lat'),lon:target.searchParams.get('lon')});};
+globalThis.fetch=async(url,options)=>{requests++;const target=new URL(url);assert.equal(target.origin,'https://nominatim.openstreetmap.org');assert.equal(target.searchParams.get('format'),'jsonv2');assert.match(options.headers['User-Agent'],/RouteScrewtiny/);assert.equal(options.redirect,'manual');if(mode==='pending')await new Promise(resolve=>{release=resolve;});if(mode==='failure')return new Response('{}',{status:503});return Response.json({display_name:'Test street, Test town',lat:target.searchParams.get('lat'),lon:target.searchParams.get('lon')});};
 try{
   assert.equal((await request({latitude:100,longitude:0})).status,400);assert.equal((await request({latitude:42,longitude:-88},{})).status,403);assert.equal(requests,0);
   const result=await (await request({latitude:42,longitude:-88})).json();assert.equal(result.address,'Test street, Test town');assert.equal(result.approximate,true);
