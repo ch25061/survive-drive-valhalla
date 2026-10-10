@@ -109,22 +109,63 @@
   }
   return{grid_version:PREFIX,grid_anchor:{latitude:LAT,longitude:LON},mapRoute,enclosingHoneycomb,routeCellPositions,authority,forward,inverse,center,vertices,clip};
   }
-  const legacy=createGrid(41.91063814,-87.66769738,'CHI1K-V1',150000);
+  // Geographic regions own their anchors. Route shape, direction, gates and
+  // selected candidate never change the lattice. CHI1K-V1 keeps its original
+  // projection and identifiers while covering North America, including Hawaii.
+  const REGION_RADIUS=8000000;
+  const legacy=createGrid(41.91063814,-87.66769738,'CHI1K-V1',REGION_RADIUS);
+  const fixedRegions=[
+    {latitude:-15,longitude:-60,prefix:'REG1K-V1-LAT-15-LON-60'},
+    {latitude:50,longitude:10,prefix:'REG1K-V1-LAT+50-LON+10'},
+    {latitude:0,longitude:20,prefix:'REG1K-V1-LAT+0-LON+20'},
+    {latitude:35,longitude:100,prefix:'REG1K-V1-LAT+35-LON+100'},
+    {latitude:-25,longitude:135,prefix:'REG1K-V1-LAT-25-LON+135'}
+  ];
+  const grids=new Map([['CHI1K-V1',legacy],...fixedRegions.map(region=>[region.prefix,createGrid(region.latitude,region.longitude,region.prefix,REGION_RADIUS)])]);
+  function gridForVersion(prefix){
+    if(grids.has(prefix))return grids.get(prefix);
+    // Older route-dependent grids remain readable at their original locations.
+    const match=/^REG1K-V1-LAT([+-]\d+)-LON([+-]\d+)$/.exec(prefix??'');
+    if(!match)throw Error('Saved map-cell evidence has an unsupported grid.');
+    const lat=Number(match[1]),lon=Number(match[2]),signed=n=>(n>=0?'+':'')+n;
+    if(!Number.isInteger(lat)||Math.abs(lat)>89||!Number.isInteger(lon)||lon< -180||lon>=180||prefix!=='REG1K-V1-LAT'+signed(lat)+'-LON'+signed(lon))throw Error('Saved map-cell evidence has an invalid regional anchor.');
+    return createGrid(lat,lon,prefix,2000000);
+  }
+  function gridForPoint(latitude,longitude){
+    if(!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180)throw Error('Choose a valid map point.');
+    const lon=longitude===180?-180:longitude;
+    const prefix=lon< -30?(latitude>=0?'CHI1K-V1':fixedRegions[0].prefix):lon<60?(latitude>=35?fixedRegions[1].prefix:fixedRegions[2].prefix):(latitude>=0?fixedRegions[3].prefix:fixedRegions[4].prefix);
+    return grids.get(prefix);
+  }
+  function cellFromIdentity(prefix,q,r){
+    const grid=gridForVersion(prefix);
+    if(!Number.isSafeInteger(q)||!Number.isSafeInteger(r)||Math.abs(q)>10000||Math.abs(r)>10000)throw Error('Invalid locked-grid honeycomb coordinates.');
+    const center=grid.center(q,r);if(Math.hypot(...center)>(grids.has(prefix)?REGION_RADIUS:2000000)+2000)throw Error('Cell is outside its regional honeycomb extent.');
+    const [lon,lat]=grid.inverse(...center),polygon=grid.vertices(q,r).map(p=>grid.inverse(...p));polygon.push(polygon[0].slice());
+    return{grid_version:prefix,cell_id:prefix+'-Q'+(q>=0?'+':'')+q+'-R'+(r>=0?'+':'')+r,q,r,latitude:Number(lat.toFixed(8)),longitude:Number(lon.toFixed(8)),polygon,estimate_ppsqft:null};
+  }
+  function isCurrentGridCell(cell){
+    if(!Number.isFinite(cell?.latitude)||!Number.isFinite(cell?.longitude))return true;
+    const match=/^(.*)-Q[+-]?\d+-R[+-]?\d+$/.exec(cell.cell_id??'');
+    return !match||match[1]===gridForPoint(cell.latitude,cell.longitude).grid_version;
+  }
   function gridForRoute(route){
     const geometry=route.geometry;if(!Array.isArray(geometry)||geometry.length<2||geometry.length>20000||geometry.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||Math.abs(p[0])>180||Math.abs(p[1])>90))throw Error('Use 2–20,000 valid longitude, latitude geometry points.');
-    if(geometry.every(p=>Math.hypot(...legacy.forward(...p))<=150000))return legacy;
-    const normalize=lon=>((lon+180)%360+360)%360-180,first=geometry[0][0],lons=geometry.map(p=>first+normalize(p[0]-first)),lats=geometry.map(p=>p[1]),lat=Math.max(-89,Math.min(89,Math.round((Math.min(...lats)+Math.max(...lats))/2))),lon=normalize(Math.round((Math.min(...lons)+Math.max(...lons))/2)),signed=n=>(n>=0?'+':'')+n;
-    const regional=createGrid(lat,lon,'REG1K-V1-LAT'+signed(lat)+'-LON'+signed(lon),2000000);
-    if(geometry.some(p=>Math.hypot(...regional.forward(...p))>2000000))throw Error('This route is too large for one regional honeycomb. Evaluation is paused; use a shorter route segment.');return regional;
+    // Imported routes may explicitly retain their validated original grid;
+    // preserving that snapshot avoids invalidating already acquired evidence.
+    const retained=route.retained_grid_version,grid=retained?gridForVersion(retained):gridForPoint(geometry[0][1],geometry[0][0]);
+    if(!retained&&geometry.some(p=>gridForPoint(p[1],p[0]).grid_version!==grid.grid_version))throw Error('This route crosses fixed geographic grid regions. Use a route within one region.');
+    const extent=grids.has(grid.grid_version)?REGION_RADIUS:2000000;
+    if(geometry.some(p=>Math.hypot(...grid.forward(...p))>extent))throw Error('Route exceeds its fixed regional honeycomb extent. Evaluation is paused.');return grid;
   }
   function cellAt(latitude,longitude,route){
     if(!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180)throw Error('Choose a valid map point.');
-    let grid=route?gridForRoute(route):gridForRoute({geometry:[[longitude,latitude],[longitude,latitude]]});
-    if(Math.hypot(...grid.forward(longitude,latitude))>(grid.grid_version==='CHI1K-V1'?150000:2000000))grid=gridForRoute({geometry:[[longitude,latitude],[longitude,latitude]]});
+    const grid=gridForPoint(latitude,longitude);
+    if(Math.hypot(...grid.forward(longitude,latitude))>REGION_RADIUS)throw Error('Map point exceeds its fixed regional honeycomb extent.');
     const [x,y]=grid.forward(longitude,latitude),r0=Math.round(y/(Math.sqrt(3)*500));let best;
     for(let r=r0-2;r<=r0+2;r++){const q0=Math.round(x/1000-r/2);for(let q=q0-2;q<=q0+2;q++){const center=grid.center(q,r),distance=(x-center[0])**2+(y-center[1])**2;if(!best||distance<best.distance)best={q,r,distance};}}
     const {q,r}=best,[lon,lat]=grid.inverse(...grid.center(q,r)),polygon=grid.vertices(q,r).map(p=>grid.inverse(...p));polygon.push(polygon[0].slice());
     return{grid_version:grid.grid_version,cell_id:grid.grid_version+'-Q'+(q>=0?'+':'')+q+'-R'+(r>=0?'+':'')+r,q,r,latitude:Number(lat.toFixed(8)),longitude:Number(lon.toFixed(8)),polygon,estimate_ppsqft:null};
   }
-  global.SurviveAvm={...legacy,cellAt,gridForRoute,mapRoute:route=>gridForRoute(route).mapRoute(route),enclosingHoneycomb:route=>gridForRoute(route).enclosingHoneycomb(route),routeCellPositions:route=>gridForRoute(route).routeCellPositions(route)};
+  global.SurviveAvm={...legacy,cellAt,cellFromIdentity,gridForPoint,gridForRoute,isCurrentGridCell,mapRoute:route=>gridForRoute(route).mapRoute(route),enclosingHoneycomb:route=>gridForRoute(route).enclosingHoneycomb(route),routeCellPositions:route=>gridForRoute(route).routeCellPositions(route)};
 })(typeof globalThis==='undefined'?this:globalThis);
