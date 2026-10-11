@@ -63,7 +63,7 @@ assert.equal(tileRequests,1,'the offline fixture issues no network request');
 function polyline6(points){let prior=[0,0],out='';for(const [lat,lon] of points){const next=[Math.round(lat*1e6),Math.round(lon*1e6)];for(let i=0;i<2;i++){let value=next[i]-prior[i];value=value<0?~(value<<1):value<<1;while(value>=32){out+=String.fromCharCode((32|(value&31))+63);value>>>=5;}out+=String.fromCharCode(value+63);}prior=next;}return out;}
 const shape=polyline6([[41.9,-87.6],[41.91,-87.61]]);
 const route={trip:{legs:[{shape,summary:{length:2.4,time:180}}]}};
-validateValhallaResponse(route,1);
+assert.throws(()=>validateValhallaResponse(route,1),/missing original Start/);
 validateValhallaResponse(route,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'});
 const snapped={trip:{legs:[{shape:polyline6([[41.9002,-87.6002],[41.9098,-87.6098]]),summary:{length:2.4,time:180}}]}};
 validateValhallaResponse(snapped,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'});
@@ -71,7 +71,7 @@ const endpointBad={trip:{legs:[{shape:polyline6([[41.9,-87.6],[41.93,-87.61]]),s
 assert.throws(()=>validateValhallaResponse(endpointBad,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'}),/no route within 100 m.*rejected 1 candidate.*destination endpoint/i);
 assert.throws(()=>validateValhallaResponse({...route,alternates:[route]},1));
 const context={};vm.runInNewContext(await readFile(new URL('../dist/valhalla-decoder.js',import.meta.url),'utf8'),context);
-const decoded=context.SurviveValhalla.convertRoutes(route,'round-1');
+const decoded=context.SurviveValhalla.convertRoutes(route,'round-1',{expectedOrigin:'41.9,-87.6',expectedDestination:'41.91,-87.61'});
 assert.equal(decoded.length,1);
 assert.deepEqual(Array.from(decoded[0].geometry[0]),[-87.6,41.9]);
 assert.equal(decoded[0].length_m,2400);
@@ -88,7 +88,7 @@ const highwayResponse={trip:{legs:[
   {shape:polyline6(highwayPoints.slice(0,4)),summary:{length:4,time:240},maneuvers:[{type:1,highway:false,begin_shape_index:0,end_shape_index:1},{type:17,highway:false,begin_shape_index:1,end_shape_index:2},{type:8,highway:true,begin_shape_index:2,end_shape_index:3},{type:20,highway:true,begin_shape_index:3,end_shape_index:3}]},
   {shape:polyline6(highwayPoints.slice(3)),summary:{length:3,time:180},maneuvers:[{type:8,highway:false,begin_shape_index:0,end_shape_index:1},{type:18,highway:true,begin_shape_index:1,end_shape_index:2}]}
 ]}};
-const highwayRoute=context.SurviveValhalla.convertRoutes(highwayResponse,'highway-round')[0];
+const highwayRoute=context.SurviveValhalla.convertRoutes(highwayResponse,'highway-round',{expectedOrigin:'41.9,-87.6',expectedDestination:'41.95,-87.65'})[0];
 assert.deepEqual(Array.from(highwayRoute.highway_transitions,item=>[item.index,item.kind]),[[1,'entry'],[3,'exit'],[4,'entry']]);
 assert.deepEqual(Array.from(highwayRoute.authority_ranges,range=>Array.from(range)),[[1,3],[4,5]],'highway and attached ramp spans must be excluded');
 assert.equal(highwayRoute.authority_source,'valhalla_maneuvers_v1');

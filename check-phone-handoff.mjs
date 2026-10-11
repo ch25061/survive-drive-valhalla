@@ -7,7 +7,7 @@ import jsQR from 'jsqr';
 
 const origin='https://survive-drive-valhalla.choppy777.chatgpt.site';
 const gpx='<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="RS" xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="25.722505" lon="-80.290148"><name>Turn &amp; stop 🐈</name></wpt><trk><name>Chosen &amp; exact</name><trkseg><trkpt lat="25.722505123" lon="-80.290148123"/><trkpt lat="25.723506456" lon="-80.289148456"/><trkpt lat="25.724506789" lon="-80.288148789"/></trkseg></trk></gpx>';
-const route={gpx,points:3,turns:1,route_name:'Chosen & exact 🐈',filename:'survive-drive-king-of-the-hill-offline-proof.gpx'};
+const route={gpx,points:3,turns:1,expected_endpoints:{origin:[25.722505123,-80.290148123],destination:[25.724506789,-80.288148789]},route_name:'Chosen & exact 🐈',filename:'survive-drive-king-of-the-hill-offline-proof.gpx'};
 function bucket(){const data=new Map();return {data,async put(k,value,options){data.set(k,{value,...options});},async get(k){const entry=data.get(k);return entry?{async json(){return JSON.parse(entry.value);}}:null;},async list({prefix,limit}){return{objects:[...data.entries()].filter(([k])=>k.startsWith(prefix)).sort(([a],[b])=>a.localeCompare(b)).slice(0,limit).map(([key,entry])=>({key,customMetadata:entry.customMetadata}))};},async delete(keys){for(const k of Array.isArray(keys)?keys:[keys])data.delete(k);}};}
 const source=readFileSync('server/phone-handoff.js','utf8')+'\n'+readFileSync('server/worker.js','utf8');
 let external=0;
@@ -23,7 +23,7 @@ async function verifyServer(w){
   assert.equal((await call('read',{token:made.body.token},{headers:{Origin:''}})).status,403);
   assert.equal((await call('read',{}, {method:'GET'})).status,405);
   assert.equal((await call('unknown',{})).status,404);
-  for(const invalid of [{...route,points:2},{...route,gpx:gpx.replace('25.722505123','91')},{...route,gpx:'<!DOCTYPE gpx>'+gpx},{...route,turns:-1},{...route,filename:'../route.gpx'},{...route,gpx:gpx+' '.repeat(2*1024*1024)}])assert.equal((await call('create',invalid)).status,400);
+  for(const invalid of [{...route,expected_endpoints:null},{...route,expected_endpoints:{...route.expected_endpoints,destination:[26,-80]}},{...route,points:2},{...route,gpx:gpx.replace('25.722505123','91')},{...route,gpx:'<!DOCTYPE gpx>'+gpx},{...route,turns:-1},{...route,filename:'../route.gpx'},{...route,gpx:gpx+' '.repeat(2*1024*1024)}])assert.equal((await call('create',invalid)).status,400);
   assert.equal((await call('read',{token:'bad'})).status,400);
   const expiredKey='rs-phone-handoffs/v1/'+made.body.token,entry=storage.data.get(expiredKey),packet=JSON.parse(entry.value);packet.expires_at='2000-01-01T00:00:00Z';entry.value=JSON.stringify(packet);
   assert.equal((await call('read',{token:made.body.token})).status,410);assert.equal(storage.data.has(expiredKey),false);
@@ -33,7 +33,7 @@ async function verifyServer(w){
   const unavailable=await w.fetch(new Request(origin+'/api/phone-handoff/create',{method:'POST',headers:{Origin:origin},body:JSON.stringify(route)}),{});assert.equal(unavailable.status,503);
   return{call,packet:received.body};
 }
-await verifyServer(worker(source));
+const sourceProof=await verifyServer(worker(source));
 const built=worker(readFileSync('dist/server/index.js','utf8'));await verifyServer(built);
 for(const path of ['/phone-route.html','/phone-route.js','/phone-handoff.js','/phone-route.css','/qrcode.js']){const r=await built.fetch(new Request(origin+path),{});assert.equal(r.status,200,path);assert.ok((await r.text()).length>100);}
 assert.equal(external,0,'no provider or external calls');
@@ -46,8 +46,14 @@ assert.equal(jsQR(pixels,n,n).data,link,'phone camera receives the complete hand
 
 class Element{constructor(){this.children=[];this.listeners={};this.disabled=false;this.hidden=false;this.value='';}append(...a){this.children.push(...a);}replaceChildren(...a){this.children=a;}setAttribute(){}addEventListener(k,f){this.listeners[k]=f;}focus(){}select(){}}
 const panel=new Element();let calls=[],resolveCreate,resolveDelete,delayed=false,copied='';
-const ctx={URL,Blob,TextEncoder,crypto:webcrypto,qrcode,location:{origin},navigator:{clipboard:{async writeText(v){copied=v;}}},document:{createElement(){return new Element();}},chosenOsmAndGpx(){return{xml:gpx,filename:route.filename,points:3,turns:1};},async fetch(url,options){calls.push({url,body:JSON.parse(options.body)});const body=url.endsWith('create')?{token:'20261011-12345678-1234-4234-8234-123456789abc',url:link,route_name:route.route_name}: {revoked:true};if(delayed)await new Promise(resolve=>{if(url.endsWith('create'))resolveCreate=resolve;else resolveDelete=resolve;});return new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(readFileSync('dist/phone-handoff.js','utf8'),ctx);
-const handoff=ctx.SurvivePhoneHandoff;handoff.installDesktop(panel);const [send,status,result]=panel.children[0].children,choice={candidate_id:'A',chosen_at:'now',osmand_track:{name:route.route_name}};
+const ctx={URL,Blob,TextEncoder,crypto:webcrypto,qrcode,location:{origin},navigator:{clipboard:{async writeText(v){copied=v;}}},document:{createElement(){return new Element();}},chosenOsmAndGpx(){return{xml:gpx,filename:route.filename,points:3,turns:1,expected_endpoints:route.expected_endpoints};},async fetch(url,options){calls.push({url,body:JSON.parse(options.body)});const body=url.endsWith('create')?{token:'20261011-12345678-1234-4234-8234-123456789abc',url:link,route_name:route.route_name}: {revoked:true};if(delayed)await new Promise(resolve=>{if(url.endsWith('create'))resolveCreate=resolve;else resolveDelete=resolve;});return new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(readFileSync('dist/phone-handoff.js','utf8'),ctx);
+class EndpointDOMParser{parseFromString(xml){const points=[...xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"\/>/g)].map(m=>({parentNode:{localName:'trkseg'},hasAttribute(k){return k==='lat'||k==='lon';},getAttribute(k){return m[k==='lat'?1:2];}}));return{documentElement:{localName:'gpx',namespaceURI:'http://www.topografix.com/GPX/1/1'},getElementsByTagNameNS(){return points;},getElementsByTagName(){return[];}};}}
+ctx.DOMParser=EndpointDOMParser;
+const handoff=ctx.SurvivePhoneHandoff;
+await handoff.validatePacket(sourceProof.packet);
+await assert.rejects(handoff.validatePacket({...sourceProof.packet,expected_endpoints:{...route.expected_endpoints,destination:[26,-80]}}),/does not reach/);
+await assert.rejects(handoff.validatePacket({...sourceProof.packet,expected_endpoints:null}),/no original Start/);
+handoff.installDesktop(panel);const [send,status,result]=panel.children[0].children,choice={candidate_id:'A',chosen_at:'now',osmand_track:{name:route.route_name}};
 handoff.renderDesktop({choice,chosenSelected:false,busy:false});assert.equal(send.disabled,true);
 handoff.renderDesktop({choice,chosenSelected:true,busy:false});await handoff.sendChosenToPhone();assert.equal(result.hidden,false);assert.equal(calls[0].body.gpx,gpx);assert.equal(result.children[3].children[0].value,link);
 await result.children[4].listeners.click();assert.equal(copied,link);

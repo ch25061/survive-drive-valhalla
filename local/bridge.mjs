@@ -9,8 +9,7 @@ const listenPort=8003;
 const engine='http://127.0.0.1:8002';
 const claimsPath=resolve(process.env.VALHALLA_CLAIMS_PATH??'./local-round-claims.jsonl');
 const regionPath=resolve(process.env.VALHALLA_REGION_ENGINES_PATH??dirname(claimsPath)+'/regional-engines.json');
-const regions=existsSync(regionPath)?validateRegionalEngines(JSON.parse(readFileSync(regionPath,'utf8'))):[];
-const mapArea=regions.length?'U.S. cities over 100,000 population with 20-mile buffers, plus full Florida':'Configured desktop road graph';
+const readRegions=()=>existsSync(regionPath)?validateRegionalEngines(JSON.parse(readFileSync(regionPath,'utf8'))):[];
 const origins=new Set([
   'https://survive-drive-valhalla.choppy777.chatgpt.site',
   'https://valhalla.choppy.fans',
@@ -60,7 +59,7 @@ async function boundedJson(response){
 
 const server=createServer(async(request,response)=>{
   if(request.headers.host!=='127.0.0.1:8003'){send(response,403,{error:'Use the local address 127.0.0.1.'});return;}
-  const origin=request.headers.origin;
+  const origin=request.headers.origin;let regions;try{regions=readRegions();}catch{send(response,503,{error:'Road coverage configuration is unavailable.',provider_attempted:false},origin);return;}const mapArea=regions.some(r=>r.name==='United States')?'Complete U.S. OpenStreetMap road graph':regions.length?'U.S. cities over 100,000 population with 20-mile buffers, plus full Florida':'Configured desktop road graph';
   if(origin&&!origins.has(origin)){send(response,403,{error:'Origin is not allowed.'});return;}
   if(request.method==='OPTIONS'){
     response.writeHead(204,{'Access-Control-Allow-Origin':origin??'null','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Private-Network':'true','Vary':'Origin'});

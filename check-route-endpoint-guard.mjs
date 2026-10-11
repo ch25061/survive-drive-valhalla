@@ -8,7 +8,7 @@ vm.createContext(context);vm.runInContext(source,context);
 const guard=context.window.SurviveDriveEndpointGuard;
 assert.ok(guard,'endpoint guard is exposed for the desktop route workflow');
 const requested={origin:'26.4619661,-81.8035874',destination:'26.2338608,-81.7892969'};
-const bad={live_valhalla:true,geometry:[[-81.80356,26.461914],[-81.795648,26.253244]],route_directions:{source:'valhalla',steps:[]}};
+const bad={live_valhalla:true,valhalla_evidence:{requested_endpoints:{origin:[26.4619661,-81.8035874],destination:[26.2338608,-81.7892969]}},geometry:[[-81.80356,26.461914],[-81.795648,26.253244]],route_directions:{source:'valhalla',steps:[]}};
 const badCheck=guard.routeEndpointValidation(bad,requested);
 assert.equal(badCheck.valid,false);
 assert.equal(badCheck.side,'destination');

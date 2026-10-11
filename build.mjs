@@ -1,6 +1,8 @@
 import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import vm from 'node:vm';
+// Every production build must pass the original-endpoint invariant.
+await import('./check-endpoint-contract.mjs');
 await cp('node_modules/qrcode-generator/dist/qrcode.js','dist/qrcode.js');
 const files=['phone-handoff.js','phone-route.html','phone-route.js','phone-route.css','qrcode.js','qrcode-LICENSE.txt','h3-pinned.js','h3-LICENSE.txt','index.html','style.css','here-decoder.js','valhalla-decoder.js','route-avm.js','shotgun-gates.js','census-ring.js','census-ring-ui.js','pool-screening.js','red-exclusion-zones.js','app.js','reference.json','intersection-catalog-chicago-v1.json','tutorial.html','tutorial.css','tutorial.js','tutorial-la.css','tutorial-la.js','tutorial-la-session.js','android.html','rs-android-build.json','rs-osmand-companion.apk'];
 await mkdir('dist/client',{recursive:true});

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {FLORIDA_BOUNDS,validateRegionalEngines,engineForPoints} from './local/engine-selection.mjs';
+import {FLORIDA_BOUNDS,NATIONAL_ENGINE_BOUNDS,validateRegionalEngines,engineForPoints} from './local/engine-selection.mjs';
 const regions=validateRegionalEngines({schema:'rs_regional_engines_v1',regions:[{name:'Florida',bounds:FLORIDA_BOUNDS,base_url:'http://127.0.0.1:8100'}]});
 const trip=[{lat:26.4619661,lon:-81.8035874},{lat:26.2338608,lon:-81.7892969}];
 assert.equal(engineForPoints(trip,regions),'http://127.0.0.1:8100','The reported Naples trip must use the complete Florida graph.');
@@ -10,4 +10,6 @@ assert.equal(engineForPoints(trip,[]),'http://127.0.0.1:8002');
 assert.equal(engineForPoints([],regions),'http://127.0.0.1:8002');
 assert.equal(engineForPoints([{lat:NaN,lon:-81}],regions),'http://127.0.0.1:8002');
 for(const base_url of ['https://example.com','http://localhost:8100','http://127.0.0.1:8100/route','http://user:pass@127.0.0.1:8100'])assert.throws(()=>validateRegionalEngines({schema:'rs_regional_engines_v1',regions:[{name:'Florida',bounds:FLORIDA_BOUNDS,base_url}]}));
+const national=validateRegionalEngines({schema:'rs_regional_engines_v1',regions:[{name:'United States',bounds:NATIONAL_ENGINE_BOUNDS,base_url:'http://127.0.0.1:8200'}]});
+for(const points of [trip,[{lat:39.493,lon:-117.07}],[{lat:64.038,lon:-145.73}],[{lat:20.756,lon:-155.987}],[{lat:41.88,lon:-87.63},{lat:26.23,lon:-81.79}]])assert.equal(engineForPoints(points,national),'http://127.0.0.1:8200');
 console.log('Regional road selection passed: complete Florida, city graph elsewhere, no retry or graph mixing.');

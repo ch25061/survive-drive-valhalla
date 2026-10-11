@@ -1,5 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $runtime = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..\work\valhalla-local')).Path
+# A verified national stage supersedes the Florida-only registry permanently.
+if (Test-Path -LiteralPath (Join-Path $runtime 'national-road-stage.txt')) { return }
 $tiles = Join-Path $runtime 'data\tiles-florida'
 if (-not (Test-Path -LiteralPath $tiles -PathType Container)) { return }
 $service = (Resolve-Path -LiteralPath (Join-Path $runtime '.venv\Lib\site-packages\valhalla\bin\valhalla_service.exe')).Path
@@ -31,5 +33,14 @@ for ($check=0; $check -lt 40; $check++) {
 }
 if (-not $ready) { throw 'The full Florida engine did not become ready; regional routing was not enabled.' }
 $registry = @{schema='rs_regional_engines_v1';regions=@(@{name='Florida';bounds=@(-87.64,24.39,-79.97,31.01);base_url='http://127.0.0.1:8100'})}
-[IO.File]::WriteAllText((Join-Path $runtime 'regional-engines.json'),($registry | ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+$registryPath = Join-Path $runtime 'regional-engines.json'
+if (Test-Path -LiteralPath $registryPath) {
+    $existing = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+    if ($existing.schema -eq 'rs_regional_engines_v1' -and $existing.regions.Count -eq 1) {
+        $region = $existing.regions[0]
+        if ($region.name -eq 'United States' -or ($region.name -eq 'Florida' -and $region.base_url -eq 'http://127.0.0.1:8100' -and ($region.bounds -join ',') -eq '-87.64,24.39,-79.97,31.01')) { return }
+    }
+}
+[IO.File]::WriteAllText(($registryPath + '.florida-new'),($registry | ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+[IO.File]::Move(($registryPath + '.florida-new'),$registryPath,$true)
 Write-Output 'Full Florida road coverage is ready; nationwide city coverage remains available.'

@@ -141,12 +141,11 @@ function decodePolyline6(value) {
 }
 
 function endpointDistanceMeters(a, b) {
-  const radians = (a[1] + b[1]) * Math.PI / 360;
-  return 111195 * Math.hypot(a[1] - b[1], (a[0] - b[0]) * Math.cos(radians));
+  const rad=Math.PI/180,phi1=a[1]*rad,phi2=b[1]*rad,dphi=(b[1]-a[1])*rad,dlambda=(b[0]-a[0])*rad,h=Math.sin(dphi/2)**2+Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlambda/2)**2;return 6371008.8*2*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));
 }
 
 function endpointPair(value) {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== 'string' || value.split(',').some(part=>!part.trim())) return null;
   const pair = value.split(',').map(Number);
   return pair.length === 2 && pair.every(Number.isFinite) && Math.abs(pair[0]) <= 90 && Math.abs(pair[1]) <= 180 ? [pair[1], pair[0]] : null;
 }
@@ -158,23 +157,13 @@ function responseEndpointValidation(candidate, requested) {
   const first = decodePolyline6(legs[0].shape)[0];
   const lastPoints = decodePolyline6(legs.at(-1).shape);
   const last = lastPoints.at(-1);
-  const locations = Array.isArray(trip.locations) ? trip.locations : [];
-  const explicit = {origin: endpointPair(requested?.origin), destination: endpointPair(requested?.destination)};
-  const expected = {
-    origin: explicit.origin ?? (Number.isFinite(locations[0]?.lat) && Number.isFinite(locations[0]?.lon) ? [locations[0].lon, locations[0].lat] : null),
-    destination: explicit.destination ?? (Number.isFinite(locations.at(-1)?.lat) && Number.isFinite(locations.at(-1)?.lon) ? [locations.at(-1).lon, locations.at(-1).lat] : null)
-  };
+  const expected = {origin:endpointPair(requested?.origin),destination:endpointPair(requested?.destination)};
+  if(!expected.origin||!expected.destination)return {valid:false,reason:'missing original Start or Destination coordinates for endpoint verification'};
   const actual = {origin: first, destination: last}, distances = {};
   for (const side of ['origin', 'destination']) {
     if (!expected[side]) continue;
     distances[side] = endpointDistanceMeters(actual[side], expected[side]);
     if (distances[side] > 100) return {valid: false, reason: side + ' endpoint is ' + distances[side].toFixed(1) + ' m from the requested point (maximum 100 m)', expected, actual, distances};
-  }
-  // Standalone response fixtures from before endpoint protection may not carry
-  // locations. Live worker/bridge calls always pass the reviewed request params.
-  if (!expected.origin || !expected.destination) {
-    if (!requested && !locations.length) return {valid: true, verified: false, expected, actual, distances};
-    return {valid: false, reason: 'missing original Start or Destination coordinates for endpoint verification', expected, actual, distances};
   }
   return {valid: true, expected, actual, distances};
 }
@@ -192,9 +181,8 @@ export function validateValhallaResponse(data, maximum, requested = null) {
     else accepted.push(candidate);
   }
   if (!accepted.length) throw Error('Valhalla returned no route within 100 m of the requested Start/Destination; rejected '+rejected.length+' candidate(s): '+rejected.map(item=>'candidate '+item.candidate+' '+item.reason).join('; ')+'.');
-  if (!rejected.length) return data;
   const first = accepted[0], result = first === data ? {...data} : {...first};
   result.alternates = accepted.slice(1);
-  result.route_validation = {accepted_count:accepted.length,rejected_count:rejected.length,rejected,endpoint_tolerance_m:100};
+  result.route_validation = {accepted_count:accepted.length,rejected_count:rejected.length,rejected,endpoint_tolerance_m:100,contract:'original-endpoints-geodesic-v1',requested_endpoints:{origin:endpointPair(requested.origin).reverse(),destination:endpointPair(requested.destination).reverse()}};
   return result;
 }

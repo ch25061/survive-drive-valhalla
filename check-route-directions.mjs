@@ -14,8 +14,8 @@ vm.runInContext(readFileSync('dist/valhalla-decoder.js','utf8'),context);
 vm.runInContext(source.replace(/\ninit\(\);\s*$/,''),context);
 function encode(points){let previous=[0,0],result='';for(const p of points){const now=[Math.round(p[1]*1e6),Math.round(p[0]*1e6)];for(let i=0;i<2;i++){let value=now[i]-previous[i];value=value<0?~(value<<1):value<<1;while(value>=32){result+=String.fromCharCode((32|(value&31))+63);value>>=5;}result+=String.fromCharCode(value+63);}previous=now;}return result;}
 const leg=(points,instruction)=>({shape:encode(points),summary:{time:180,length:1},maneuvers:[{begin_shape_index:0,end_shape_index:1,highway:false,instruction,length:1,time:180}]});
-const response={trip:{units:'kilometers',legs:[leg([[-97,32],[-96.99,32]],'Turn right onto Main Street.'),leg([[-96.99,32],[-96.98,32]],'<img src=x onerror=alert(1)>')]},alternates:[{trip:{units:'kilometers',legs:[leg([[-97,32],[-97,32.01]],'Continue on Second Avenue.')]}}]};
-const api=context.SurviveValhalla,routes=api.convertRoutes(response,'directions-fixture');
+const response={trip:{units:'kilometers',legs:[leg([[-97,32],[-96.99,32]],'Turn right onto Main Street.'),leg([[-96.99,32],[-96.98,32]],'<img src=x onerror=alert(1)>')]},alternates:[{trip:{units:'kilometers',legs:[leg([[-97,32],[-97,32.01],[-96.98,32]],'Continue on Second Avenue.')]}}]};
+response.route_validation={requested_endpoints:{origin:[32,-97],destination:[32,-96.98]}};const api=context.SurviveValhalla,routes=api.convertRoutes(response,'directions-fixture');
 assert.equal(routes[0].route_directions.steps.length,2,'every leg retains ordered instructions');
 assert.equal(routes[0].route_directions.steps[1].leg_number,2);
 assert.equal(routes[0].route_directions.steps[0].length_m,1000);
@@ -25,7 +25,7 @@ assert.deepEqual(Array.from(api.convertRoutes(arrivalResponse,'arrival')[0].rout
 const separateLegs=JSON.parse(JSON.stringify(response));separateLegs.trip.legs[1].shape=encode([[-96.985,32],[-96.98,32]]);
 assert.equal(api.convertRoutes(separateLegs,'separate')[0].route_directions.steps[1].shape_index,2,'non-shared leg endpoints retain their full offset');
 assert.equal(routes[1].route_directions.steps[0].instruction,'Continue on Second Avenue.');
-const miles=api.convertRoutes({trip:{...response.trip,units:'miles'}},'miles')[0];
+const miles=api.convertRoutes({trip:{...response.trip,units:'miles'},route_validation:response.route_validation},'miles')[0];
 assert.equal(miles.route_directions.steps[0].length_m,1609.344);
 assert.equal(miles.length_m,3218.688);
 const gap=JSON.parse(JSON.stringify(response));gap.trip.legs[1].maneuvers=[];

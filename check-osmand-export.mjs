@@ -13,7 +13,7 @@ const handlerEnd=source.indexOf(");$('export-choice').addEventListener",handlerS
 const choose=vm.runInContext('('+source.slice(handlerStart,handlerEnd)+')',context);
 const a={id:'chosen/A',name:'A & <route> "one" 🐈\u0001',geometry:Array.from({length:3501},(_,i)=>[-96.123456789+i*.000001,32+i*.000001]),route_directions:{steps:[{shape_index:0,instruction:'Depart'},{shape_index:1200,instruction:'Right onto A & B <Street>'},{shape_index:null,instruction:'No guessed position'},{shape_index:3500,instruction:'Arrive'}]},live_valhalla:true};
 const b={id:'viewed-B',name:'Different candidate',geometry:[[-90,30],[-89,31]],route_directions:{steps:[]}};
-a.valhalla_evidence={locations:[{lat:a.geometry[0][1],lon:a.geometry[0][0]},{lat:a.geometry.at(-1)[1],lon:a.geometry.at(-1)[0]}]};
+a.valhalla_evidence={requested_endpoints:{origin:[a.geometry[0][1],a.geometry[0][0]],destination:[a.geometry.at(-1)[1],a.geometry.at(-1)[0]]},locations:[{lat:a.geometry[0][1],lon:a.geometry[0][0]},{lat:a.geometry.at(-1)[1],lon:a.geometry.at(-1)[0]}]};
 a.endpoint_validation=context.SurviveDriveEndpointGuard.routeEndpointValidation(a);
 state.routes=[a,b];state.active=0;
 assert.throws(()=>context.chosenOsmAndGpx(),/Choose/);

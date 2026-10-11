@@ -10,14 +10,14 @@
   }
   const ENDPOINT_TOLERANCE_METERS=100;
   function endpointPair(value){
-    const pair=Array.isArray(value)?value.map(Number):typeof value==='string'?value.split(',').map(Number):null;
+    const pair=Array.isArray(value)?(value.every(x=>typeof x==='number')?value:null):typeof value==='string'&&!value.split(',').some(part=>!part.trim())?value.split(',').map(Number):null;
     return pair?.length===2&&pair.every(Number.isFinite)&&Math.abs(pair[0])<=90&&Math.abs(pair[1])<=180?[pair[1],pair[0]]:null;
   }
-  function endpointDistanceMeters(a,b){const radians=(a[1]+b[1])*Math.PI/360;return 111195*Math.hypot(a[1]-b[1],(a[0]-b[0])*Math.cos(radians));}
+  function endpointDistanceMeters(a,b){const rad=Math.PI/180,phi1=a[1]*rad,phi2=b[1]*rad,dphi=(b[1]-a[1])*rad,dlambda=(b[0]-a[0])*rad,h=Math.sin(dphi/2)**2+Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlambda/2)**2;return 6371008.8*2*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));}
   function endpointValidation(geometry,trip,{expectedOrigin=null,expectedDestination=null}={}){
-    const locations=Array.isArray(trip?.locations)?trip.locations:[],explicit={origin:endpointPair(expectedOrigin),destination:endpointPair(expectedDestination)},expected={origin:explicit.origin??(Number.isFinite(locations[0]?.lat)&&Number.isFinite(locations[0]?.lon)?[locations[0].lon,locations[0].lat]:null),destination:explicit.destination??(Number.isFinite(locations.at(-1)?.lat)&&Number.isFinite(locations.at(-1)?.lon)?[locations.at(-1).lon,locations.at(-1).lat]:null)},actual={origin:geometry[0],destination:geometry.at(-1)},distances={};
+    const expected={origin:endpointPair(expectedOrigin),destination:endpointPair(expectedDestination)},actual={origin:geometry[0],destination:geometry.at(-1)},distances={};
     for(const side of ['origin','destination'])if(expected[side]){distances[side]=endpointDistanceMeters(actual[side],expected[side]);if(distances[side]>ENDPOINT_TOLERANCE_METERS)return{valid:false,verified:true,reason:side+' endpoint is '+distances[side].toFixed(1)+' m from the requested point (maximum '+ENDPOINT_TOLERANCE_METERS+' m)',expected,actual,distances,coordinate_order:'lonlat'};}
-    if(!expected.origin||!expected.destination)return{valid:true,verified:false,expected,actual,distances,coordinate_order:'lonlat'};
+    if(!expected.origin||!expected.destination)return{valid:false,verified:false,reason:'Original Start and Destination are required for endpoint verification.',expected,actual,distances,coordinate_order:'lonlat'};
     return{valid:true,verified:true,expected,actual,distances,coordinate_order:'lonlat'};
   }
   // Valhalla reports whether any highway occurs within each maneuver. Exclude
@@ -57,13 +57,13 @@
           for(let local=maneuver.begin_shape_index;local<end;local++){const globalIndex=offset+local,next={highway:highway===true,ramp};const prior=segmentKinds[globalIndex];if(prior&&(prior.highway!==next.highway||prior.ramp!==next.ramp))throw Error('Valhalla highway maneuvers conflict.');segmentKinds[globalIndex]=next;}
         }
       }
-      const endpoint=endpointValidation(geometry,trip,{expectedOrigin,expectedDestination});
+      const original=response?.route_validation?.requested_endpoints;const endpoint=endpointValidation(geometry,trip,{expectedOrigin:expectedOrigin??original?.origin,expectedDestination:expectedDestination??original?.destination});
       if(!endpoint.valid){discardedEndpoint++;endpointRejections.push({candidate:index+1,reason:endpoint.reason});return null;}
       segmentKinds.length=geometry.length-1;
       const ranges=highwayRanges(segmentKinds);
       const warnings=Array.isArray(trip.warnings)?trip.warnings.map(w=>String(w?.message??w)).slice(0,12):[];
       if(Number.isInteger(responseValidation?.rejected_count)&&responseValidation.rejected_count>0)warnings.push(responseValidation.rejected_count+' Valhalla candidate route(s) rejected by the 100 m Start/Destination endpoint check: '+(Array.isArray(responseValidation.rejected)?responseValidation.rejected.map(item=>String(item?.reason??'endpoint mismatch')).join('; '):'endpoint mismatch details unavailable.')+'.');
-      return{id:roundId+'-'+(index+1),route_number:index+1,name:'Valhalla route '+(index+1),geometry,length_m:length,duration_s:duration,cells:[],route_directions:validateDirections({source:'valhalla',steps:directions}),authority_ranges:ranges??[],authority_offsets:ranges?.length===1?ranges[0]:null,authority_only_cell_count:0,authority_source:ranges?'valhalla_maneuvers_v1':'unverified',authority_rule:ranges?'Valhalla highway maneuvers and their attached ramps are excluded from AVM screening.':'Valhalla highway maneuvers are incomplete; AVM evaluation is paused.',highway_transitions:highwayTransitions,exposure:null,live_valhalla:true,live_here:false,avm_status:'unevaluated',notices:warnings,valhalla_evidence:{locations:trip.locations??[],route_status:trip.status??null},endpoint_validation:endpoint};
+      return{id:roundId+'-'+(index+1),route_number:index+1,name:'Valhalla route '+(index+1),geometry,length_m:length,duration_s:duration,cells:[],route_directions:validateDirections({source:'valhalla',steps:directions}),authority_ranges:ranges??[],authority_offsets:ranges?.length===1?ranges[0]:null,authority_only_cell_count:0,authority_source:ranges?'valhalla_maneuvers_v1':'unverified',authority_rule:ranges?'Valhalla highway maneuvers and their attached ramps are excluded from AVM screening.':'Valhalla highway maneuvers are incomplete; AVM evaluation is paused.',highway_transitions:highwayTransitions,exposure:null,live_valhalla:true,live_here:false,avm_status:'unevaluated',notices:warnings,valhalla_evidence:{locations:trip.locations??[],requested_endpoints:{origin:endpoint.expected.origin.slice().reverse(),destination:endpoint.expected.destination.slice().reverse()},route_status:trip.status??null},endpoint_validation:endpoint};
     }).filter(Boolean);
     converted.raw_count=candidates.length;converted.discarded_duration_count=discarded;converted.discarded_endpoint_count=discardedEndpoint;converted.endpoint_rejection_reasons=endpointRejections;converted.endpoint_validation_summary=responseValidation??null;
     return converted;
@@ -83,7 +83,7 @@
       if(!targets.size)break;
       const roundId=record?.round_id;
       if(record?.provider!=='Valhalla'||typeof roundId!=='string'||![1,2,3,4].some(index=>targets.has(roundId+'-'+index)))continue;
-      let candidates;try{candidates=convertRoutes(record.response,roundId);}catch{continue;}
+      let candidates;try{const target=targets.get(roundId+'-1')??[1,2,3,4].map(index=>targets.get(roundId+'-'+index)).find(Boolean),original=target?.valhalla_evidence?.requested_endpoints;candidates=convertRoutes(record.response,roundId,{expectedOrigin:original?.origin,expectedDestination:original?.destination});}catch{continue;}
       for(const candidate of candidates){const target=targets.get(candidate.id);if(!target||target.geometry.length!==candidate.geometry.length||target.geometry.some((point,index)=>point[0]!==candidate.geometry[index][0]||point[1]!==candidate.geometry[index][1]))continue;if(!target.route_directions?.steps?.length)target.route_directions=candidate.route_directions;target.highway_transitions=candidate.highway_transitions;target.authority_ranges=candidate.authority_ranges;target.authority_offsets=candidate.authority_offsets;target.authority_source=candidate.authority_source;target.authority_rule=candidate.authority_rule;targets.delete(candidate.id);restored++;}
     }
     return restored;

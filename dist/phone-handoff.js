@@ -22,6 +22,10 @@
     if(packet?.schema!=='rs_phone_handoff_v1'||typeof packet.gpx!=='string'||new TextEncoder().encode(packet.gpx).length>2*1024*1024||/<!DOCTYPE|<!ENTITY/i.test(packet.gpx)||typeof packet.route_name!=='string'||packet.route_name.length>500||!/^survive-drive-king-of-the-hill-[a-zA-Z0-9_-]{1,80}\.gpx$/.test(packet.filename)||!Number.isInteger(packet.turns)||packet.turns<0||packet.turns>20000)throw Error('This transferred route is invalid. Send it again from desktop RS.');
     const doc=new DOMParser().parseFromString(packet.gpx,'application/xml'),ns='http://www.topografix.com/GPX/1/1',points=Array.from(doc.getElementsByTagNameNS(ns,'trkpt'));
     if(doc.getElementsByTagName('parsererror').length||doc.documentElement.localName!=='gpx'||doc.documentElement.namespaceURI!==ns||points.length!==packet.points||points.length<2||points.length>20000||points.some(p=>p.parentNode?.localName!=='trkseg'||['lat','lon'].some((k,i)=>!p.hasAttribute(k)||!p.getAttribute(k).trim()||!Number.isFinite(Number(p.getAttribute(k)))||Math.abs(Number(p.getAttribute(k)))>(i?180:90))))throw Error('The transferred path is incomplete or invalid. Send it again from desktop RS.');
+    const expected=packet.expected_endpoints;
+    if(packet.endpoint_contract!=='original-endpoints-geodesic-v1'||!expected||['origin','destination'].some(side=>!Array.isArray(expected[side])||expected[side].length!==2||!expected[side].every(Number.isFinite)||Math.abs(expected[side][0])>90||Math.abs(expected[side][1])>180))throw Error('This phone link has no original Start/Destination evidence. Send a new link from desktop RS.');
+    const gap=(a,b)=>{const rad=Math.PI/180,h=Math.sin((b[0]-a[0])*rad/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin((b[1]-a[1])*rad/2)**2;return 6371008.8*2*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));};
+    for(const [side,point]of [['origin',points[0]],['destination',points.at(-1)]])if(gap(expected[side],[Number(point.getAttribute('lat')),Number(point.getAttribute('lon'))])>100)throw Error('The transferred path does not reach your original '+(side==='origin'?'Start':'Destination')+' within 100 m. Send a correct route from desktop RS.');
     if(!Number.isFinite(Date.parse(packet.expires_at))||Date.parse(packet.expires_at)<=Date.now())throw Error('This route link expired. Send it again from desktop RS.');
     const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(packet.gpx))),x=>x.toString(16).padStart(2,'0')).join('');
     if(hash!==packet.sha256)throw Error('Route integrity check failed. Send it again from desktop RS.');return packet;
@@ -46,7 +50,7 @@
     if(!desktop||desktop.send.disabled||loading||!choice)return;
     const op=++generation,key=selectionKey,snapshot=choice;loading=true;desktop.send.disabled=true;desktop.status.textContent='Saving your complete chosen route for phone pickup…';hideTransfer();
     try{
-      const gpx=global.chosenOsmAndGpx(snapshot),saved=await api('create',{gpx:gpx.xml,filename:gpx.filename,points:gpx.points,turns:gpx.turns,route_name:snapshot.osmand_track.name});
+      const gpx=global.chosenOsmAndGpx(snapshot),saved=await api('create',{gpx:gpx.xml,filename:gpx.filename,points:gpx.points,turns:gpx.turns,expected_endpoints:gpx.expected_endpoints,route_name:snapshot.osmand_track.name});
       if(op!==generation||key!==selectionKey)return;
       if(!tokenValid(saved.token)||saved.url!==location.origin+'/phone-route.html#'+saved.token)throw Error('The route server returned an invalid phone link.');
       transfer=saved;desktop.name.textContent='Ready for your phone: '+saved.route_name;desktop.qr.replaceChildren(qrImage(saved.url));desktop.link.value=saved.url;desktop.result.hidden=false;desktop.status.textContent='Full chosen path saved · '+gpx.points+' points. Scan the QR code to receive it. No route or AVM requests were made.';

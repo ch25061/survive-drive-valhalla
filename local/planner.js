@@ -47,7 +47,7 @@ async function search(){
   try{
     const response=await fetch('/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:true,round_id:crypto.randomUUID(),params}),signal:AbortSignal.timeout(30000)});
     const data=await response.json();if(!response.ok)throw Error(data.error||'Route request failed.');
-    const routes=SurviveValhalla.convertRoutes(data.response,data.round_id);renderRoutes(routes);message(routes.length+' route'+(routes.length===1?'':'s')+' returned. No automatic retries.');
+    const routes=SurviveValhalla.convertRoutes(data.response,data.round_id,{expectedOrigin:params.origin,expectedDestination:params.destination});renderRoutes(routes);message(routes.length+' route'+(routes.length===1?'':'s')+' returned. No automatic retries.');
   }catch(error){message(error.message||'Route request failed. No automatic retry was made.',true);}finally{busy=false;await status();}
 }
 function initMap(){
