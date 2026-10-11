@@ -16,10 +16,10 @@ const results={ranked_routes:[{route_id:'promising',rank:2},{route_id:'known',ra
 const tiedRoutes=[{id:'slow-tie',name:'A slow route',duration_s:1200,cells:[cell(30,0,100,200),cell(31,0,100,500)]},{id:'fast-tie',name:'Z fast route',duration_s:600,cells:[cell(32,0,100,200),cell(33,0,100,300)]}];
 const tiedEvolution=context.SurvivePool.evolve(tiedRoutes,{ranked_routes:[],attempted_cell_ids:[],red_threshold_ppsqft:250},0,'time-tie',1);
 assert.equal(tiedEvolution.rank_intervals.find(row=>row.route_id==='fast-tie').current_rank,1,'ranking evolution breaks equal absolute Red miles by shorter returned travel time');
-assert.equal(tiedEvolution.algorithm,'weighted_orange_time_frontier_v3');
+assert.equal(tiedEvolution.algorithm,'estimated_orange_time_frontier_v4');
 const first=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
 const repeat=context.SurvivePool.evolve(routes,results,1,'evolution-seed',1);
-assert.equal(first.algorithm,'weighted_orange_time_frontier_v3');
+assert.equal(first.algorithm,'estimated_orange_time_frontier_v4');
 assert.equal(first.generation,1);
 assert.equal(first.maximum_attempts,1);
 assert.equal(first.provider_calls,0);
