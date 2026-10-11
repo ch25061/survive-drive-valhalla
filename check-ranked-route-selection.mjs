@@ -15,7 +15,7 @@ assert.match(source,/function closeSelectedRoutePopup\(\)\{state\.selectedRouteP
 const elements=new Map();
 function element(){return{addEventListener(){},classList:{add(){},remove(){},toggle(){}},replaceChildren(){},append(){},setAttribute(){},removeAttribute(){}};}
 const ui={document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);}},fetch(){throw Error('route selection tests must stay offline');}};ui.window=ui;
-vm.createContext(ui);vm.runInContext(source.replace(/\ninit\(\);\s*$/,''),ui);
+vm.createContext(ui);vm.runInContext(readFileSync('dist/pool-screening.js','utf8'),ui);vm.runInContext(source.replace(/\ninit\(\);\s*$/,''),ui);
 const app=ui.SurviveDrive,state=app.getState();
 const routes=[{id:'alpha',name:'Alpha',cells:[]},{id:'beta',name:'Beta',cells:[]}];state.routes=routes;state.active=0;
 state.poolScreening.results=[{route_id:'alpha',rank:1},{route_id:'beta',rank:2}];
@@ -29,7 +29,7 @@ const knownMilesFirst=[
   {id:'more-known-red',name:'More known Red miles, complete',duration_s:300,cells:[evidenceCell('more-red-primary',100,200),evidenceCell('more-green-primary',900,300)]}
 ];
 const knownMilesRanks=new Map(ui.rankPoolResults(knownMilesFirst,null,[]).map(row=>[row.route_id,row.rank]));
-assert.ok(knownMilesRanks.get('few-known-red')<knownMilesRanks.get('more-known-red'),'Known Red Miles Under stays primary even when unknown miles would make the old ceiling larger');
+assert.ok(knownMilesRanks.get('more-known-red')<knownMilesRanks.get('few-known-red'),'Combined score penalizes a slower route and its unknown distance');
 const tieRoutes=[
   {id:'slow',name:'A slow route',duration_s:1200,cells:[evidenceCell('slow-red',100,200),evidenceCell('slow-green',100,300)]},
   {id:'fast',name:'Z fast route',duration_s:600,cells:[evidenceCell('fast-red',100,200),evidenceCell('fast-green',100,300),evidenceCell('fast-unknown',100,null)]},
@@ -39,11 +39,11 @@ const tieRoutes=[
   {id:'no-evidence',name:'No known AVM evidence',duration_s:300,cells:[evidenceCell('unknown-only',100,null)]}
 ];
 const tieResults=ui.rankPoolResults(tieRoutes,null,[]),tieRanks=new Map(tieResults.map(row=>[row.route_id,row.rank]));
-assert.deepEqual(Array.from(['least-red','slow','higher-value','no-time','fast'],id=>tieRanks.get(id)),[1,2,3,4,5]);
+assert.deepEqual(Array.from(['least-red','slow','higher-value','no-time','fast'],id=>tieRanks.get(id)),[3,2,4,5,1]);
 assert.equal(tieRanks.get('no-evidence'),null,'routes with no known AVM evidence remain unranked instead of receiving a zero-mile score');
-assert.ok(tieRanks.get('slow')<tieRanks.get('fast'),'equal Known Red Miles Under and Red Percent use higher Known Coverage before travel time');
+assert.ok(tieRanks.get('fast')<tieRanks.get('slow'),'Travel savings exceed the possible Orange penalty');
 state.routes=tieRoutes;state.poolScreening.results=tieResults;
-assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['least-red','slow','higher-value','no-time','fast','no-evidence']);
+assert.deepEqual(Array.from(app.rankedCandidateCards(),card=>card.route.id),['fast','slow','least-red','higher-value','no-time','no-evidence']);
 assert.equal(tieResults.find(row=>row.route_id==='fast').red_distance_m,100,'the primary score remains known Red miles even when unknown miles are present');
 assert.equal(tieResults.find(row=>row.route_id==='fast').unknown_distance_m,100,'unknown exposure remains available as coverage context');
 
@@ -55,11 +55,11 @@ const detourRoutes=[
   {id:'partial-detour',name:'Partial route with green detour',duration_s:800,cells:[evidenceCell('partial-detour-red',50,200),evidenceCell('partial-detour-unknown',50,null),evidenceCell('partial-detour-green',500,300)]}
 ];
 const detourResults=ui.rankPoolResults(detourRoutes,null,[]),detourRanks=new Map(detourResults.map(row=>[row.route_id,row.rank]));
-assert.ok(detourRanks.get('detour')<detourRanks.get('short'),'Red Percent breaks equal known-Red-mile ties before travel time');
-assert.ok(detourRanks.get('more-red')>detourRanks.get('detour'),'one more known Red meter is worse even when the route is much faster');
+assert.ok(detourRanks.get('short')<detourRanks.get('detour'),'A longer green detour cannot dilute the absolute Orange penalty and beat a faster equivalent route');
+assert.ok(detourRanks.get('more-red')<detourRanks.get('detour'),'Travel time savings can outweigh a tiny increase in Orange distance');
 assert.equal(detourResults.find(row=>row.route_id==='partial-short').red_distance_m,50);
 assert.equal(detourResults.find(row=>row.route_id==='partial-detour').red_distance_m,50);
-assert.ok(detourRanks.get('partial-detour')<detourRanks.get('partial-short'),'lower Red Percent breaks equal known-Red-mile ties on partial routes');
+assert.ok(detourRanks.get('partial-short')<detourRanks.get('partial-detour'),'Equal possible Orange distance favors the faster partial route');
 state.routes=routes;
 
 // A cutoff-driven rerank can reorder the visible cards; their stored indices
