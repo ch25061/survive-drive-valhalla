@@ -1,7 +1,9 @@
 import http from 'node:http';
 import {timingSafeEqual} from 'node:crypto';
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+import {engineForPoints,validateRegionalEngines} from './engine-selection.mjs';
 
 const MAX_BODY=2*1024*1024;
 const MAX_RESPONSE=5*1024*1024;
@@ -9,7 +11,7 @@ const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'applicatio
 
 // Cloudflare connects to this loopback-only gateway, never the raw engine.
 // The RS Worker holds the matching key; browsers and phones never receive it.
-export function createHostedGateway({secret,fetchImpl=fetch}={}){
+export function createHostedGateway({secret,fetchImpl=fetch,regions=[]}={}){
   if(typeof secret!=='string'||! /^[a-f0-9]{64}$/.test(secret))throw Error('Configure a 32-byte hexadecimal gateway key.');
   const expected=Buffer.from('Bearer '+secret);
   let activeRoutes=0;
@@ -28,18 +30,23 @@ export function createHostedGateway({secret,fetchImpl=fetch}={}){
         for await(const chunk of req){size+=chunk.length;if(size>MAX_BODY){send(res,413,{error:'Route request exceeds the size limit.'});return;}chunks.push(chunk);}
         body=Buffer.concat(chunks);const payload=JSON.parse(body.toString('utf8'));
         if(payload?.costing!=='auto'||!Array.isArray(payload.locations)||payload.locations.length<2||payload.locations.length>22||!Number.isInteger(payload.alternates)||payload.alternates<0||payload.alternates>3)throw Error('Invalid reviewed car route.');
-        target.pathname='/route';
+        target=new URL(engineForPoints(payload.locations,regions));target.pathname='/route';
       }else if(url.pathname==='/tile'&&req.method==='GET'&&url.search.length<=1500){
         if([...url.searchParams.keys()].length!==1||!url.searchParams.has('json'))throw Error('Invalid road tile.');
         const tile=JSON.parse(url.searchParams.get('json')),coordinates=tile?.tile;
         if(coordinates?.z!==12||![coordinates.x,coordinates.y].every(value=>Number.isInteger(value)&&value>=0&&value<4096))throw Error('Invalid road tile coordinates.');
-        target.pathname='/tile';target.searchParams.set('json',JSON.stringify({tile:coordinates,filters:{attributes:['edge.road_class','edge.ramp','edge.toll'],action:'include'},generalize:1}));
+        const lon=(coordinates.x+0.5)/4096*360-180,lat=Math.atan(Math.sinh(Math.PI*(1-2*(coordinates.y+0.5)/4096)))*180/Math.PI;
+        target=new URL(engineForPoints([{lat,lon}],regions));target.pathname='/tile';target.searchParams.set('json',JSON.stringify({tile:coordinates,filters:{attributes:['edge.road_class','edge.ramp','edge.toll'],action:'include'},generalize:1}));
       }else {req.resume();return send(res,404,{error:'Unsupported RS endpoint.'});}
     }catch{req.resume();return send(res,400,{error:'Invalid RS request.'});}
     const route=target.pathname==='/route';
     if(route&&activeRoutes>=4)return send(res,503,{error:'Desktop routing is busy. No automatic retry was made.'});
     if(route)activeRoutes++;
     try{
+      if(target.pathname==='/status'&&regions.length){
+        const checks=await Promise.allSettled(regions.map(async(region)=>{const check=await fetchImpl(region.base_url+'/status',{redirect:'error',signal:AbortSignal.timeout(3000)});if(!check.ok)throw Error('Regional engine unavailable.');}));
+        if(checks.some(check=>check.status!=='fulfilled'))return send(res,503,{error:'The complete Florida road engine is unavailable. Restart the desktop routing launcher.'});
+      }
       const response=await fetchImpl(target,{method:req.method,headers:{Accept:target.pathname==='/tile'?'application/vnd.mapbox-vector-tile':'application/json',...(route?{'Content-Type':'application/json'}:{})},...(body?{body}:{}),redirect:'error',signal:AbortSignal.timeout(route?24000:10000)});
       const chunks=[];let size=0;
       if(response.body)for await(const chunk of response.body){size+=chunk.byteLength;if(size>MAX_RESPONSE)throw Error('Response too large.');chunks.push(Buffer.from(chunk));}
@@ -52,7 +59,9 @@ export function createHostedGateway({secret,fetchImpl=fetch}={}){
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const secretFile=process.env.RS_VALHALLA_KEY_FILE;
   if(!secretFile)throw Error('Set RS_VALHALLA_KEY_FILE to the private gateway key file.');
-  const server=createHostedGateway({secret:readFileSync(secretFile,'utf8').trim()});
+  const regionPath=resolve(process.env.VALHALLA_REGION_ENGINES_PATH??resolve(import.meta.dirname,'../../../work/valhalla-local/regional-engines.json'));
+  const regions=existsSync(regionPath)?validateRegionalEngines(JSON.parse(readFileSync(regionPath,'utf8'))):[];
+  const server=createHostedGateway({secret:readFileSync(secretFile,'utf8').trim(),regions});
   server.requestTimeout=30000;server.headersTimeout=10000;
   server.listen(8006,'127.0.0.1',()=>console.log('Protected RS desktop gateway listening on loopback port 8006.'));
 }

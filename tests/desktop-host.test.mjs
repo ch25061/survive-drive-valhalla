@@ -3,7 +3,7 @@ import {createHostedGateway} from '../local/hosted-gateway.mjs';
 import {valhallaRequestHeaders,valhallaHighwayCellMasks} from '../server/valhalla-provider.js';
 import worker from '../dist/server/index.js';
 
-const secret='a'.repeat(64),requests=[],route={trip:{legs:[{shape:'test',summary:{length:1,time:20}}]}};
+const secret='a'.repeat(64),requests=[],route={trip:{legs:[{shape:"_cmemA~z`}dD_c`|@?",summary:{length:1,time:20}}]}};
 assert.throws(()=>createHostedGateway({secret:'short'}));
 assert.throws(()=>valhallaRequestHeaders(undefined));
 const gateway=createHostedGateway({secret,fetchImpl:async(url,options)=>{requests.push({url:String(url),options});return new Response(JSON.stringify(route));}});

@@ -9,6 +9,8 @@ assert.equal(payload.locations.length,2);
 assert.equal(payload.alternates,3);
 assert.equal(payload.costing,'auto');
 assert.equal(payload.shape_format,'polyline6');
+assert.equal(payload.locations[0].search_cutoff,100,'Start uses a hard 100 m search cutoff');
+assert.equal(payload.locations[1].search_cutoff,100,'Destination uses a hard 100 m search cutoff');
 const exclusionRing=[[-87.65,41.9],[-87.64,41.9],[-87.64,41.91],[-87.65,41.91],[-87.65,41.9]];
 const excluded=valhallaPayload({...baseline,exclude_polygons:[exclusionRing]});
 assert.deepEqual(excluded.exclude_polygons,[exclusionRing],'reviewed exclusion rings are forwarded unchanged to Valhalla');
@@ -62,6 +64,11 @@ function polyline6(points){let prior=[0,0],out='';for(const [lat,lon] of points)
 const shape=polyline6([[41.9,-87.6],[41.91,-87.61]]);
 const route={trip:{legs:[{shape,summary:{length:2.4,time:180}}]}};
 validateValhallaResponse(route,1);
+validateValhallaResponse(route,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'});
+const snapped={trip:{legs:[{shape:polyline6([[41.9002,-87.6002],[41.9098,-87.6098]]),summary:{length:2.4,time:180}}]}};
+validateValhallaResponse(snapped,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'});
+const endpointBad={trip:{legs:[{shape:polyline6([[41.9,-87.6],[41.93,-87.61]]),summary:{length:2.4,time:180}}]}};
+assert.throws(()=>validateValhallaResponse(endpointBad,1,{origin:'41.9,-87.6',destination:'41.91,-87.61'}),/no route within 100 m.*rejected 1 candidate.*destination endpoint/i);
 assert.throws(()=>validateValhallaResponse({...route,alternates:[route]},1));
 const context={};vm.runInNewContext(await readFile(new URL('../dist/valhalla-decoder.js',import.meta.url),'utf8'),context);
 const decoded=context.SurviveValhalla.convertRoutes(route,'round-1');
@@ -72,6 +79,10 @@ assert.equal(decoded[0].duration_s,180);
 assert.equal(decoded[0].live_valhalla,true);
 assert.equal(decoded[0].authority_ranges.length,0);
 assert.equal(decoded[0].authority_source,'unverified','missing maneuver evidence must not be treated as an all-street route');
+const decodedBad=context.SurviveValhalla.convertRoutes(endpointBad,'bad-endpoint',{expectedOrigin:'41.9,-87.6',expectedDestination:'41.91,-87.61'});
+assert.equal(decodedBad.length,0,'decoded routes beyond the endpoint cutoff are rejected');
+assert.equal(decodedBad.discarded_endpoint_count,1);
+assert.match(decodedBad.endpoint_rejection_reasons[0].reason,/destination endpoint/);
 const highwayPoints=[[41.9,-87.6],[41.91,-87.61],[41.92,-87.62],[41.93,-87.63],[41.94,-87.64],[41.95,-87.65]];
 const highwayResponse={trip:{legs:[
   {shape:polyline6(highwayPoints.slice(0,4)),summary:{length:4,time:240},maneuvers:[{type:1,highway:false,begin_shape_index:0,end_shape_index:1},{type:17,highway:false,begin_shape_index:1,end_shape_index:2},{type:8,highway:true,begin_shape_index:2,end_shape_index:3},{type:20,highway:true,begin_shape_index:3,end_shape_index:3}]},
@@ -81,7 +92,7 @@ const highwayRoute=context.SurviveValhalla.convertRoutes(highwayResponse,'highwa
 assert.deepEqual(Array.from(highwayRoute.highway_transitions,item=>[item.index,item.kind]),[[1,'entry'],[3,'exit'],[4,'entry']]);
 assert.deepEqual(Array.from(highwayRoute.authority_ranges,range=>Array.from(range)),[[1,3],[4,5]],'highway and attached ramp spans must be excluded');
 assert.equal(highwayRoute.authority_source,'valhalla_maneuvers_v1');
-const avmContext={};vm.runInNewContext(await readFile(new URL('../dist/route-avm.js',import.meta.url),'utf8'),avmContext);
+const avmContext={};vm.runInNewContext(await readFile(new URL('../dist/h3-pinned.js',import.meta.url),'utf8'),avmContext);vm.runInNewContext(await readFile(new URL('../dist/route-avm.js',import.meta.url),'utf8'),avmContext);
 assert.throws(()=>avmContext.SurviveAvm.mapRoute(decoded[0]),/highway evidence is unavailable/);
 const mappedHighway=avmContext.SurviveAvm.mapRoute(highwayRoute);
 assert.ok(mappedHighway.authority_only_cell_count>0);
@@ -99,6 +110,7 @@ const preflightSource=appSource.match(/async function providerPreflight\([^]*?(?
 assert.ok(preflightSource,'AVM preflight must be present');
 let serverKey=false,statusChecks=0;
 const preflightContext={state:{providerStatus:{}},providerFetch:async path=>{assert.equal(path,'/api/providers/status');statusChecks++;return{};},appJson:async()=>({valhalla_ready:false,rentcast_server_key:serverKey}),localValhallaStatus:async()=>true};
+preflightContext.checkValhallaConnection=async()=>{statusChecks++;const status={valhalla_ready:true,rentcast_server_key:serverKey};preflightContext.state.providerStatus=status;return status;};
 vm.runInNewContext(preflightSource,preflightContext);
 await preflightContext.providerPreflight();
 assert.equal(preflightContext.state.providerStatus.valhalla_ready,true,'route preflight must still work without RentCast');
@@ -151,7 +163,7 @@ assert.equal(importedHighway.live_valhalla,true);
 assert.equal(importedHighway.authority_source,'valhalla_maneuvers_v1');
 assert.deepEqual(Array.from(importedHighway.highway_transitions,item=>[item.index,item.kind]),[[1,'entry'],[3,'exit'],[4,'entry']]);
 assert.throws(()=>appContext.window.SurviveDrive.validateCandidateSet({schema:'survive_drive_candidate_set_v1',subject_profile:reference.subject_profile,routes:[{...highwayRoute,highway_transitions:[{index:100,kind:'entry'}]}]}),/highway transition markers/);
-appContext.window.SurviveAvm=avmContext.SurviveAvm;
+appContext.window.SurviveAvm=avmContext.SurviveAvm;appContext.SurviveAvm=avmContext.SurviveAvm;
 const formerlyAllStreet=avmContext.SurviveAvm.mapRoute({...highwayRoute,live_valhalla:false,authority_ranges:[]});
 const legacyRoute={...highwayRoute,cells:formerlyAllStreet.cells.map(cell=>({...cell,estimate_ppsqft:100}))};
 const legacyRedDistance=appContext.calculate(legacyRoute).red_distance_m;
@@ -169,7 +181,7 @@ const leaflet={map:()=>mapStub,tileLayer:()=>layer('tile'),layerGroup:()=>layer(
 const ui=new Map(),getUi=id=>{if(!ui.has(id))ui.set(id,{value:'',hidden:false,classList:{toggle(){}},setAttribute(){},addEventListener(){}});return ui.get(id);};
 appContext.document.getElementById=getUi;appContext.document.addEventListener=()=>{};appContext.window.addEventListener=()=>{};appContext.window.L=leaflet;appContext.L=leaflet;appContext.requestAnimationFrame=callback=>callback();
 appContext.document.createElement=()=>({style:{},append(){}});
-const mappedCell={cell_id:'test-cell',polygon:[[-87.602,41.898],[-87.598,41.898],[-87.598,41.902],[-87.602,41.902]],outside_here_distance_m:1000,estimate_ppsqft:null};
+const mappedCell={...mappedHighway.cells.find(cell=>cell.outside_here_distance_m>0),estimate_ppsqft:null};
 const shownRoute={...highwayRoute,cells:[mappedCell]};appContext.window.SurviveDrive.getState().routes=[shownRoute];
 appContext.window.SurviveDrive.drawMap();
 assert.equal(renderedPolygons.at(-1).fillColor,'#8a96a6');

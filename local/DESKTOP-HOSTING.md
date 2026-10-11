@@ -1,6 +1,6 @@
 # RS with desktop-hosted Valhalla
 
-Valhalla and its existing road graph remain on the Windows desktop. The private RS website sends approved routing requests through a named Cloudflare Tunnel to `http://127.0.0.1:8006`. The gateway forwards only `/route`, `/status`, and the reviewed highway/tollway `/tile` requests to the existing loopback engine on port 8002.
+Valhalla and its existing road graph remain on the Windows desktop. The private RS website sends approved routing requests through a named Cloudflare Tunnel to `http://127.0.0.1:8006`. The gateway forwards only `/route`, `/status`, and reviewed highway/tollway `/tile` requests. It selects the complete Florida engine on loopback port 8100 for Florida trips and the nationwide city engine on port 8002 elsewhere. Both local and hosted routing use this selection; a request is never retried against another graph.
 
 The phone does not connect directly to the desktop or carry the gateway secret. RS authenticates on the server with `VALHALLA_API_KEY`, a random 32-byte hexadecimal key matching the desktop's private key file. Set the site's `VALHALLA_BASE_URL` to the tunnel's HTTPS origin, without a path. Keep both values in runtime configuration; mark the key secret. Never add the key or Cloudflare connector token to source, browser scripts, URLs, or a session export.
 
@@ -16,6 +16,6 @@ The PC must remain powered on, awake, and connected to the Internet. The scripts
 
 ## Coverage and verification
 
-This setup uses the current graph: Illinois, Indiana, Ohio, Kentucky, Florida, Southern California, and Texas. It does not add intervening states or nationwide coverage. Engine version and exclusion settings stay unchanged.
+The primary graph covers 343 U.S. cities above 100,000 population with 20-mile buffers. Full Florida roads are also retained on disk and served by a separate engine, preserving Naples-area coverage outside the city extract. The startup and independent health-check launchers start both engines. Engine version, gate shaping, exclusions, and AVM grid/cache coordinates stay unchanged.
 
 Run `node build.mjs`, then `node tests/desktop-host.test.mjs`. The test uses a fake engine and fake D1 claims, checking authentication, exact route/exclusion forwarding, protected road tiles, request limits, failure handling, and duplicate prevention without live provider calls. A real phone route still requires a separately user-approved search in RS.

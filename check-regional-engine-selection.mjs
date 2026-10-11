@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {FLORIDA_BOUNDS,validateRegionalEngines,engineForPoints} from './local/engine-selection.mjs';
+const regions=validateRegionalEngines({schema:'rs_regional_engines_v1',regions:[{name:'Florida',bounds:FLORIDA_BOUNDS,base_url:'http://127.0.0.1:8100'}]});
+const trip=[{lat:26.4619661,lon:-81.8035874},{lat:26.2338608,lon:-81.7892969}];
+assert.equal(engineForPoints(trip,regions),'http://127.0.0.1:8100','The reported Naples trip must use the complete Florida graph.');
+assert.equal(engineForPoints([...trip,{lat:26.25,lon:-81.80}],regions),'http://127.0.0.1:8100','A Florida route gate does not change graph selection.');
+assert.equal(engineForPoints([{lat:41.88,lon:-87.63},{lat:41.90,lon:-87.60}],regions),'http://127.0.0.1:8002');
+assert.equal(engineForPoints([...trip,{lat:41.88,lon:-87.63}],regions),'http://127.0.0.1:8002','Do not mix graph geometries within a request.');
+assert.equal(engineForPoints(trip,[]),'http://127.0.0.1:8002');
+assert.equal(engineForPoints([],regions),'http://127.0.0.1:8002');
+assert.equal(engineForPoints([{lat:NaN,lon:-81}],regions),'http://127.0.0.1:8002');
+for(const base_url of ['https://example.com','http://localhost:8100','http://127.0.0.1:8100/route','http://user:pass@127.0.0.1:8100'])assert.throws(()=>validateRegionalEngines({schema:'rs_regional_engines_v1',regions:[{name:'Florida',bounds:FLORIDA_BOUNDS,base_url}]}));
+console.log('Regional road selection passed: complete Florida, city graph elsewhere, no retry or graph mixing.');

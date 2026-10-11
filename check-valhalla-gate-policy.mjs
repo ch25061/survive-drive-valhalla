@@ -24,7 +24,7 @@ globalThis.fetch=async(url,options)=>{
   assert.deepEqual(sent.locations.map(p=>p.type),['break','via','via','break']);
   assert.ok(sent.locations.slice(1,-1).every(p=>p.radius===800&&p.rank_candidates===false));
   assert.deepEqual(sent.exclude_polygons,[ring]);
-  return Response.json({trip:{legs:[{shape:'synthetic-offline-fixture',summary:{length:1,time:60}}]}});
+  return Response.json({trip:{legs:[{shape:"_ky`p@~kocxC_glW_ibE",summary:{length:1,time:60}}]}});
 };
 try{
   const origin='https://test.example';

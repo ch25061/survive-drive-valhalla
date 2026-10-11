@@ -18,6 +18,7 @@ if (-not (Test-Service 'http://127.0.0.1:8002/status')) {
     $env:PATH = "$libraries;$serviceBin;$pythonScripts;$env:PATH"
     Start-Process -FilePath $service -ArgumentList 'valhalla.json','4' -WorkingDirectory $runtime -RedirectStandardOutput (Join-Path $runtime 'service.out.log') -RedirectStandardError (Join-Path $runtime 'service.err.log') -WindowStyle Hidden | Out-Null
 }
+& (Join-Path $PSScriptRoot 'start-florida-valhalla.ps1')
 if (-not (Test-Service 'http://127.0.0.1:8003/status')) {
     $env:VALHALLA_CLAIMS_PATH = Join-Path $runtime 'claims.jsonl'
     $node = (Get-Command node -ErrorAction Stop).Source

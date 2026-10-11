@@ -46,7 +46,7 @@ export function valhallaPayload(params) {
     if (pair.length !== 2 || !pair.every(Number.isFinite) || Math.abs(pair[0]) > 90 || Math.abs(pair[1]) > 180) throw Error('Invalid route location.');
     // Gates shape route diversity. Do not reward proximity to the gate pin,
     // and permit a U-turn there without creating a stop or a separate leg.
-    return { lat: pair[0], lon: pair[1], type, ...(type === 'via' ? { rank_candidates: false } : {}), ...(suffix ? { radius: 800 } : {}) };
+    return { lat: pair[0], lon: pair[1], type, ...(type === 'via' ? { rank_candidates: false } : {}), ...(suffix ? { radius: 800 } : {}), ...(type === 'break' ? { search_cutoff: 100 } : {}) };
   };
   const via = params.via ?? [];
   const locations = [point(params.origin, 'break'), ...via.map(value => point(value, 'via')), point(params.destination, 'break')];
@@ -115,13 +115,86 @@ export async function valhallaHighwayCellMasks(input,base,{fetchImpl=fetch,heade
   return{highway_cell_ids,tollway_cell_ids,tile_count:tileList.length,highway_feature_count,tollway_feature_count,road_source:'Valhalla static graph tiles',zoom};
 }
 
-export function validateValhallaResponse(data, maximum) {
+function decodePolyline6(value) {
+  if (typeof value !== 'string' || !value || value.length > 160000) throw Error('Valhalla returned an invalid route shape.');
+  const points = [];
+  let index = 0, lat = 0, lon = 0;
+  const coordinate = () => {
+    let result = 0, shift = 0, byte;
+    do {
+      if (index >= value.length || shift > 35) throw Error('Valhalla returned an invalid route polyline.');
+      byte = value.charCodeAt(index++) - 63;
+      if (byte < 0 || byte > 63) throw Error('Valhalla returned an invalid route polyline.');
+      result |= (byte & 31) << shift;
+      shift += 5;
+    } while (byte >= 32);
+    return (result & 1) ? ~(result >> 1) : result >> 1;
+  };
+  while (index < value.length) {
+    lat += coordinate(); lon += coordinate();
+    const point = [lon / 1e6, lat / 1e6];
+    if (!point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90 || points.length >= 20000) throw Error('Valhalla returned invalid route geometry.');
+    points.push(point);
+  }
+  if (points.length < 2) throw Error('Valhalla returned a route shape with fewer than two points.');
+  return points;
+}
+
+function endpointDistanceMeters(a, b) {
+  const radians = (a[1] + b[1]) * Math.PI / 360;
+  return 111195 * Math.hypot(a[1] - b[1], (a[0] - b[0]) * Math.cos(radians));
+}
+
+function endpointPair(value) {
+  if (typeof value !== 'string') return null;
+  const pair = value.split(',').map(Number);
+  return pair.length === 2 && pair.every(Number.isFinite) && Math.abs(pair[0]) <= 90 && Math.abs(pair[1]) <= 180 ? [pair[1], pair[0]] : null;
+}
+
+function responseEndpointValidation(candidate, requested) {
+  const trip = candidate?.trip ?? candidate;
+  const legs = trip?.legs;
+  if (!Array.isArray(legs) || !legs.length) return {valid: false, reason: 'route has no legs'};
+  const first = decodePolyline6(legs[0].shape)[0];
+  const lastPoints = decodePolyline6(legs.at(-1).shape);
+  const last = lastPoints.at(-1);
+  const locations = Array.isArray(trip.locations) ? trip.locations : [];
+  const explicit = {origin: endpointPair(requested?.origin), destination: endpointPair(requested?.destination)};
+  const expected = {
+    origin: explicit.origin ?? (Number.isFinite(locations[0]?.lat) && Number.isFinite(locations[0]?.lon) ? [locations[0].lon, locations[0].lat] : null),
+    destination: explicit.destination ?? (Number.isFinite(locations.at(-1)?.lat) && Number.isFinite(locations.at(-1)?.lon) ? [locations.at(-1).lon, locations.at(-1).lat] : null)
+  };
+  const actual = {origin: first, destination: last}, distances = {};
+  for (const side of ['origin', 'destination']) {
+    if (!expected[side]) continue;
+    distances[side] = endpointDistanceMeters(actual[side], expected[side]);
+    if (distances[side] > 100) return {valid: false, reason: side + ' endpoint is ' + distances[side].toFixed(1) + ' m from the requested point (maximum 100 m)', expected, actual, distances};
+  }
+  // Standalone response fixtures from before endpoint protection may not carry
+  // locations. Live worker/bridge calls always pass the reviewed request params.
+  if (!expected.origin || !expected.destination) {
+    if (!requested && !locations.length) return {valid: true, verified: false, expected, actual, distances};
+    return {valid: false, reason: 'missing original Start or Destination coordinates for endpoint verification', expected, actual, distances};
+  }
+  return {valid: true, expected, actual, distances};
+}
+
+export function validateValhallaResponse(data, maximum, requested = null) {
   if (!data || typeof data !== 'object' || !data.trip || !Array.isArray(data.trip.legs) || !data.trip.legs.length) throw Error('Valhalla returned no route.');
   const alternates = Array.isArray(data.alternates) ? data.alternates : [];
   if (alternates.length + 1 > maximum) throw Error('Valhalla returned more routes than requested.');
-  for (const candidate of [data, ...alternates]) {
+  const candidates = [data, ...alternates], rejected = [], accepted = [];
+  for (const [index, candidate] of candidates.entries()) {
     const trip = candidate.trip ?? candidate;
     if (!Array.isArray(trip.legs) || !trip.legs.length || trip.legs.some(leg => typeof leg.shape !== 'string' || !Number.isFinite(leg.summary?.length) || !Number.isFinite(leg.summary?.time))) throw Error('Valhalla returned incomplete route geometry or measurements.');
+    const endpoint = responseEndpointValidation(candidate, requested);
+    if (!endpoint.valid) rejected.push({candidate:index + 1,reason:endpoint.reason});
+    else accepted.push(candidate);
   }
-  return data;
+  if (!accepted.length) throw Error('Valhalla returned no route within 100 m of the requested Start/Destination; rejected '+rejected.length+' candidate(s): '+rejected.map(item=>'candidate '+item.candidate+' '+item.reason).join('; ')+'.');
+  if (!rejected.length) return data;
+  const first = accepted[0], result = first === data ? {...data} : {...first};
+  result.alternates = accepted.slice(1);
+  result.route_validation = {accepted_count:accepted.length,rejected_count:rejected.length,rejected,endpoint_tolerance_m:100};
+  return result;
 }
