@@ -16,7 +16,7 @@ const context={
   state:{map_cell_evidence:[]},map:{getPane:()=>({style:{}}),createPane(){}},mapPick:null,
   knownAvmLayer:null,knownAvmRenderer:null,knownAvmDrawEpoch:0,
   window:{L:null},requestAnimationFrame:callback=>frames.push(callback),
-  $:id=>id==='show-all-known-avm-cells'?control:{},current:()=>null,
+  $:id=>id==='show-all-known-avm-cells'?control:{},current:()=>null,displayedRouteCells:route=>route?.cells??[],
   validMapEstimate:value=>Number.isFinite(value)&&value>0,mapEvidenceKey:cell=>cell.cell_id,
   allKnownAvmCells:()=>cells,color:()=>'#35a86b',money:value=>'$'+value,
   shouldDrawAvmCell:()=>true,cellFillOpacity:()=>.7,bindAvmCellTooltip:(layer,cell,label,options)=>layer.bindTooltip(label,options),

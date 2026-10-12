@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source=readFileSync('dist/app.js','utf8'),html=readFileSync('dist/index.html','utf8');
 assert.ok(html.indexOf('id="route-directions"')>html.indexOf('class="map-legend"'));
 assert.ok(html.indexOf('id="route-directions"')<html.indexOf('id="map-notes"'));
-assert.match(source,/function renderCandidates\(\)\{\s*renderRouteDirections\(\)/);
+assert.match(source,/if\(!options\?\.displayOnly\)renderRouteDirections\(\)/,'normal candidate rendering refreshes directions while display-only controls preserve them');
 const nodes=new Map();
 function node(){return{children:[],style:{},events:{},hidden:false,textContent:'',value:'',addEventListener(name,callback){this.events[name]=callback;},before(){},after(){},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;},setAttribute(){},removeAttribute(){}};}
 const get=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};

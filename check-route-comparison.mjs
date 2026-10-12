@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {performance} from 'node:perf_hooks';
+
+const nodes=new Map();let requests=0;
+function node(){return{children:[],style:{},listeners:{},attributes:{},hidden:false,checked:false,className:'',classList:{toggle(){}},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(name,value){this.attributes[name]=String(value);},toggleAttribute(name,force){if(name==='hidden')this.hidden=force;},click(){this.listeners.click?.({stopPropagation(){}});}};}
+const get=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
+const ui={document:{getElementById:get,createElement:node,createElementNS:node,createTextNode:text=>({textContent:text,children:[]})},fetch(){requests++;throw Error('Route comparison must never send provider requests');}};ui.window=ui;
+vm.createContext(ui);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),ui);
+const app=ui.SurviveDrive,state=app.getState(),make=(id,geometry)=>({id,name:id,geometry,length_m:3300,duration_s:300,cells:[]}),a=make('a',[[0,0],[.01,0],[.02,0],[.03,0]]),b=make('b',[[0,0],[.005,0],[.01,0],[.015,.005],[.02,0],[.025,0],[.03,0]]);
+const overlap=app.exactRouteOverlap(a,b);assert.ok(Math.abs(overlap.length_m-2223.9)<2);assert.equal(overlap.segments.length,2,'shared pieces merge despite different point spacing');
+assert.equal(app.exactRouteOverlap(a,make('reverse',[...a.geometry].reverse())).segments.length,3,'the same path in reverse shares its exact geometry');
+assert.equal(app.exactRouteOverlap(a,make('cross',[[.015,-.01],[.015,.01]])).segments.length,0,'a crossing point is not shared route length');
+assert.equal(app.exactRouteOverlap(a,make('nearby',[[0,.0000001],[.03,.0000001]])).segments.length,0,'even a centimetre-scale offset is not exact overlap');
+assert.equal(app.exactRouteOverlap(a,make('parallel',[[0,.0001],[.03,.0001]])).segments.length,0,'parallel nearby roads must not become purple');
+assert.ok(Math.abs(app.exactRouteOverlap(a,make('partial',[[.004,0],[.006,0]])).length_m-222.39)<1,'partial shared segments are clipped to their true overlap');
+assert.ok(Math.abs(app.exactRouteOverlap(a,make('loop',[[0,0],[.01,0],[0,0],[.01,0]])).length_m-1111.95)<1,'duplicate matches do not double count a segment');
+assert.equal(app.exactRouteOverlap(make('date-a',[[179.99,40],[-179.99,40]]),make('date-b',[[179.99,40],[180,40],[-179.99,40]])).segments.length,1,'different dateline point spacing preserves overlap');
+for(const bad of [undefined,make('missing',[]),make('zero',[[0,0],[0,0]]),make('bad',[[0,0],[NaN,1]]),make('out',[[0,0],[181,1]])])assert.throws(()=>app.exactRouteOverlap(a,bad),/complete saved geometry/);
+const long=make('long',Array.from({length:4000},(_,i)=>[i*.00001,0])),started=performance.now();assert.ok(app.exactRouteOverlap(long,long).segments.length>3900);assert.ok(performance.now()-started<5000,'large comparisons remain practical');
+
+for(const name of ['renderRouteDirections','renderMetrics','renderCells','renderChoice','renderEvaluationFlow','renderPoolScreening','updateNextAction','automaticRouteEvidenceSummary','drawTripMarkers','drawKnownAvmLayer','drawRedExclusionZoneLayer','drawMapEvidence','renderMapPickControls','renderRouteRegenerationNotice','renderKnownAvmCellControl','scheduleMapLayoutRefresh','closeRouteCellHover'])ui[name]=()=>null;
+ui.routeDescriptor=(route,index)=>'Route '+(index+1);ui.routeGateLabel=()=> 'Saved gates';ui.knownExclusionZoneDistance=()=>0;ui.authorityRanges=()=>[];ui.buildAvmDisplayGroups=()=>new Map();ui.routeFitsVisibleMap=()=>false;
+let viewportFits=0;ui.fitRouteMapToViewport=()=>viewportFits++;
+const c=make('c',[[0,0],[.015,-.005],[.03,0]]),d=make('d',a.geometry.map(point=>[...point]));a.route_directions={steps:[{shape_index:1,instruction:'Turn'}]};state.routes=[a,b,c,d];state.active=2;state.choice={candidate_id:'c'};state.poolScreening.enabled_route_ids=['a','c'];state.poolScreening.results=state.routes.map((route,i)=>({route_id:route.id,rank:i+1,red_distance_m:0,unknown_distance_m:0,known_coverage_label:'100%',weighted_mean_ppsqft:null}));state.poolScreening.plan={status:'prepared',maximum_attempts:1};
+const original=JSON.stringify(state);
+const drawn=[],removed=[],bounds=[],panes=new Map();
+function layer(points,options={}){return{points,options,on(){return this;},addTo(parent){this.parent=parent;drawn.push(this);return this;},bindTooltip(){return this;},setStyle(style){Object.assign(this.options,style);return this;},getBounds(){return this.points;}};}
+const mockMap={removeLayer(item){removed.push(item);},getPane(name){return panes.get(name);},createPane(name){const pane={style:{}};panes.set(name,pane);return pane;},fitBounds(value){bounds.push(value);},on(){}};
+ui.L={layerGroup:()=>layer(null),polyline:layer,latLngBounds:points=>points,divIcon:options=>options,marker:(point,options)=>layer(point,options)};ui.mockMap=mockMap;vm.runInContext('map=mockMap;',ui);
+app.setCandidateDisplayMode('families');const list=get('candidate-list');
+const checkboxes=()=>list.children.flatMap(family=>family.children.filter(item=>item.className?.startsWith('candidate-card-wrap')).map(card=>card.children.at(-1).children[0]));
+assert.equal(checkboxes().length,3,'every visible family card has its own comparison checkbox');
+let checkbox=checkboxes()[0];checkbox.checked=true;checkbox.listeners.change();assert.deepEqual(Array.from(app.getRouteComparisonSelections()),['a']);assert.equal(app.getRouteComparison(),null,'one checked route does not start comparison');
+list.children[0].children[2].click();let memberCheck=list.children[0].children[3].children[0].children.at(-1).children[0];memberCheck.checked=true;memberCheck.listeners.change();assert.deepEqual(Array.from(app.getRouteComparisonSelections()),['a','d'],'expanded family members can be compared independently of their representative');assert.equal(state.active,2);memberCheck=list.children[0].children[3].children[0].children.at(-1).children[0];memberCheck.checked=false;memberCheck.listeners.change();
+assert.equal(app.getRouteComparison(),null,'unchecking a member automatically stops comparison');drawn.length=0;bounds.length=0;viewportFits=0;
+checkbox=checkboxes()[1];checkbox.checked=true;checkbox.listeners.change();assert.equal(checkboxes()[2].disabled,true,'a third card cannot be checked');assert.equal(app.setRouteComparisonChecked('c',true),false);
+assert.equal(app.getRouteComparison().routes[0],a);assert.equal(app.getRouteComparison().routes[1],b,'checking the second card immediately compares the pair');assert.equal(state.active,2,'comparison never changes the selected map route');assert.equal(viewportFits,1);assert.equal(bounds.length,1,'map fits both complete paths');assert.equal(get('end-route-comparison').hidden,false);
+assert.ok(!readFileSync('dist/index.html','utf8').includes('id="compare-route-pair"'),'the redundant compare button is removed');
+const purple=drawn.find(item=>item.options.color==='#7138c9');assert.equal(purple.options.opacity,1);assert.equal(purple.options.weight,3);assert.equal(purple.options.pane,'route-comparison');assert.equal(panes.get('route-comparison').style.zIndex,480,'overlap is above the route and highway layers');
+assert.equal(JSON.stringify(state),original,'comparison checkboxes and rendering preserve rankings, inclusion, decision, and authorization state');
+ui.drawMap({redrawZones:false});assert.ok(removed.includes(purple.parent),'map redraw clears old comparison layers');assert.ok(drawn.filter(item=>item.options.color==='#7138c9').length>=2,'map redraw restores the comparison');assert.equal(vm.runInContext('routeLayer.options.opacity',ui),0,'unrelated active route is hidden under the pair');
+app.setRouteComparisonChecked('b',false);assert.equal(app.getRouteComparison(),null);assert.equal(get('end-route-comparison').hidden,true);assert.equal(vm.runInContext('routeLayer.options.opacity',ui),.48,'ending comparison restores the normal route');
+app.setRouteComparisonChecked('b',true);const priorComparison=app.getRouteComparison();b.geometry[1][1]=.0002;ui.renderCandidates({displayOnly:true});assert.notEqual(app.getRouteComparison(),priorComparison,'geometry changes automatically replace stale overlap');assert.equal(app.getRouteComparison().geometryKeys[1],JSON.stringify(b.geometry));
+get('end-route-comparison').click();assert.equal(app.getRouteComparison(),null);assert.deepEqual(Array.from(app.getRouteComparisonSelections()),[],'End comparison unchecks the pair so comparison exists exactly when two routes are checked');
+app.setRouteComparisonChecked('a',true);app.setRouteComparisonChecked('b',true);
+state.routes=[a,c];ui.renderCandidates({displayOnly:true});assert.deepEqual(Array.from(app.getRouteComparisonSelections()),['a'],'discarded candidates cannot remain checked');
+state.active=0;ui.renderDirectionManeuvers();assert.equal(vm.runInContext('directionManeuverMarkers.size',ui),1);
+get('toggle-turn-bubbles').click();assert.equal(app.getTurnBubblesVisible(),false);assert.equal(get('toggle-turn-bubbles').textContent,'Show turn bubbles');assert.equal(vm.runInContext('directionManeuverMarkers.size',ui),0);ui.drawMap({redrawZones:false});assert.equal(vm.runInContext('directionManeuverMarkers.size',ui),0,'hidden turn bubbles stay hidden through redraw');
+get('toggle-turn-bubbles').click();assert.equal(app.getTurnBubblesVisible(),true);assert.equal(vm.runInContext('directionManeuverMarkers.size',ui),1,'showing bubbles restores verified turns');
+delete ui.L;app.setRouteComparisonChecked('c',true);assert.ok(get('fallback-svg').children.some(item=>item.attributes['aria-label']==='Comparison A · a'),'offline geometry fallback also draws the pair automatically');
+assert.equal(requests,0);console.log('Route comparison passed: exact/partial/split/reversed shared paths, crossing/nearby exclusions, dateline, 4000 points, native checkboxes and two-route limit, map colors/opaque thin overlap, bounds/redraw/exit, stale geometry cleanup, persistent turn-bubble toggle, fallback geometry, and unchanged ranking/authorization state. Provider calls: 0.');
