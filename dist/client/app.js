@@ -249,6 +249,7 @@ function poolRankingReviewPresented(){const screen=state.poolScreening;return !!
 function nextActionVisible(element){if(!element||element.disabled||element.hidden||element.getAttribute?.('aria-disabled')==='true'||element.isConnected===false)return false;for(let parent=element.parentElement;parent;parent=parent.parentElement){if(parent.hidden)return false;if(parent.localName==='details'&&!parent.open&&element.localName!=='summary')return false;}return true;}
 function clearNextActionTarget(){nextActionTarget?.classList.remove('next-action-target');nextActionScope?.classList.remove('next-action-scope');for(const element of nextActionModifiers)element.classList.remove('next-action-modifier');for(const [element,original]of nextActionDescriptions){if(original===null)element.removeAttribute?.('aria-describedby');else element.setAttribute?.('aria-describedby',original);}nextActionDescriptions.clear();nextActionBadge?.remove?.();nextActionPointer?.remove?.();nextActionTarget=null;nextActionScope=null;nextActionModifiers=[];nextActionBadge=null;nextActionPointer=null;nextActionLayoutKey='';}
 function updateNextAction(){
+  window.RouteGuidance?.schedule();
   if(typeof updateCensusRingBudget==='function')updateCensusRingBudget();
   renderWorkflowStatus();
   const panel=$('next-action'),text=$('next-action-text');if(!panel||!text)return null;
