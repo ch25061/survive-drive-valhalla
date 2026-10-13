@@ -91,7 +91,9 @@ export function valhallaRequestHeaders(secret,accept='application/json') {
 export function endpointCheckPayload(input) {
   const params = {...input,via:[],alternatives:0,departureTime:'any'};
   const route = valhallaPayload(params);
-  return {locations:route.locations.map(({lat,lon})=>({lat,lon,radius:1600,search_cutoff:1600})),costing:'auto',costing_options:route.costing_options,verbose:true};
+  // A zero radius asks for the nearest eligible road, rather than every edge
+  // within 1.6 km. search_cutoff bounds that search; acceptance stays at 100 m.
+  return {locations:route.locations.map(({lat,lon})=>({lat,lon,radius:0,search_cutoff:1600})),costing:'auto',costing_options:route.costing_options,verbose:true};
 }
 export function endpointCheckResult(data,payload) {
   if(!Array.isArray(data)||data.length!==2)throw Error('The driving-road check returned unreadable results.');

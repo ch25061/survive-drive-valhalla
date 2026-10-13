@@ -35,8 +35,8 @@ export function createHostedGateway({secret,fetchImpl=fetch,regions=[],readRegio
         if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']??'')){req.resume();return send(res,415,{error:'JSON pin check required.'});}
         const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>50000)return send(res,413,{error:'Pin check exceeds the size limit.'});chunks.push(chunk);}
         const payload=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        if(payload?.costing!=='auto'||payload.verbose!==true||!Array.isArray(payload.locations)||payload.locations.length!==2||payload.locations.some(p=>!Number.isFinite(p.lat)||Math.abs(p.lat)>90||!Number.isFinite(p.lon)||Math.abs(p.lon)>180||p.radius!==1600||p.search_cutoff!==1600))throw Error('Invalid pin check.');
-        body=Buffer.from(JSON.stringify({locations:payload.locations.map(({lat,lon})=>({lat,lon,radius:1600,search_cutoff:1600})),costing:'auto',costing_options:payload.costing_options,verbose:true}));
+        if(payload?.costing!=='auto'||payload.verbose!==true||!Array.isArray(payload.locations)||payload.locations.length!==2||payload.locations.some(p=>!Number.isFinite(p.lat)||Math.abs(p.lat)>90||!Number.isFinite(p.lon)||Math.abs(p.lon)>180||p.radius!==0||p.search_cutoff!==1600))throw Error('Invalid pin check.');
+        body=Buffer.from(JSON.stringify({locations:payload.locations.map(({lat,lon})=>({lat,lon,radius:0,search_cutoff:1600})),costing:'auto',costing_options:payload.costing_options,verbose:true}));
         target=new URL(engineForPoints(payload.locations,activeRegions));target.pathname='/locate';
       }else if(url.pathname==='/tile'&&req.method==='GET'&&url.search.length<=1500){
         if([...url.searchParams.keys()].length!==1||!url.searchParams.has('json'))throw Error('Invalid road tile.');

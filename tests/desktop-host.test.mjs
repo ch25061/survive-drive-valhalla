@@ -25,7 +25,7 @@ try{
   assert.equal((await fetch(origin+'/tile?json='+tile,{headers:authorization})).status,200);
   assert.equal(requests[1].url.startsWith('http://127.0.0.1:8002/tile?'),true);
   assert.equal((await fetch(origin+'/tile?json='+encodeURIComponent(JSON.stringify({tile:{z:12,x:-1,y:2}})),{headers:authorization})).status,400);
-  const pinCheck={locations:[{lat:41,lon:-87,radius:1600,search_cutoff:1600},{lat:42,lon:-87,radius:1600,search_cutoff:1600}],costing:'auto',verbose:true};
+  const pinCheck={locations:[{lat:41,lon:-87,radius:0,search_cutoff:1600},{lat:42,lon:-87,radius:0,search_cutoff:1600}],costing:'auto',verbose:true};
   assert.equal((await fetch(origin+'/locate',{method:'POST',headers:{...authorization,'Content-Type':'application/json'},body:JSON.stringify(pinCheck)})).status,200);
   assert.equal(requests.at(-1).url,'http://127.0.0.1:8002/locate');
   assert.deepEqual(JSON.parse(requests.at(-1).options.body),pinCheck);

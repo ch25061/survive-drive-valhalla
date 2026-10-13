@@ -7,6 +7,7 @@ import worker from './dist/server/index.js';
 const params={origin:'41.9015149,-87.830546',destination:'41.8411608,-87.665697'};
 const payload=endpointCheckPayload(params);
 assert.equal(payload.locations.length,2);assert.equal(payload.locations[0].search_cutoff,1600);assert.equal(payload.costing,'auto');assert.equal(payload.alternates,undefined);
+assert(payload.locations.every(point=>point.radius===0),'request only the nearest eligible road; a broad radius creates megabytes of needless graph metadata');
 const edge=(lat,lon,car=true)=>({correlated_lat:lat,correlated_lon:lon,edge:{access:{car}}});
 const offroad=[{edges:[edge(41.89996,-87.826916),edge(41.9015149,-87.830546,false)]},{edges:[edge(41.84116,-87.665759)]}];
 const result=endpointCheckResult(offroad,payload);
