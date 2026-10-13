@@ -210,3 +210,34 @@ body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-tri
 .guided-floating-choices .guided-explanation>div,.guided-floating-choices .guided-explanation>details{padding:6px 0;border:0;border-top:1px solid hsla(var(--mode-panel-hue),45%,35%,.2);border-radius:0;background:transparent}
 .guided-floating-choices .guided-map-help{padding-top:6px;margin-top:8px;font-size:12px}
 #guided-decision-feedback:empty{display:none}
+/* Keep the gate inputs and GO together; teaching opens separately. */
+#shotgun-settings{padding:10px}
+#shotgun-settings>summary{font-size:14px;line-height:1.3}
+#shotgun-settings>summary.next-action-target{scroll-margin-top:18px!important;scroll-margin-bottom:18px!important}
+.shotgun-help{margin:6px 0 8px;font-size:12px}
+.shotgun-help>summary{cursor:pointer;font-weight:700;color:#145877;padding:4px 0}
+.shotgun-help-content{font-size:13px;line-height:1.5;padding:8px 0}
+.shotgun-help-content h4{font-size:13px;margin:14px 0 5px;color:#145877}
+.shotgun-help-content p{margin:0 0 9px}
+.shotgun-parameter-controls{scroll-margin-top:18px;scroll-margin-bottom:18px}
+.shotgun-parameter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.shotgun-parameter-grid label{min-width:0;margin:0;font-size:12px;line-height:1.3}
+.shotgun-parameter-grid label>span{display:block;min-height:32px}
+.shotgun-parameter-grid input,.shotgun-parameter-grid select{width:100%;min-width:0;min-height:40px;height:40px;padding:6px 8px;margin:4px 0 0;font-size:15px}
+.shotgun-quick-help{font-size:12px;line-height:1.35;margin:8px 0!important}
+#shotgun-parameter-controls #suggest-shotgun{width:100%;min-height:44px;padding:8px;font-size:13px;line-height:1.3;margin:0}
+#shotgun-parameter-controls .next-action-pointer{min-width:28px;min-height:26px;font-size:18px;padding:2px 4px;margin-right:5px;border-width:2px}
+#shotgun-parameter-controls .next-action-badge{font-size:11px;padding:2px 5px;margin-left:5px;min-height:24px}
+#shotgun-search-budget{font-size:12px;line-height:1.4;margin:10px 0}
+.guided-floating-choices [hidden]{display:none!important}
+.guided-floating-choices .guided-more-help{display:block;width:100%;text-align:left;min-height:36px;padding:6px 8px;font-size:12px}
+#guided-gate-help{display:block;width:100%;text-align:left;font-size:12px;min-height:36px;padding:5px 8px;margin:6px 0 8px}
+#guided-help-back{margin:0 0 8px;font-size:12px;min-height:36px;padding:5px 8px}
+.guided-help-menu details{margin:6px 0;border-top:1px solid hsla(var(--mode-panel-hue),45%,35%,.25);padding-top:6px}
+.guided-help-menu summary{font-size:12px;font-weight:700;cursor:pointer;color:inherit;padding:5px 0;line-height:1.35}
+.guided-help-menu summary:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.guided-help-menu p,.guided-help-menu .hint{font-size:12px;line-height:1.45;color:inherit;margin:7px 0}
+.guided-help-menu .shotgun-help-content{padding:0}
+.guided-help-menu[data-topic="gates"] #guided-coach{display:none}
+.guided-help-menu[data-topic="gates"] #shotgun-help>summary{display:none}
+.guided-floating-choices .guided-decision{margin:6px 0;border-top:1px solid hsla(var(--mode-panel-hue),45%,35%,.25);padding-top:6px}

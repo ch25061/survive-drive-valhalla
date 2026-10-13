@@ -51,20 +51,41 @@
   }
   root.RouteDecisionTree={decisionsFor};
   const doc=root.document;if(!doc?.getElementById('guided-floating-choices'))return;
-  let latestTree=null,descriptionNumber=0;
+  let latestTree=null,descriptionNumber=0,panelView='choices',helpTopic='step',returnTarget=null;
   const $=id=>doc.getElementById(id);
   function closeFloatingChoices(returnFocus=false){
     const panel=$('guided-floating-choices');if(!panel)return;
     panel.hidden=true;$('guided-dock-explain')?.setAttribute('aria-expanded','false');
-    if(returnFocus)$('guided-dock-explain')?.focus({preventScroll:true});
+    $('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');
+    if(returnFocus)(returnTarget?.id==='guided-more-help'?$('guided-dock-explain'):returnTarget||$('guided-dock-explain'))?.focus({preventScroll:true});
+  }
+  function renderPanelView(){
+    const help=panelView==='help';
+    $('guided-floating-list').hidden=help;$('guided-more-help').hidden=help;$('guided-help-menu').hidden=!help;$('guided-help-back').hidden=!help;
+    $('guided-help-menu').dataset.topic=helpTopic;
+    $('guided-floating-title').textContent=help?(helpTopic==='gates'?'Understand your route gates':'Understand this step'):latestTree?.title||'Your choices';
+    $('guided-floating-description').textContent=help?'Read the overview, then open any topic for details and the reason behind it.':latestTree?.description||'';
+  }
+  function openHelp(topic='step',trigger=$('guided-more-help')){
+    panelView='help';helpTopic=topic;returnTarget=trigger;
+    update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
+    if(topic==='gates')$('shotgun-help').open=true;
+    $('guided-floating-choices').hidden=false;$('guided-dock-explain')?.setAttribute('aria-expanded','true');
+    $('guided-floating-choices').scrollTop=0;trigger?.setAttribute('aria-expanded','true');
+    $('guided-floating-title')?.focus({preventScroll:true});
   }
   function toggleFloatingChoices(){
     const panel=$('guided-floating-choices');if(!panel||root.RouteGuidance?.getMode?.()==='super')return;
-    if(!panel.hidden){closeFloatingChoices(true);return;}
+    if(!panel.hidden&&panelView==='choices'){closeFloatingChoices(true);return;}
+    panelView='choices';returnTarget=$('guided-dock-explain');
+    $('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');
     update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
     panel.hidden=false;$('guided-dock-explain')?.setAttribute('aria-expanded','true');
     $('guided-floating-title')?.focus({preventScroll:true});
   }
+  $('guided-more-help')?.addEventListener('click',()=>openHelp());
+  $('guided-gate-help')?.addEventListener('click',()=>{if(!$('guided-floating-choices').hidden&&panelView==='help'&&helpTopic==='gates')closeFloatingChoices(true);else openHelp('gates',$('guided-gate-help'));});
+  $('guided-help-back')?.addEventListener('click',()=>{panelView='choices';returnTarget=$('guided-dock-explain');$('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');renderPanelView();$('guided-floating-title')?.focus({preventScroll:true});});
   $('guided-floating-close')?.addEventListener('click',()=>closeFloatingChoices(true));
   doc.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('guided-floating-choices')?.hidden&&$('guided-floating-choices')){event.preventDefault();event.stopPropagation();closeFloatingChoices(true);}});
   const guideCard=doc.querySelector('.guide-panel-stack'),floatingPanel=$('guided-floating-choices');
@@ -75,7 +96,9 @@
     for(let p=target;p;p=p.parentElement){if(p.localName==='details')p.open=true;if(p.classList.contains('guided-advanced-control'))p.classList.add('guided-choice-revealed');}
     const focus=target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary,a[href]')||target;
     if(!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
-    target.scrollIntoView({behavior:'smooth',block:'center'});focus.focus({preventScroll:true});return true;
+    const gateControls=target.id==='suggest-shotgun'?$('shotgun-parameter-controls'):null;
+    const gateHeading=gateControls?doc.querySelector('#shotgun-settings > summary'):null;
+    (gateHeading||gateControls||target).scrollIntoView({behavior:'smooth',block:gateControls?'start':'center'});focus.focus({preventScroll:true});return true;
   }
   function chooseBranch(id){
     const app=root.SurviveDrive,state=app?.getState?.()||{},context=app?.getGuidanceContext?.()||{};
@@ -95,8 +118,9 @@
   }
   function update(state,context){
     latestTree=decisionsFor(state,context);const key=JSON.stringify(latestTree),guided=root.RouteGuidance?.getMode?.()!=='super';
-    if(!guided)closeFloatingChoices();
-    if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-title').textContent=latestTree.title;$('guided-floating-description').textContent=latestTree.description;$('guided-floating-list').replaceChildren(cards(latestTree,true));$('guided-decision-feedback').textContent='';}
+    if(!guided&&panelView!=='help')closeFloatingChoices();
+    if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-list').replaceChildren(cards(latestTree,true));$('guided-decision-feedback').textContent='';}
+    renderPanelView();
   }
-  root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices};
+  root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices,openHelp};
 })(typeof window==='undefined'?globalThis:window);
