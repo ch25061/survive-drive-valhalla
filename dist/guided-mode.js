@@ -176,6 +176,8 @@
     const panel=doc.querySelector('.experience-bar'),opacity=$('mode-panel-opacity'),hue=$('mode-panel-color'),ink=$('mode-panel-text');
     if(!panel?.style?.setProperty||!opacity||!hue||!ink)return;
     const preferenceKey='route-screwtiny.mode-panel.v1';
+    // One preference set styles both floating guide panels.
+    const panels=[panel,$('guided-dock')].filter(element=>element?.style?.setProperty);
     // Each pair keeps the selected and unselected mode texts coordinated.
     const inks=[['Black','#08060d','#36303f'],['Charcoal','#303038','#15151c'],['Navy','#0c2d5e','#5e3d0c'],['Indigo','#302070','#50601b'],['Purple','#4b1478','#37601b'],['Burgundy','#711d3d','#1d6355'],['Green','#164b32','#4b162f'],['White','#ffffff','#fff0dc']];
     const valid=(value,min,max,fallback)=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
@@ -184,11 +186,13 @@
     const colorName=value=>value<15||value>=345?'Red':value<45?'Orange':value<75?'Yellow':value<165?'Green':value<195?'Teal':value<255?'Blue':value<300?'Purple':'Pink';
     function apply(save){
       const appearance={opacity:valid(Number(opacity.value),10,100,65),hue:valid(Number(hue.value),0,360,0),ink:valid(Number(ink.value),0,7,4)},colors=inks[appearance.ink];
-      panel.style.setProperty('--mode-panel-hue',String(appearance.hue));panel.style.setProperty('--mode-panel-opacity',String(appearance.opacity/100));panel.style.setProperty('--mode-panel-text',colors[1]);panel.style.setProperty('--mode-panel-inactive-text',colors[2]);
       // A light text choice needs dark tinted surfaces and a dark halo.
       const lightText=appearance.ink===7;
-      panel.style.setProperty('--mode-panel-lightness',lightText?'22%':'85%');panel.style.setProperty('--mode-button-lightness',lightText?'20%':'94%');
-      panel.style.setProperty('--mode-panel-text-shadow',lightText?'0 0 2px #000,0 1px 3px #000':'0 0 3px #ffffff80');
+      for(const surface of panels){
+        surface.style.setProperty('--mode-panel-hue',String(appearance.hue));surface.style.setProperty('--mode-panel-opacity',String(appearance.opacity/100));surface.style.setProperty('--mode-panel-text',colors[1]);surface.style.setProperty('--mode-panel-inactive-text',colors[2]);
+        surface.style.setProperty('--mode-panel-lightness',lightText?'22%':'85%');surface.style.setProperty('--mode-button-lightness',lightText?'20%':'94%');
+        surface.style.setProperty('--mode-panel-text-shadow',lightText?'0 0 2px #000,0 1px 3px #000':'0 0 3px #ffffff80');
+      }
       setText('mode-panel-opacity-value',appearance.opacity+'%');setText('mode-panel-color-value',colorName(appearance.hue));setText('mode-panel-text-value',colors[0]);
       opacity.setAttribute('aria-valuetext',appearance.opacity+'% opaque');hue.setAttribute('aria-valuetext',colorName(appearance.hue));ink.setAttribute('aria-valuetext',colors[0]);
       if(save)try{root.localStorage.setItem(preferenceKey,JSON.stringify(appearance));}catch{}
