@@ -172,9 +172,33 @@
   $('lesson-purple').addEventListener('click',()=>{learned.purple=true;$('lesson-explanation').hidden=false;setText('lesson-explanation','Purple marks the exact shared path. The middle paths are separate, so they stay blue and vermilion. Uncheck either route to end this comparison.');renderLesson();});
   $('lesson-unknown').addEventListener('click',()=>{learned.unknown=true;$('lesson-explanation').hidden=false;setText('lesson-explanation','This grey cell has no usable property-value evidence. It remains unknown. A real new lookup requires a reviewed request and your approval; opening this example makes no request.');renderLesson();});
   // Application state notifications come from its existing next-action calculation.
+  function initPanelAppearance(){
+    const panel=doc.querySelector('.experience-bar'),opacity=$('mode-panel-opacity'),hue=$('mode-panel-color'),ink=$('mode-panel-text');
+    if(!panel?.style?.setProperty||!opacity||!hue||!ink)return;
+    const preferenceKey='route-screwtiny.mode-panel.v1';
+    // Each pair keeps the selected and unselected mode texts coordinated.
+    const inks=[['Black','#08060d','#36303f'],['Charcoal','#303038','#15151c'],['Navy','#0c2d5e','#5e3d0c'],['Indigo','#302070','#50601b'],['Purple','#4b1478','#37601b'],['Burgundy','#711d3d','#1d6355'],['Green','#164b32','#4b162f'],['White','#ffffff','#fff0dc']];
+    const valid=(value,min,max,fallback)=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
+    let saved={};try{saved=JSON.parse(root.localStorage.getItem(preferenceKey))||{};}catch{}
+    opacity.value=String(valid(saved.opacity,10,100,35));hue.value=String(valid(saved.hue,0,360,275));ink.value=String(valid(saved.ink,0,7,0));
+    const colorName=value=>value<15||value>=345?'Red':value<45?'Orange':value<75?'Yellow':value<165?'Green':value<195?'Teal':value<255?'Blue':value<300?'Purple':'Pink';
+    function apply(save){
+      const appearance={opacity:valid(Number(opacity.value),10,100,35),hue:valid(Number(hue.value),0,360,275),ink:valid(Number(ink.value),0,7,0)},colors=inks[appearance.ink];
+      panel.style.setProperty('--mode-panel-hue',String(appearance.hue));panel.style.setProperty('--mode-panel-opacity',String(appearance.opacity/100));panel.style.setProperty('--mode-panel-text',colors[1]);panel.style.setProperty('--mode-panel-inactive-text',colors[2]);
+      // A light text choice needs dark tinted surfaces and a dark halo.
+      const lightText=appearance.ink===7;
+      panel.style.setProperty('--mode-panel-lightness',lightText?'22%':'85%');panel.style.setProperty('--mode-button-lightness',lightText?'20%':'94%');
+      panel.style.setProperty('--mode-panel-text-shadow',lightText?'0 0 2px #000,0 1px 3px #000':'0 0 3px #ffffff80');
+      setText('mode-panel-opacity-value',appearance.opacity+'%');setText('mode-panel-color-value',colorName(appearance.hue));setText('mode-panel-text-value',colors[0]);
+      opacity.setAttribute('aria-valuetext',appearance.opacity+'% opaque');hue.setAttribute('aria-valuetext',colorName(appearance.hue));ink.setAttribute('aria-valuetext',colors[0]);
+      if(save)try{root.localStorage.setItem(preferenceKey,JSON.stringify(appearance));}catch{}
+    }
+    for(const control of [opacity,hue,ink])control.addEventListener('input',()=>apply(true));
+    apply(false);
+  }
   // Input listeners also cover address editing; no routing or approval handler is called here.
   doc.addEventListener('input',event=>{if(!event.target.closest('#guided-lesson'))schedule();});
   doc.addEventListener('change',event=>{if(!event.target.closest('#guided-lesson'))schedule();});
   root.RouteGuidance={guidanceFor,explainAction,schedule,update,setMode,getMode:()=>mode};
-  resetLesson();setMode(mode);
+  initPanelAppearance();resetLesson();setMode(mode);
 })(typeof window==='undefined'?globalThis:window);
