@@ -34,11 +34,13 @@ let t=tree({stage:'prepare',endpointCheck:{status:'blocked',points:[{pin:'origin
 t=tree({stage:'search',endpointCheck:{status:'unavailable'}},ctx);assert.equal(t.node,'connection');assert.ok(!choice(t,'search'));
 t=tree({stage:'search',draft:{shotgun:{batch:{status:'stopped_unknown'}}}},ctx);assert.equal(t.node,'search-unknown');assert.ok(!choice(t,'edit'));assert.match(t.description,/Do not replay/);
 t=tree(base,{...ctx,rankingReady:false});assert.equal(t.node,'before-ranking');assert.ok(!choice(t,'choose'));assert.ok(!choice(t,'inspect'));assert.ok(choice(t,'orange'));assert.equal(choice(t,'rank').stage,'evaluate');
+assert.equal(choice(t,'appearance'),undefined,'route appearance stays a map-wide presentation control, not a guided-menu branch');
 t=tree({...base,poolScreening:{plan:{maximum_attempts:3}}},{...ctx,rankingReady:false,approvalTarget:'#approve-pool-screening'});assert.equal(choice(t,'plan').selector,'#approve-pool-screening');assert.equal(choice(t,'plan').kind,'focus');assert.ok(!choice(t,'choose'));
 t=tree(base,ctx);assert.equal(choice(t,'display').displayMode,'families');assert.ok(!choice(t,'compare'));assert.match(choice(t,'display').description,/Rankings do not change/);
+assert.equal(choice(t,'appearance'),undefined,'ranking does not create a separate appearance action in the guided menu');
 t=tree(base,{...ctx,displayMode:'families'});assert.equal(choice(t,'display').displayMode,'ranked');assert.ok(choice(t,'family-rules'));assert.match(choice(t,'compare').label,/two routes/);
 t=tree(base,{...ctx,displayMode:'families',comparisonCount:1});assert.match(choice(t,'compare').label,/second route/);assert.match(t.path.join(' '),/One comparison/);
-t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:true});assert.ok(!choice(t,'compare'));assert.ok(choice(t,'comparison-map'));assert.match(choice(t,'comparison-map').description,/exact shared/);assert.match(choice(t,'turns').label,/Hide/);
+t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:true});assert.ok(!choice(t,'compare'));assert.ok(choice(t,'comparison-map'));assert.match(choice(t,'comparison-map').description,/Blue and vermilion show the two paths\. Thin purple marks exact shared segments/,'comparison explanation keeps fixed route colors and the purple exact-overlap signal');assert.match(choice(t,'turns').label,/Hide/);assert.equal(choice(t,'appearance'),undefined);
 t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:false});assert.match(choice(t,'turns').label,/Show/);
 t=tree(base,{...ctx,displayMode:'families',comparableRouteCount:1});assert.equal(choice(t,'compare').enabled,false);
 t=tree(base,{...ctx,selectedRouteId:null});assert.equal(choice(t,'choose').enabled,false);assert.equal(choice(t,'inspect').enabled,false);

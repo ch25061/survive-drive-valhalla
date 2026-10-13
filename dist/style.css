@@ -247,3 +247,12 @@ body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-tri
 .guided-floating-choices .guided-choice-list li{padding:8px;border:1px solid hsla(var(--mode-panel-hue),55%,30%,.55);border-radius:7px;background:hsla(var(--mode-panel-hue),55%,var(--mode-panel-lightness,85%),.88);box-shadow:0 1px 2px #14223815}
 .guided-floating-choices .guided-choice-list p{margin:6px 2px 0;padding-bottom:2px}
 #shotgun-status{scroll-margin-top:18px}
+
+/* General map presentation controls stay beside the map in every workflow step. */
+.map-display-controls{padding:10px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#f8fbfd}
+.map-display-title{display:block;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.map-display-controls .map-toolbar-actions{justify-content:flex-start;gap:8px}
+.map-display-controls .quiet{margin:0}
+.map-display-controls .route-line-color-panel{right:auto;left:0}
+.route-comparison-map-controls:has(#end-route-comparison[hidden]):has(#route-comparison-map-legend[hidden]){display:none}
+@media(max-width:620px){.map-display-controls{padding:8px 10px}.map-display-controls .map-toolbar-actions{justify-content:flex-start}.map-display-controls .route-line-color-panel{left:auto;right:0}}
