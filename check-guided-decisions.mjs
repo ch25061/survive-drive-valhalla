@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+let requests=0;
+const env={fetch(){requests++;throw Error('Decision guidance must not send requests');}};
+vm.createContext(env);vm.runInContext(readFileSync('dist/guided-decisions.js','utf8'),env);
+const tree=env.RouteDecisionTree.decisionsFor,choice=(t,id)=>t.choices.find(c=>c.id===id);
+const routes=[{id:'a'},{id:'b'}],base={stage:'evaluate',routes,poolScreening:{status:'cache_only',results:[{route_id:'a',rank:1}]}},ctx={rankingReady:true,selectedRouteId:'a',selectedRouteValid:true,displayMode:'ranked',comparisonCount:0,comparableRouteCount:2};
+assert.equal(tree({stage:'prepare'},{}).node,'place-origin');
+assert.equal(tree({stage:'prepare'},{originReady:true}).node,'place-destination');
+const ready=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesLimited:true});assert.equal(ready.node,'trip-ready');assert.ok(choice(ready,'limited-start'));assert.ok(!choice(ready,'limited-destination'));
+for(const busy of [{busy:true},{catalogBusy:{start:true}},{gateGenerationPending:true},{poolScreening:{status:'running'}}]){const t=tree({...base,...busy},ctx);assert.equal(t.node,'working');assert.ok(!choice(t,'display'));assert.ok(!choice(t,'choose'));}
+let t=tree({stage:'prepare',endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:false}]}},ctx);assert.equal(t.node,'repair-pin');assert.equal(choice(t,'repair-map').selector,'#pick-origin');assert.match(t.description,/100 metres/);
+t=tree({stage:'search',endpointCheck:{status:'unavailable'}},ctx);assert.equal(t.node,'connection');assert.ok(!choice(t,'search'));
+t=tree({stage:'search',draft:{shotgun:{batch:{status:'stopped_unknown'}}}},ctx);assert.equal(t.node,'search-unknown');assert.ok(!choice(t,'edit'));assert.match(t.description,/Do not replay/);
+t=tree(base,{...ctx,rankingReady:false});assert.equal(t.node,'before-ranking');assert.ok(!choice(t,'choose'));assert.ok(!choice(t,'inspect'));assert.ok(choice(t,'orange'));assert.equal(choice(t,'rank').stage,'evaluate');
+t=tree({...base,poolScreening:{plan:{maximum_attempts:3}}},{...ctx,rankingReady:false,approvalTarget:'#approve-pool-screening'});assert.equal(choice(t,'plan').selector,'#approve-pool-screening');assert.equal(choice(t,'plan').kind,'focus');assert.ok(!choice(t,'choose'));
+t=tree(base,ctx);assert.equal(choice(t,'display').displayMode,'families');assert.ok(!choice(t,'compare'));assert.match(choice(t,'display').description,/Rankings do not change/);
+t=tree(base,{...ctx,displayMode:'families'});assert.equal(choice(t,'display').displayMode,'ranked');assert.ok(choice(t,'family-rules'));assert.match(choice(t,'compare').label,/two routes/);
+t=tree(base,{...ctx,displayMode:'families',comparisonCount:1});assert.match(choice(t,'compare').label,/second route/);assert.match(t.path.join(' '),/One comparison/);
+t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:true});assert.ok(!choice(t,'compare'));assert.ok(choice(t,'comparison-map'));assert.match(choice(t,'comparison-map').description,/exact shared/);assert.match(choice(t,'turns').label,/Hide/);
+t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:false});assert.match(choice(t,'turns').label,/Show/);
+t=tree(base,{...ctx,displayMode:'families',comparableRouteCount:1});assert.equal(choice(t,'compare').enabled,false);
+t=tree(base,{...ctx,selectedRouteId:null});assert.equal(choice(t,'choose').enabled,false);assert.equal(choice(t,'inspect').enabled,false);
+t=tree(base,{...ctx,selectedRouteValid:false});assert.equal(choice(t,'choose').enabled,false);
+t=tree({...base,poolScreening:{...base.poolScreening,plan:{maximum_attempts:5}}},{...ctx,approvalTarget:'#prepare-pool-evolution-ranking'});assert.equal(t.choices[0].id,'plan');assert.equal(choice(t,'plan').kind,'focus');assert.equal(choice(t,'plan').selector,'#prepare-pool-evolution-ranking');assert.ok(!choice(t,'evidence-plan'));assert.match(choice(t,'plan').description,/does not approve/);
+t=tree({...base,stage:'inspect',cell:'abc',inspection:{}},ctx);assert.ok(choice(t,'review-cell'));assert.equal(choice(t,'street-view').enabled,false);
+t=tree({...base,stage:'inspect',inspection:{}},{...ctx,streetViewReady:true});assert.equal(choice(t,'street-view').enabled,true);
+t=tree({...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:true});assert.ok(!choice(t,'choose'));assert.equal(choice(t,'phone').enabled,true);
+t=tree({...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:false});assert.equal(choice(t,'phone').enabled,false);
+t=tree({...base,choice:{candidate_id:'b'}},{...ctx,phoneReady:true});assert.ok(choice(t,'choose'));assert.ok(!choice(t,'phone'),'selected route must match the recorded choice');
+const before=JSON.stringify(base);tree(base,ctx);assert.equal(JSON.stringify(base),before);
+
+// Read the new context through the real app, including its existing ranking guard.
+const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',attributes:{},addEventListener(){},getAttribute(n){return this.attributes[n]??null;}});return nodes.get(id);};
+const appEnv={document:{getElementById:get},fetch:env.fetch};appEnv.window=appEnv;vm.createContext(appEnv);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),appEnv);
+const app=appEnv.SurviveDrive,state=app.getState();state.routes=[{id:'actual',geometry:[[-87.8,41.8],[-87.7,41.9]],cells:[],endpoint_validation:{valid:true}}];state.active=0;state.poolScreening.results=[{route_id:'actual',rank:1}];state.poolScreening.status='cache_only';get('origin').value='41.8, -87.8';get('destination').value='41.9, -87.7';
+const snapshot=JSON.stringify(state),context=app.getGuidanceContext();assert.equal(context.rankingReady,true);assert.equal(context.comparableRouteCount,1);assert.equal(context.originReady,true);assert.equal(context.destinationReady,true);assert.equal(context.selectedRouteId,'actual');assert.equal(context.selectedRouteValid,true);assert.equal(JSON.stringify(state),snapshot,'context reading must preserve evidence and route state');
+state.poolScreening.status='interrupted';state.poolScreening.generation=0;assert.equal(app.getGuidanceContext().rankingReady,false);state.poolScreening.generation=1;assert.equal(app.getGuidanceContext().rankingReady,true);
+state.routes[0].endpoint_validation.valid=false;assert.equal(app.getGuidanceContext().selectedRouteValid,false);
+state.avmPlan={maximum_attempts:1};assert.equal(app.getGuidanceContext().approvalTarget,'#send-avm');state.avmPlan=null;state.poolScreening.plan={selection_policy:{mode:'additional_known_anchor_gap_round'}};assert.equal(app.getGuidanceContext().approvalTarget,'#prepare-pool-evolution-ranking');
+assert.equal(requests,0);
+console.log('Decision tree passed: pins, limited gates, waiting, connection recovery, unknown outcomes, ranking guard, families, 0/1/2 comparison checks, turn visibility, inspection, pending-plan boundaries, selected/chosen distinction, phone prerequisites and read-only native context. Provider calls: 0.');

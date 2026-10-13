@@ -830,6 +830,7 @@ function clearRouteComparison({redraw=true,clearSelections=true}={}){
   if(clearSelections)routeComparisonSelections.clear();routeComparison=null;if(routeComparisonLayer&&map)map.removeLayer(routeComparisonLayer);routeComparisonLayer=null;refreshRouteLineStyle();renderRouteComparisonControls();renderDirectionManeuvers();if(redraw){if(map&&window.L)drawDisplayedRouteCellLayers();else if(current())drawFallback();}if(clearSelections)renderCandidates({displayOnly:true});
 }
 function renderRouteComparisonControls(){
+  window.RouteGuidance?.schedule();
   const ids=new Set(state.routes.filter(comparisonGeometryValid).map(route=>route.id));for(const id of routeComparisonSelections)if(!ids.has(id))routeComparisonSelections.delete(id);
   const routes=Array.from(routeComparisonSelections,id=>state.routes.find(route=>route.id===id)),keys=routes.map(route=>JSON.stringify(route.geometry));
   const changed=routes.length===2?(!routeComparison||routes.some((route,index)=>routeComparison.routes[index]!==route||routeComparison.geometryKeys[index]!==keys[index])):!!routeComparison;
@@ -904,6 +905,7 @@ function createCandidateCard({route,index:i,screening},{compact=false,expandable
     return wrapper;
 }
 function renderCandidates(options={}){
+  window.RouteGuidance?.schedule();
   renderRouteComparisonControls();
   if(!options?.displayOnly)renderRouteDirections();
   const el=$('candidate-list');el.replaceChildren();
@@ -2327,6 +2329,17 @@ for(const id of ['routing-mode','candidate-limit','route-highways','route-tolls'
 }
 for(const id of ['departure-mode','departure-time'])$(id).addEventListener('change',()=>{if(!state.busy)invalidateTripDraft();});
 $('streetview-nearby').addEventListener('click',tryNearbyStreetView);
+// Read-only workflow facts for Guided Mode. Existing guards remain authoritative.
+window.SurviveDrive.getGuidanceContext=()=>{
+  const pointReady=id=>{try{coordinates($(id).value);return true;}catch{return false;}},route=current(),screen=state.poolScreening;
+  const validation=route?.live_valhalla?routeEndpointValidation(route):route?.endpoint_validation;
+  return {originReady:pointReady('origin'),destinationReady:pointReady('destination'),rankingReady:!!poolScreenReady(),
+    startGatesLimited:!!shotgunSuggestion('start')&&!gateResolutionReady('start'),destinationGatesLimited:!!shotgunSuggestion('destination')&&!gateResolutionReady('destination'),
+    displayMode:candidateDisplayMode,comparisonCount:routeComparisonSelections.size,comparableRouteCount:state.routes.filter(comparisonGeometryValid).length,turnBubblesVisible,
+    selectedRouteId:route?.id??null,selectedRouteValid:!!route&&(route.live_valhalla?validation.valid===true&&validation.verified===true:validation?.valid!==false),
+    approvalTarget:state.avmPlan?'#send-avm':screen.plan?.selection_policy?.mode==='additional_known_anchor_gap_round'?'#prepare-pool-evolution-ranking':'#approve-pool-screening',
+    streetViewReady:$('streetview')?.getAttribute('aria-disabled')==='false',phoneReady:$('navigate-osmand')?.getAttribute('aria-disabled')==='false'};
+};
 window.SurviveDriveEndpointGuard={routeEndpointValidation,routeChoiceAllowed,makeOsmAndTrack};
 // Guard the delegated choose handler before it can record a stale or endpoint-invalid route.
 if(typeof document.addEventListener==='function')document.addEventListener('click',event=>{

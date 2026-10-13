@@ -95,6 +95,7 @@
     classify();setText('guided-step','STEP '+model.number+' OF 5');setText('guided-title',model.title);setText('guided-description',model.description);setText('guided-next',model.next);setText('guided-why',model.why);
     const target=model.target?doc.querySelector(model.target):doc.querySelector('.next-action-target');
     renderExplanation(model,state,target);
+    root.RouteDecisionTree?.update?.(state,root.SurviveDrive?.getGuidanceContext?.()||{});
     $('guided-show-next').disabled=model.busy||!target;
     $('guided-show-next').hidden=model.busy;
   }
@@ -149,7 +150,7 @@
     (groupFits?inlineHelp:target).scrollIntoView({behavior:'smooth',block:groupFits?'start':'center'});focus.focus({preventScroll:true});
   });
   $('guided-dock-show')?.addEventListener('click',()=>$('guided-show-next').click());
-  $('guided-dock-explain')?.addEventListener('click',()=>{$('guided-coach').scrollIntoView({behavior:'smooth',block:'start'});$('guided-title').focus({preventScroll:true});});
+  $('guided-dock-explain')?.addEventListener('click',()=>{const panel=$('guided-decisions')||$('guided-coach'),heading=$('guided-decision-title')||$('guided-title');panel.scrollIntoView({behavior:'smooth',block:'start'});heading.focus({preventScroll:true});});
   const lesson=$('guided-lesson'),learned={pair:false,purple:false,uncheck:false,unknown:false};
   function renderLesson(){
     const a=$('lesson-route-a').checked,b=$('lesson-route-b').checked,pair=a&&b;
