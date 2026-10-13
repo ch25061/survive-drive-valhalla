@@ -43,6 +43,15 @@ f.act('lesson-close');assert.equal(f.node('practice-launcher').focused,true);
 assert.equal(JSON.stringify(f.state),realState,'practice does not insert example routes or evidence into the real trip');
 assert.deepEqual(f.counts(),{requests:0,submissions:0});
 const html=readFileSync('dist/index.html','utf8'),build=readFileSync('build.mjs','utf8');
+const guide=f.env.RouteGuidance.guidanceFor;
+const blocked={stage:'search',endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:false,nearest_road_distance_m:346.63},{pin:'destination',within_limit:true,nearest_road_distance_m:5.14}]}};
+let advice=guide(blocked,'');assert.match(advice.title,/starting pin/);assert.match(advice.description,/347 metres/);assert.equal(advice.target,'#pick-origin');assert.equal(advice.targetStage,'prepare');assert.doesNotMatch(advice.title,/wait|finish/i);
+advice=guide({...blocked,endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:true},{pin:'destination',within_limit:false,nearest_road_distance_m:null}]}},'');assert.match(advice.title,/destination/);assert.equal(advice.target,'#pick-destination');assert.match(advice.description,/No suitable driving road/);
+for(const [error,title]of [['No suitable edges near location','finished without usable routes'],['No path could be found for input','finished without usable routes'],['Connection unavailable','finished without usable routes']]){advice=guide({stage:'search',routes:[],draft:{shotgun:{batch:{status:'completed',requests:[{status:'attempt_spent_failed',error}]}}}},'');assert.match(advice.title,new RegExp(title));assert.doesNotMatch(advice.title,/Let.*finish/);}
+advice=guide({stage:'search',routes:[],draft:{shotgun:{batch:{status:'stopped_unknown'}}}},'');assert.match(advice.description,/do not replay/);
+advice=guide({stage:'search',routes:[],draft:{shotgun:{batch:{status:'completed',requests:[],failed_requests:0}}}},'');assert.match(advice.title,/No routes fit/);
+advice=guide({stage:'prepare',busy:true,endpointCheck:{status:'checking'}},'');assert.match(advice.title,/check your pins/);
+advice=guide({stage:'search',routes:[{id:'returned'}]},'');assert.match(advice.title,/ready/);
 assert.match(html,/<script src="guided-mode.js" defer>/);assert.match(build,/'\/guided-mode.js':/,'the hosted Worker serves the new asset');
 assert.match(html,/id="lesson-overlap"[^>]+stroke="#7138c9"[^>]+stroke-width="3"[^>]+opacity="1"/);
 console.log('Guided Mode: state preservation, conditional cues, approval boundaries, persisted modes and isolated practice passed.');

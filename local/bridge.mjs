@@ -2,7 +2,7 @@ import {createServer} from 'node:http';
 import {appendFileSync,existsSync,mkdirSync,readFileSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {engineForPoints,validateRegionalEngines} from './engine-selection.mjs';
-import {valhallaPayload,valhallaHighwayCellMasks,validateValhallaResponse} from '../server/valhalla-provider.js';
+import {valhallaPayload,valhallaHighwayCellMasks,validateValhallaResponse,endpointCheckPayload,endpointCheckResult} from '../server/valhalla-provider.js';
 
 const listenHost='127.0.0.1';
 const listenPort=8003;
@@ -72,6 +72,12 @@ const server=createServer(async(request,response)=>{
   if(request.url==='/status'&&request.method==='GET'){
     const checks=await Promise.allSettled([engine,...regions.map(region=>region.base_url)].map(async(base)=>{const check=await fetch(base+'/status',{signal:AbortSignal.timeout(3000),redirect:'error'});return check.ok;}));
     send(response,200,{valhalla_ready:checks.every(check=>check.status==='fulfilled'&&check.value),mode:'local',map_area:mapArea},origin);return;
+  }
+  if(request.url==='/check-endpoints'&&request.method==='POST'){
+    let payload;
+    try{payload=endpointCheckPayload(await readJson(request,50000));}catch(error){send(response,400,{error:error.message,route_requests:0,avm_calls:0},origin);return;}
+    try{const upstream=await fetch(engineForPoints(payload.locations,regions,engine)+'/locate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error',signal:AbortSignal.timeout(10000)});send(response,200,endpointCheckResult(await boundedJson(upstream),payload),origin);}
+    catch{send(response,502,{error:'The driving-road check could not finish. Check the desktop Valhalla connection, then try again. No route request was sent.',route_requests:0,avm_calls:0},origin);}return;
   }
   if(request.url==='/road-mask'&&request.method==='POST'){
     try{const input=await readJson(request,8*1024*1024),options=input?.route_options;if(!options||![0,0.5,1].includes(options.highways)||![0,0.5,1].includes(options.tolls))throw Error('Choose valid highway and toll preferences.');const includeHighways=options.highways===1,includeTollways=options.tolls===1;if(!includeHighways&&!includeTollways){send(response,200,{highway_cell_ids:[],tollway_cell_ids:[],tile_count:0,road_source:'Valhalla static graph tiles'},origin);return;}const masks=await valhallaHighwayCellMasks({cells:input.cells,include_tollways:includeTollways},engineForPoints((input.cells??[]).flatMap(cell=>(cell.polygon??[]).map(([lon,lat])=>({lat,lon}))),regions,engine));send(response,200,{...masks,highway_cell_ids:includeHighways?masks.highway_cell_ids:[],tollway_cell_ids:includeTollways?masks.tollway_cell_ids:[]},origin);}catch(error){send(response,502,{error:error.message||'The Valhalla static road mask could not be built. No route request was sent.'},origin);}return;

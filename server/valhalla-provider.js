@@ -87,6 +87,28 @@ export function valhallaRequestHeaders(secret,accept='application/json') {
   return {Accept:accept,Authorization:'Bearer '+secret};
 }
 
+// Road correlation only: never calculates a route, claims a round, or requests AVM.
+export function endpointCheckPayload(input) {
+  const params = {...input,via:[],alternatives:0,departureTime:'any'};
+  const route = valhallaPayload(params);
+  return {locations:route.locations.map(({lat,lon})=>({lat,lon,radius:1600,search_cutoff:1600})),costing:'auto',costing_options:route.costing_options,verbose:true};
+}
+export function endpointCheckResult(data,payload) {
+  if(!Array.isArray(data)||data.length!==2)throw Error('The driving-road check returned unreadable results.');
+  const distance=(a,b)=>{const radians=value=>value*Math.PI/180,p=radians(a.lat),q=radians(b.lat),h=Math.sin((q-p)/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(radians(b.lon-a.lon)/2)**2;return 6371008.8*2*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));};
+  const points=data.map((result,index)=>{
+    if(!result||!Array.isArray(result.edges))throw Error('The driving-road check could not verify both pins.');
+    let nearest=null;
+    for(const item of result.edges){
+      if(item?.edge?.access?.car!==true||!Number.isFinite(item.correlated_lat)||!Number.isFinite(item.correlated_lon)||Math.abs(item.correlated_lat)>90||Math.abs(item.correlated_lon)>180)continue;
+      const gap=distance(payload.locations[index],{lat:item.correlated_lat,lon:item.correlated_lon});
+      if(nearest===null||gap<nearest)nearest=gap;
+    }
+    return {pin:index===0?'origin':'destination',original:[payload.locations[index].lat,payload.locations[index].lon],nearest_road_distance_m:nearest===null?null:Math.round(nearest*100)/100,within_limit:nearest!==null&&nearest<=100};
+  });
+  return {points,ready:points.every(point=>point.within_limit),maximum_distance_m:100,route_requests:0,avm_calls:0};
+}
+
 function mvtFields(bytes) {
   let offset=0;
   const varint=()=>{let value=0,multiplier=1;for(let count=0;count<10;count++){if(offset>=bytes.length)throw Error('Valhalla returned a truncated road tile.');const byte=bytes[offset++];value+=(byte&127)*multiplier;if(byte<128)return value;multiplier*=128;}throw Error('Valhalla returned an invalid road tile.');};

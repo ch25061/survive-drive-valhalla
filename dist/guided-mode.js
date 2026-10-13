@@ -11,13 +11,34 @@
   function guidanceFor(state,instruction){
     const stage=stages[state?.stage]?state.stage:'prepare',base=stages[stage];
     const busy=!!state?.busy||!!state?.gateGenerationPending||!!state?.catalogBusy?.start||!!state?.catalogBusy?.destination;
-    return {...base,stage,next:busy?'Work is in progress. Follow the progress below; no extra click is needed.':instruction||({prepare:'Enter your start address and ZIP, or use Set start on map.',search:'Review the route-search status below.',evaluate:'Review the whole-pool screening status below.',inspect:'Choose a cell on the map to inspect.',choose:'Review the selected route and record your choice.'})[stage],busy};
+    const model={...base,stage,next:busy?'Work is in progress. Follow the progress below; no extra click is needed.':instruction||({prepare:'Enter your start address and ZIP, or use Set start on map.',search:'Review the route-search status below.',evaluate:'Review the whole-pool screening status below.',inspect:'Choose a cell on the map to inspect.',choose:'Review the selected route and record your choice.'})[stage],busy,actionLabel:'Show me where',tone:'normal'};
+    const check=state?.endpointCheck,batch=state?.draft?.shotgun?.batch,requests=batch?.requests??[],errors=requests.map(request=>String(request.error??''));
+    if(busy){model.title=check?.status==='checking'?'First, let’s check your pins':stage==='search'?'Your route search is running':'One thing at a time';model.description=check?.status==='checking'?'We are checking whether S and D are close enough to suitable driving roads. This makes no route request and no property-value lookup.':'Watch the progress below. You can wait here; no extra click is needed.';return model;}
+    if((stage==='prepare'||stage==='search')&&check?.status==='blocked'){
+      const point=check.points.find(point=>!point.within_limit),start=point.pin==='origin',label=start?'starting':'destination',gap=point.nearest_road_distance_m;
+      Object.assign(model,{tone:'attention',title:'Let’s fix your '+label+' pin first',description:(Number.isFinite(gap)?'Your '+label+' pin is about '+Math.round(gap)+' metres from the nearest suitable driving road.':'No suitable driving road was found near your '+label+' pin.')+' It needs to be within 100 metres. We stopped before sending a route batch.',next:'Use Set '+(start?'start':'destination')+' on map, zoom in, and place '+(start?'S':'D')+' on the street or driveway where you intend to '+(start?'start':'finish')+' driving. Then select GO to check both pins and rebuild your route gates.',why:'Your other pin stays where you placed it. If both pins need attention, we will guide you through them one at a time. Pins are never moved automatically.',target:start?'#pick-origin':'#pick-destination',targetStage:'prepare',actionLabel:'Show '+(start?'start':'destination')+' pin control'});return model;
+    }
+    if((stage==='prepare'||stage==='search')&&check?.status==='unavailable'){
+      Object.assign(model,{tone:'attention',title:'We need to finish the pin check',description:check.error,next:instruction||'Check the desktop Valhalla connection. Then select GO, or Retry route search if the batch is already prepared.',why:'An unavailable check is not evidence that your pins are wrong. Your trip and saved evidence are retained. No route batch is sent until both pins are checked.',target:'#check-local-valhalla',targetStage:'search',actionLabel:'Show connection check'});return model;
+    }
+    if(stage==='search'&&(!state?.routes?.length||batch?.status?.startsWith('stopped'))){
+      if(batch?.status==='completed'){
+        const failed=requests.some(r=>r.status==='attempt_spent_failed')||batch.failed_requests>0;
+        const pinFailure=errors.some(error=>/No suitable edges near location|within 100 m/i.test(error)),noPath=errors.some(error=>/No path could be found/i.test(error));
+        Object.assign(model,{tone:'attention',title:failed?'The search finished without usable routes':'No routes fit these settings',description:pinFailure?'A trip point could not connect to a suitable driving road. Start by checking S and D on streets or driveways. A gate can also cause this error.':noPath?'The roads could not connect through these gates and Exclusion Zones. Review your trip settings before starting a fresh search.':failed?'The search has ended. Read the request error below before deciding what to change.':'The search finished, but no route met your time and exclusion limits. Review those settings and your gate choices.',next:'Open Set the trip. '+(pinFailure?'Select GO to check your pins before rebuilding the gates.':'Review the highlighted settings, then prepare a fresh route search.'),why:'Waiting will not produce more routes. No AVM requests were made by this route search. Changing map visibility does not change Exclusion Zones.',target:'[data-step="prepare"]',actionLabel:'Show trip settings'});
+      }else if(batch?.status?.startsWith('stopped'))Object.assign(model,{tone:'attention',title:'The search stopped — read this first',description:batch.status==='stopped_unknown'?'At least one sent request has an unknown outcome. Keep this session and review the report; do not replay this batch.':'The search has stopped. Review its report before preparing another batch.',why:'No automatic retry is made. Already sent attempts still count. Export this session before reloading or signing in again.'});
+      else Object.assign(model,{title:'Your route search is waiting to start',description:'No route search is running yet. Follow the next move below; a prepared batch waits here if its connection check needs attention.'});
+    }else if(stage==='search'&&state?.routes?.length)Object.assign(model,{title:'Your route choices are ready',description:'The search has returned candidates. Open Evaluate to check their saved evidence and rankings.'});
+    if(stage==='prepare'&&/starting address|starting point|start address/i.test(model.next))Object.assign(model,{title:'First, choose where you will start',description:'Enter an address and ZIP, or use Set start on map and click the street or driveway where your drive begins. Zoom in so the pin lands where you intend.',actionLabel:'Show starting point'});
+    else if(stage==='prepare'&&/destination address/i.test(model.next))Object.assign(model,{title:'Now choose where you will finish',description:'Place D at the street or driveway where your drive ends. Then review both pins. GO checks them before looking for route gates.',actionLabel:'Show destination'});
+    if(stage==='evaluate'&&state?.poolScreening?.plan)model.why='Read the exact lookup count and cost before you approve. More evidence is optional. Grey cells stay unknown until usable evidence arrives; they do not become favorable just because they are unmeasured.';
+    return model;
   }
   root.RouteGuidance={guidanceFor};
   if(!root.document)return;
   const doc=root.document,$=id=>doc.getElementById(id);
   if(!$('mode-guided'))return;
-  let mode='guided',advanced=false,scheduled=false,lastFocus=null;
+  let mode='guided',advanced=false,scheduled=false,lastFocus=null,currentModel=null;
   try{if(root.localStorage.getItem(KEY)==='super')mode='super';}catch{}
   const setText=(id,text)=>{if($(id).textContent!==text)$(id).textContent=text;};
   function classify(){
@@ -30,11 +51,15 @@
     scheduled=false;
     const state=root.SurviveDrive?.getState?.()||{},cue=$('next-action');
     const model=guidanceFor(state,cue&&!cue.hidden?$('next-action-text')?.textContent:'');
+    if(model.target?.startsWith('#pick-')&&doc.querySelector(model.target)?.disabled){const start=model.target==='#pick-origin';model.target=start?'#origin-address':'#destination-address';model.actionLabel='Show '+(start?'start':'destination')+' address';model.next='Map picking is unavailable here. Enter the '+(start?'starting':'destination')+' street address and ZIP, then select Find address and place '+(start?'S':'D')+' on map. Check the resulting pin and select GO.';}
+    currentModel=model;$('guided-coach').dataset.tone=model.tone;setText('guided-show-next',model.actionLabel);
     doc.body.dataset.guidedStage=model.stage;
     const pointReady=id=>{const parts=String($(id)?.value||'').split(',');return parts.length===2&&parts.every(part=>part.trim()&&Number.isFinite(Number(part)))&&Math.abs(Number(parts[0]))<=90&&Math.abs(Number(parts[1]))<=180;};
     doc.body.dataset.guidedTripReady=String(pointReady('origin')&&pointReady('destination'));
+    const progress=[['start',pointReady('origin'),'Start pin placed'],['destination',pointReady('destination'),'Destination pin placed'],['roads',state.endpointCheck?.status==='ready','Both pins checked for driving roads'],['routes',!!state.routes?.length,'Route choices returned'],['choice',!!state.choice,'Your route choice recorded']];
+    for(const [id,complete,label]of progress){const node=$('guided-check-'+id);if(node){node.textContent=(complete?'✓ ':'○ ')+label;node.dataset.complete=String(complete);}}
     classify();setText('guided-step','STEP '+model.number+' OF 5');setText('guided-title',model.title);setText('guided-description',model.description);setText('guided-next',model.next);setText('guided-why',model.why);
-    const target=doc.querySelector('.next-action-target');
+    const target=model.target?doc.querySelector(model.target):doc.querySelector('.next-action-target');
     $('guided-show-next').disabled=model.busy||!target;
     $('guided-show-next').hidden=model.busy;
   }
@@ -59,7 +84,8 @@
     update();root.dispatchEvent(new Event('resize'));
   });
   $('guided-show-next').addEventListener('click',()=>{
-    const target=doc.querySelector('.next-action-target');if(!target)return;
+    if(currentModel?.targetStage)root.SurviveDrive?.setStage?.(currentModel.targetStage);
+    let target=currentModel?.target?doc.querySelector(currentModel.target):doc.querySelector('.next-action-target');if(target?.disabled&&currentModel?.target?.startsWith('#pick-'))target=$(currentModel.target==='#pick-origin'?'origin-address':'destination-address');if(!target)return;
     for(let parent=target;parent;parent=parent.parentElement)if(parent.localName==='details')parent.open=true;
     const focus=target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary')||target;
     if(!focus.hasAttribute('tabindex')&&!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');

@@ -16,6 +16,7 @@ context.SurviveValhalla={convertRoutes:()=>[]};
 context.SurviveShotgun={deduplicateRoutes:()=>({routes:[],raw_count:0,duplicate_count:0})};
 vm.runInContext(`
   providerPreflight=async()=>{};
+  checkTripEndpoints=async()=>{}; // Pin correlation is exercised by check-guided-recovery.mjs.
   providerFetch=routeFetch;
   appJson=async response=>({provider_attempted:true,received_at:'2026-09-29T00:00:00Z',response:{},...(response.ok?{}:{error:'Route unavailable'})});
   cancelMapPick=()=>{};renderMapPickControls=()=>{};workflowPhase=()=>{};

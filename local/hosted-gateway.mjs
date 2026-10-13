@@ -31,6 +31,13 @@ export function createHostedGateway({secret,fetchImpl=fetch,regions=[],readRegio
         body=Buffer.concat(chunks);const payload=JSON.parse(body.toString('utf8'));
         if(payload?.costing!=='auto'||!Array.isArray(payload.locations)||payload.locations.length<2||payload.locations.length>22||!Number.isInteger(payload.alternates)||payload.alternates<0||payload.alternates>3)throw Error('Invalid reviewed car route.');
         target=new URL(engineForPoints(payload.locations,activeRegions));target.pathname='/route';
+      }else if(url.pathname==='/locate'&&req.method==='POST'&&!url.search){
+        if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']??'')){req.resume();return send(res,415,{error:'JSON pin check required.'});}
+        const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>50000)return send(res,413,{error:'Pin check exceeds the size limit.'});chunks.push(chunk);}
+        const payload=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if(payload?.costing!=='auto'||payload.verbose!==true||!Array.isArray(payload.locations)||payload.locations.length!==2||payload.locations.some(p=>!Number.isFinite(p.lat)||Math.abs(p.lat)>90||!Number.isFinite(p.lon)||Math.abs(p.lon)>180||p.radius!==1600||p.search_cutoff!==1600))throw Error('Invalid pin check.');
+        body=Buffer.from(JSON.stringify({locations:payload.locations.map(({lat,lon})=>({lat,lon,radius:1600,search_cutoff:1600})),costing:'auto',costing_options:payload.costing_options,verbose:true}));
+        target=new URL(engineForPoints(payload.locations,activeRegions));target.pathname='/locate';
       }else if(url.pathname==='/tile'&&req.method==='GET'&&url.search.length<=1500){
         if([...url.searchParams.keys()].length!==1||!url.searchParams.has('json'))throw Error('Invalid road tile.');
         const tile=JSON.parse(url.searchParams.get('json')),coordinates=tile?.tile;
@@ -47,7 +54,7 @@ export function createHostedGateway({secret,fetchImpl=fetch,regions=[],readRegio
         const checks=await Promise.allSettled(activeRegions.map(async(region)=>{const check=await fetchImpl(region.base_url+'/status',{redirect:'error',signal:AbortSignal.timeout(3000)});if(!check.ok)throw Error('Regional engine unavailable.');}));
         if(checks.some(check=>check.status!=='fulfilled'))return send(res,503,{error:'The complete road engine is unavailable. Restart the desktop routing launcher.'});
       }
-      const response=await fetchImpl(target,{method:req.method,headers:{Accept:target.pathname==='/tile'?'application/vnd.mapbox-vector-tile':'application/json',...(route?{'Content-Type':'application/json'}:{})},...(body?{body}:{}),redirect:'error',signal:AbortSignal.timeout(route?24000:10000)});
+      const response=await fetchImpl(target,{method:req.method,headers:{Accept:target.pathname==='/tile'?'application/vnd.mapbox-vector-tile':'application/json',...(body?{'Content-Type':'application/json'}:{})},...(body?{body}:{}),redirect:'error',signal:AbortSignal.timeout(route?24000:10000)});
       const chunks=[];let size=0;
       if(response.body)for await(const chunk of response.body){size+=chunk.byteLength;if(size>MAX_RESPONSE)throw Error('Response too large.');chunks.push(Buffer.from(chunk));}
       res.writeHead(response.status,{'Content-Type':target.pathname==='/tile'?'application/vnd.mapbox-vector-tile':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(Buffer.concat(chunks));
