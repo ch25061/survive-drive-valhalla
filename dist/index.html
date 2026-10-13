@@ -14,15 +14,7 @@
 <header class="masthead"><a class="brand" href="#"><span class="brandmark">R<span>S</span></span><span>Route Screwtiny<small>Valhalla offshoot · traffic free</small></span></a><div class="mode">You control each call <span id="provider-status">Checking service connections…</span></div><a class="quiet tutorial-link" href="/tutorial.html" target="_blank" rel="noopener">Tutorial &amp; chapters</a><a class="quiet tutorial-link" href="/android.html" target="_blank" rel="noopener">Android companion</a><button id="export-session" class="quiet">Export this session</button></header>
 <main>
 <div class="workflow-heading"><div><span class="eyebrow">USER + VALHALLA → OURS → USER</span><h1>You shape the search. You choose the route.</h1></div><p>Set Valhalla road preferences before searching. OURS evaluates mapped route cells with AVM; highway maneuvers and attached ramps are excluded from AVM evaluation. Look around before you decide.</p></div>
-<section class="experience-bar" aria-label="Experience mode">
-<div><strong>Choose how much help you want</strong><p id="experience-description">Guided Mode explains one decision at a time. Switch modes whenever you like.</p></div>
-<div class="experience-switch" role="group" aria-label="Choose experience mode"><button id="mode-guided" type="button" aria-pressed="true" aria-controls="guided-coach">Guided Mode<small>Walk me through it</small></button><button id="mode-super" type="button" aria-pressed="false" aria-controls="guided-coach">Super User Mode<small>Show every control</small></button></div>
-<div class="experience-appearance" role="group" aria-label="Mode panel appearance">
-<label for="mode-panel-opacity">Opacity <output id="mode-panel-opacity-value">65%</output><input id="mode-panel-opacity" type="range" min="10" max="100" step="1" value="65" aria-label="Mode panel opacity"></label>
-<label for="mode-panel-color">Panel color <output id="mode-panel-color-value">Red</output><input id="mode-panel-color" type="range" min="0" max="360" step="1" value="0" aria-label="Mode panel color"></label>
-<label for="mode-panel-text">Text color <output id="mode-panel-text-value">Purple</output><input id="mode-panel-text" type="range" min="0" max="7" step="1" value="4" aria-label="Mode panel text color"></label>
-</div>
-</section>
+
 <section id="guided-coach" class="guided-coach" aria-labelledby="guided-title">
 <div class="guided-coach-heading"><span class="eyebrow" id="guided-step">STEP 1 OF 5</span><button id="guided-practice" type="button" class="quiet">Practice a route comparison</button></div>
 <h2 id="guided-title" tabindex="-1">Where are you going?</h2><p id="guided-description">Place your start and destination using addresses or the map. Check both pins before continuing.</p>
@@ -223,4 +215,15 @@
 <p id="lesson-status" role="status" aria-live="polite">First, check both routes to compare them.</p><div class="lesson-actions"><button id="lesson-purple" type="button" class="secondary" disabled>Explain the purple line</button><button id="lesson-unknown" type="button" class="secondary" disabled>Inspect the grey cell</button></div><p id="lesson-explanation" class="inset" hidden></p>
 <ol class="lesson-checklist"><li id="lesson-step-pair">Check both routes.</li><li id="lesson-step-purple">Explain exact overlap.</li><li id="lesson-step-uncheck">Uncheck either route to end comparison.</li><li id="lesson-step-unknown">Inspect a grey cell to understand unknown evidence.</li></ol><button id="lesson-reset" type="button" class="quiet">Start practice again</button>
 </dialog>
-<aside id="guided-dock" class="guided-dock" aria-label="Your guide"><div><strong>What do I do now?</strong><p id="guided-dock-text" role="status" aria-live="polite"></p></div><button id="guided-dock-show" type="button">Show this control</button><button id="guided-dock-explain" type="button">See my choices</button></aside></body></html>
+<div class="guide-panel-stack">
+<section class="experience-bar" aria-label="Experience mode">
+<div><strong>Choose how much help you want</strong><p id="experience-description">Guided Mode explains one decision at a time. Switch modes whenever you like.</p></div>
+<div class="experience-switch" role="group" aria-label="Choose experience mode"><button id="mode-guided" type="button" aria-pressed="true" aria-controls="guided-coach">Guided Mode<small>Walk me through it</small></button><button id="mode-super" type="button" aria-pressed="false" aria-controls="guided-coach">Super User Mode<small>Show every control</small></button></div>
+<div class="experience-appearance" role="group" aria-label="Mode panel appearance">
+<label for="mode-panel-opacity">Opacity <output id="mode-panel-opacity-value">65%</output><input id="mode-panel-opacity" type="range" min="10" max="100" step="1" value="65" aria-label="Mode panel opacity"></label>
+<label for="mode-panel-color">Panel color <output id="mode-panel-color-value">Red</output><input id="mode-panel-color" type="range" min="0" max="360" step="1" value="0" aria-label="Mode panel color"></label>
+<label for="mode-panel-text">Text color <output id="mode-panel-text-value">Purple</output><input id="mode-panel-text" type="range" min="0" max="7" step="1" value="4" aria-label="Mode panel text color"></label>
+</div>
+</section>
+<aside id="guided-dock" class="guided-dock" aria-label="Your guide"><div><strong>What do I do now?</strong><p id="guided-dock-text" role="status" aria-live="polite"></p></div><button id="guided-dock-show" type="button">Show this control</button><button id="guided-dock-explain" type="button">See my choices</button></aside>
+</div></body></html>

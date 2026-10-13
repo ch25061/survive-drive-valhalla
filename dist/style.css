@@ -158,3 +158,9 @@ body[data-experience-mode="guided"][data-guided-advanced="false"][data-guided-st
 body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-trip-ready="true"][data-guided-gates-ready="false"] #shotgun-settings>.form-pair.guided-advanced-control,body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-trip-ready="true"][data-guided-gates-ready="false"] #shotgun-radius-help.guided-advanced-control{display:block!important}
 
 body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-trip-ready="true"][data-guided-gates-ready="false"] #shotgun-settings>label.guided-advanced-control{display:block!important}
+
+/* Keep both floating guide panels in one lower-right area. */
+.guide-panel-stack{position:fixed;right:12px;bottom:12px;z-index:1150;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:360px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 100px);overflow:auto;overscroll-behavior:contain;pointer-events:none}
+.guide-panel-stack>.experience-bar,.guide-panel-stack>.guided-dock{position:static;inset:auto;max-width:100%;max-height:none;flex-shrink:0;pointer-events:auto}
+.guide-panel-stack>.experience-bar{width:100%;overflow:visible}
+@media(max-width:850px){.guide-panel-stack{right:8px;bottom:8px;width:320px;max-width:calc(100vw - 16px);max-height:calc(100dvh - 90px)}}
