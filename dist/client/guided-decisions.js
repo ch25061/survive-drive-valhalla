@@ -24,8 +24,8 @@
       if(!gatesReady&&!hasGates&&!state.catalogFaults?.start&&!state.catalogFaults?.destination&&!context.startGatesLimited&&!context.destinationGatesLimited)add('generate-gates','Generate route gates','Review the circle sizes, gate count, and spacing, then use GO to generate both gate sets. Opening these controls sends no request.','#suggest-shotgun');
       if(state.catalogFaults?.start||state.catalogFaults?.destination)add('gate-retry','Review the paused gate search','Read the failed-circle report before choosing the displayed Retry control.',state.catalogFaults.start?'#suggest-shotgun':'#suggest-destination-shotgun');
       for(const side of ['start','destination'])if(context[side+'GatesLimited'])add('limited-'+side,'Use the smaller '+side+' gate set','Fewer gates explore fewer route options. Accept only if you want to continue with this smaller set.',side==='start'?'#accept-limited-shotgun':'#accept-limited-shotgun-destination');
-      if(gatesReady){add('search','Find routes','Review your route-search settings, then use Generate fresh route candidates. Opening this control does not start the search.','#generate-time-limited-routes');add('gates','Review route gates','Look at the generated gates near each trip end and their selected combinations.','#shotgun-settings > summary');add('time','Set the longest drive I will accept','Set the maximum trip length before finding routes. Routes above this time are discarded.','#maximum-route-minutes');}
-      else if(hasGates){add('generate-gates','Generate route gates again','Adjust gate settings and use GO if you want another gate search.','#suggest-shotgun');add('gates','Review generated route gates','Review the available gates and resolve any smaller gate set before finding routes.','#shotgun-settings > summary');}
+      if(gatesReady){add('search','Find routes','Generate fresh route candidates using your selected gates, time limit, and Exclusion Zones. You may want to review these settings first. This choice opens the search button; press it to begin.','#generate-time-limited-routes');add('gates','Review route gates','Look at the generated gates near each trip end and their selected combinations.','#shotgun-gate-list');add('time','Set the longest drive I will accept','Set the maximum trip length before finding routes. Routes above this time are discarded.','#maximum-route-minutes');}
+      else if(hasGates){add('generate-gates','Generate route gates again','Adjust gate settings and use GO if you want another gate search.','#suggest-shotgun');add('gates','Review generated route gates','Review the available gates and resolve any smaller gate set before finding routes.',context.startGatesGenerated?'#shotgun-gate-list':'#shotgun-gate-list-destination');}
       add('zones','Review the areas routes must avoid','Changing the exclusion cutoff requires fresh route candidates. Hiding zones on the map only changes their visibility.','#exclusion-zone-level');
       return result;
     }
@@ -98,7 +98,8 @@
     if(!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
     const gateControls=target.id==='suggest-shotgun'?$('shotgun-parameter-controls'):null;
     const gateHeading=gateControls?doc.querySelector('#shotgun-settings > summary'):null;
-    (gateHeading||gateControls||target).scrollIntoView({behavior:'smooth',block:gateControls?'start':'center'});focus.focus({preventScroll:true});return true;
+    const gateReview=['shotgun-gate-list','shotgun-gate-list-destination'].includes(target.id),gateStatus=gateReview?$(target.id==='shotgun-gate-list'?'shotgun-status':'shotgun-status-destination'):null;
+    (gateStatus||gateHeading||gateControls||target).scrollIntoView({behavior:'smooth',block:gateControls||gateReview?'start':'center'});focus.focus({preventScroll:true});return true;
   }
   function chooseBranch(id){
     const app=root.SurviveDrive,state=app?.getState?.()||{},context=app?.getGuidanceContext?.()||{};

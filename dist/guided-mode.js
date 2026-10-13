@@ -197,10 +197,10 @@
     const inks=[['Black','#08060d','#36303f'],['Charcoal','#303038','#15151c'],['Navy','#0c2d5e','#5e3d0c'],['Indigo','#302070','#50601b'],['Purple','#4b1478','#37601b'],['Burgundy','#711d3d','#1d6355'],['Green','#164b32','#4b162f'],['White','#ffffff','#fff0dc']];
     const valid=(value,min,max,fallback)=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
     let saved={};try{saved=JSON.parse(root.localStorage.getItem(preferenceKey))||{};}catch{}
-    opacity.value=String(valid(saved.opacity,10,100,65));hue.value=String(valid(saved.hue,0,360,0));ink.value=String(valid(saved.ink,0,7,4));
+    opacity.value=String(valid(saved.opacity,10,100,85));hue.value=String(valid(saved.hue,0,360,180));ink.value=String(valid(saved.ink,0,7,4));
     const colorName=value=>value<15||value>=345?'Red':value<45?'Orange':value<75?'Yellow':value<165?'Green':value<195?'Teal':value<255?'Blue':value<300?'Purple':'Pink';
     function apply(save){
-      const appearance={opacity:valid(Number(opacity.value),10,100,65),hue:valid(Number(hue.value),0,360,0),ink:valid(Number(ink.value),0,7,4)},colors=inks[appearance.ink];
+      const appearance={opacity:valid(Number(opacity.value),10,100,85),hue:valid(Number(hue.value),0,360,180),ink:valid(Number(ink.value),0,7,4)},colors=inks[appearance.ink];
       // A light text choice needs dark tinted surfaces and a dark halo.
       const lightText=appearance.ink===7;
       for(const surface of panels){

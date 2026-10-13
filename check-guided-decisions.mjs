@@ -20,12 +20,15 @@ assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'gates'));assert.ok(!
 assert.ok(choice(setup,'zones'),'the exclusion-zone review stays available before gate generation');
 setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:true,gatesReady:true});
 assert.equal(setup.node,'gates-ready');assert.ok(choice(setup,'search'));assert.ok(choice(setup,'gates'));assert.ok(choice(setup,'time'));
-assert.equal(choice(setup,'search').label,'Find routes');assert.match(choice(setup,'gates').label,/Review route gates/);
+assert.equal(choice(setup,'search').label,'Find routes');assert.match(choice(setup,'search').description,/^Generate fresh route candidates/,'the main search action is named before optional settings review');assert.match(choice(setup,'search').description,/review these settings first/);assert.match(choice(setup,'gates').label,/Review route gates/);assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list');
 setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:false,gatesReady:false});
 assert.ok(choice(setup,'gates'),'a partially generated trip can review its actual available gates');
-assert.equal(choice(setup,'gates').selector,'#shotgun-settings > summary');
+assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list');
 assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'time'));
 assert.ok(!choice(setup,'limited-destination'),'no smaller destination set is invented without a recorded limited set');
+setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:false,destinationGatesGenerated:true,gatesReady:false});
+assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list-destination','destination-only recovery targets the gate list that actually exists');
+assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'time'));
 for(const busy of [{busy:true},{catalogBusy:{start:true}},{gateGenerationPending:true},{poolScreening:{status:'running'}}]){const t=tree({...base,...busy},ctx);assert.equal(t.node,'working');assert.ok(!choice(t,'display'));assert.ok(!choice(t,'choose'));}
 let t=tree({stage:'prepare',endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:false}]}},ctx);assert.equal(t.node,'repair-pin');assert.equal(choice(t,'repair-map').selector,'#pick-origin');assert.match(t.description,/100 metres/);
 t=tree({stage:'search',endpointCheck:{status:'unavailable'}},ctx);assert.equal(t.node,'connection');assert.ok(!choice(t,'search'));
