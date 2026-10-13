@@ -53,6 +53,22 @@
   const doc=root.document;if(!doc?.getElementById('guided-decisions'))return;
   let renderKey='',latestTree=null,routeMenu=null,descriptionNumber=0;
   const $=id=>doc.getElementById(id);
+  function closeFloatingChoices(returnFocus=false){
+    const panel=$('guided-floating-choices');if(!panel)return;
+    panel.hidden=true;$('guided-dock-explain')?.setAttribute('aria-expanded','false');
+    if(returnFocus)$('guided-dock-explain')?.focus({preventScroll:true});
+  }
+  function toggleFloatingChoices(){
+    const panel=$('guided-floating-choices');if(!panel||root.RouteGuidance?.getMode?.()==='super')return;
+    if(!panel.hidden){closeFloatingChoices(true);return;}
+    update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
+    panel.hidden=false;$('guided-dock-explain')?.setAttribute('aria-expanded','true');
+    $('guided-floating-title')?.focus({preventScroll:true});
+  }
+  $('guided-floating-close')?.addEventListener('click',()=>closeFloatingChoices(true));
+  doc.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('guided-floating-choices')?.hidden&&$('guided-floating-choices')){event.preventDefault();event.stopPropagation();closeFloatingChoices(true);}});
+  const guideCard=doc.querySelector('.guide-panel-stack'),floatingPanel=$('guided-floating-choices');
+  if(guideCard&&floatingPanel&&typeof root.ResizeObserver==='function')new root.ResizeObserver(()=>floatingPanel.style.setProperty('--guide-card-height',Math.ceil(guideCard.getBoundingClientRect().height)+'px')).observe(guideCard);
   function focusControl(selector){
     const target=doc.querySelector(selector);if(!target)return false;
     if(target.disabled||target.getAttribute('aria-disabled')==='true')return false;
@@ -64,6 +80,7 @@
   function chooseBranch(id){
     const app=root.SurviveDrive,state=app?.getState?.()||{},context=app?.getGuidanceContext?.()||{};
     const choice=decisionsFor(state,context).choices.find(c=>c.id===id);if(!choice?.enabled)return;
+    closeFloatingChoices(true);
     app?.releaseTripMapView?.();
     for(const node of doc.querySelectorAll('.guided-choice-revealed'))node.classList.remove('guided-choice-revealed');
     if(choice.kind==='display')app.setCandidateDisplayMode(choice.displayMode);
@@ -79,10 +96,12 @@
   function update(state,context){
     latestTree=decisionsFor(state,context);const key=JSON.stringify(latestTree),guided=root.RouteGuidance?.getMode?.()!=='super';
     $('guided-decisions').hidden=!guided;
+    if(!guided)closeFloatingChoices();
     if(key!==renderKey){renderKey=key;$('guided-decision-path').textContent='You are here: '+latestTree.path.join(' → ');$('guided-decision-title').textContent=latestTree.title;$('guided-decision-description').textContent=latestTree.description;$('guided-decision-list').replaceChildren(cards(latestTree));$('guided-decision-feedback').textContent='';}
+    if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-title').textContent=latestTree.title;$('guided-floating-description').textContent=latestTree.description;$('guided-floating-list').replaceChildren(cards(latestTree,true));}
     const ranking=doc.getElementById('primary-ranking');
     if(!routeMenu&&ranking){routeMenu=doc.createElement('section');routeMenu.id='guided-route-decisions';routeMenu.className='guided-route-decisions';ranking.before(routeMenu);}
     if(routeMenu){routeMenu.hidden=!guided||!latestTree.node.startsWith('ranked-');if(routeMenu.dataset.key!==key){routeMenu.dataset.key=key;const title=doc.createElement('h3');title.textContent='Your choices for these ranked routes';const path=doc.createElement('p');path.textContent=latestTree.path.slice(2).join(' → ');const details=doc.createElement('details'),summary=doc.createElement('summary');summary.textContent='Show all choices';const primary=latestTree.choices.filter(c=>['display','compare','comparison-map','inspect','choose','phone','plan'].includes(c.id)),other=latestTree.choices.filter(c=>!primary.includes(c));details.append(summary,cards({...latestTree,choices:other},true));routeMenu.replaceChildren(title,path,cards({...latestTree,choices:primary},true),details);}}
   }
-  root.RouteDecisionTree={decisionsFor,update,chooseBranch};
+  root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices};
 })(typeof window==='undefined'?globalThis:window);

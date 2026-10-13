@@ -161,7 +161,7 @@
     (groupFits?inlineHelp:target).scrollIntoView({behavior:'smooth',block:groupFits?'start':'center'});focus.focus({preventScroll:true});
   });
   $('guided-dock-show')?.addEventListener('click',()=>$('guided-show-next').click());
-  $('guided-dock-explain')?.addEventListener('click',()=>{root.SurviveDrive?.releaseTripMapView?.();const panel=$('guided-decisions')||$('guided-coach'),heading=$('guided-decision-title')||$('guided-title');panel.scrollIntoView({behavior:'smooth',block:'start'});heading.focus({preventScroll:true});});
+  $('guided-dock-explain')?.addEventListener('click',()=>root.RouteDecisionTree?.toggleFloatingChoices?.());
   const lesson=$('guided-lesson'),learned={pair:false,purple:false,uncheck:false,unknown:false};
   function renderLesson(){
     const a=$('lesson-route-a').checked,b=$('lesson-route-b').checked,pair=a&&b;
@@ -188,7 +188,7 @@
     if(!panel?.style?.setProperty||!opacity||!hue||!ink)return;
     const preferenceKey='route-screwtiny.mode-panel.v1';
     // One preference set styles the shared guide card and its controls.
-    const panels=[doc.querySelector('.guide-panel-stack'),panel,$('guided-dock')].filter(element=>element?.style?.setProperty);
+    const panels=[doc.querySelector('.guide-panel-stack'),panel,$('guided-dock'),$('guided-floating-choices')].filter(element=>element?.style?.setProperty);
     // Each pair keeps the selected and unselected mode texts coordinated.
     const inks=[['Black','#08060d','#36303f'],['Charcoal','#303038','#15151c'],['Navy','#0c2d5e','#5e3d0c'],['Indigo','#302070','#50601b'],['Purple','#4b1478','#37601b'],['Burgundy','#711d3d','#1d6355'],['Green','#164b32','#4b162f'],['White','#ffffff','#fff0dc']];
     const valid=(value,min,max,fallback)=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
