@@ -8,7 +8,24 @@ const tree=env.RouteDecisionTree.decisionsFor,choice=(t,id)=>t.choices.find(c=>c
 const routes=[{id:'a'},{id:'b'}],base={stage:'evaluate',routes,poolScreening:{status:'cache_only',results:[{route_id:'a',rank:1}]}},ctx={rankingReady:true,selectedRouteId:'a',selectedRouteValid:true,displayMode:'ranked',comparisonCount:0,comparableRouteCount:2};
 assert.equal(tree({stage:'prepare'},{}).node,'place-origin');
 assert.equal(tree({stage:'prepare'},{originReady:true}).node,'place-destination');
+for(const context of [{},{originReady:true}]){
+  const setup=tree({stage:'prepare'},context);
+  assert.ok(!choice(setup,'save'),'incomplete trip pins do not offer a save action');
+  assert.ok(!choice(setup,'generate-gates'),'gate generation waits until both pins are placed');
+}
 const ready=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesLimited:true});assert.equal(ready.node,'trip-ready');assert.ok(choice(ready,'limited-start'));assert.ok(!choice(ready,'limited-destination'));
+let setup=tree({stage:'prepare'},{originReady:true,destinationReady:true});
+assert.equal(setup.node,'trip-ready');assert.ok(choice(setup,'generate-gates'));
+assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'gates'));assert.ok(!choice(setup,'time'));
+assert.ok(choice(setup,'zones'),'the exclusion-zone review stays available before gate generation');
+setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:true,gatesReady:true});
+assert.equal(setup.node,'gates-ready');assert.ok(choice(setup,'search'));assert.ok(choice(setup,'gates'));assert.ok(choice(setup,'time'));
+assert.equal(choice(setup,'search').label,'Find routes');assert.match(choice(setup,'gates').label,/Review route gates/);
+setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:false,gatesReady:false});
+assert.ok(choice(setup,'gates'),'a partially generated trip can review its actual available gates');
+assert.equal(choice(setup,'gates').selector,'#shotgun-settings > summary');
+assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'time'));
+assert.ok(!choice(setup,'limited-destination'),'no smaller destination set is invented without a recorded limited set');
 for(const busy of [{busy:true},{catalogBusy:{start:true}},{gateGenerationPending:true},{poolScreening:{status:'running'}}]){const t=tree({...base,...busy},ctx);assert.equal(t.node,'working');assert.ok(!choice(t,'display'));assert.ok(!choice(t,'choose'));}
 let t=tree({stage:'prepare',endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:false}]}},ctx);assert.equal(t.node,'repair-pin');assert.equal(choice(t,'repair-map').selector,'#pick-origin');assert.match(t.description,/100 metres/);
 t=tree({stage:'search',endpointCheck:{status:'unavailable'}},ctx);assert.equal(t.node,'connection');assert.ok(!choice(t,'search'));
@@ -36,6 +53,7 @@ const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',at
 const appEnv={document:{getElementById:get},fetch:env.fetch};appEnv.window=appEnv;vm.createContext(appEnv);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),appEnv);
 const app=appEnv.SurviveDrive,state=app.getState();state.routes=[{id:'actual',geometry:[[-87.8,41.8],[-87.7,41.9]],cells:[],endpoint_validation:{valid:true}}];state.active=0;state.poolScreening.results=[{route_id:'actual',rank:1}];state.poolScreening.status='cache_only';get('origin').value='41.8, -87.8';get('destination').value='41.9, -87.7';
 const snapshot=JSON.stringify(state),context=app.getGuidanceContext();assert.equal(context.rankingReady,true);assert.equal(context.comparableRouteCount,1);assert.equal(context.originReady,true);assert.equal(context.destinationReady,true);assert.equal(context.selectedRouteId,'actual');assert.equal(context.selectedRouteValid,true);assert.equal(JSON.stringify(state),snapshot,'context reading must preserve evidence and route state');
+assert.equal(context.startGatesGenerated,false);assert.equal(context.destinationGatesGenerated,false);assert.equal(context.gatesReady,false,'typed origins alone never mean current gates exist');
 state.poolScreening.status='interrupted';state.poolScreening.generation=0;assert.equal(app.getGuidanceContext().rankingReady,false);state.poolScreening.generation=1;assert.equal(app.getGuidanceContext().rankingReady,true);
 state.routes[0].endpoint_validation.valid=false;assert.equal(app.getGuidanceContext().selectedRouteValid,false);
 state.avmPlan={maximum_attempts:1};assert.equal(app.getGuidanceContext().approvalTarget,'#send-avm');state.avmPlan=null;state.poolScreening.plan={selection_policy:{mode:'additional_known_anchor_gap_round'}};assert.equal(app.getGuidanceContext().approvalTarget,'#prepare-pool-evolution-ranking');

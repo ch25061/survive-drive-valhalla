@@ -8,10 +8,11 @@ const group=html.slice(html.indexOf('<fieldset id="exclusion-zone-level-group"')
 assert(group.includes('id="generate-time-limited-routes"'),'fresh generation is next to the Exclusion slider');
 assert.equal((html.match(/id="exclusion-zone-level"/g)??[]).length,1,'one shared slider prevents divergent settings');
 
-function harness(){
+function harness(experienceMode='super'){
   const nodes=new Map(),panels=[{dataset:{panel:'prepare'},hidden:true},{dataset:{panel:'evaluate'},hidden:false}],timers=[];
-  const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'200',checked:true,textContent:'',disabled:false,hidden:false,style:{},setAttribute(){},addEventListener(){},replaceChildren(){},classList:{toggle(){}}});return nodes.get(id);};
-  const context={document:{getElementById:get,querySelectorAll:selector=>selector==='[data-panel]'?panels:[],activeElement:null,addEventListener(){}},setTimeout:callback=>{timers.push(callback);return timers.length;},clearTimeout(){}};context.window=context;vm.createContext(context);
+  const get=id=>{if(!nodes.has(id))nodes.set(id,{value:id==='origin'?'41.8, -87.8':id==='destination'?'41.9, -87.7':'200',checked:true,textContent:'',disabled:false,hidden:false,style:{},dataset:id==='body'?(experienceMode?{experienceMode}:{}) :{},setAttribute(){},addEventListener(){},replaceChildren(){},classList:{toggle(){}}});return nodes.get(id);};
+  let mockedEndpointChecks=0;
+  const context={document:{body:get('body'),getElementById:get,querySelectorAll:selector=>selector==='[data-panel]'?panels:[],activeElement:null,addEventListener(){}},setTimeout:callback=>{timers.push(callback);return timers.length;},clearTimeout(){},fetch:async(url,options={})=>{if(!String(url).endsWith('/check-endpoints'))throw Error('Unexpected external request in offline route-setup test: '+url);mockedEndpointChecks++;const body=JSON.parse(options.body);return{ok:true,status:200,headers:{get:()=> 'application/json'},text:async()=>JSON.stringify({maximum_distance_m:100,points:[{pin:'origin',original:body.origin.split(',').map(Number),nearest_road_distance_m:0,within_limit:true},{pin:'destination',original:body.destination.split(',').map(Number),nearest_road_distance_m:0,within_limit:true}],ready:true})};}};context.window=context;vm.createContext(context);
   vm.runInContext(source.replace(/\ninit\(\);\s*$/,''),context);
   const state=vm.runInContext('state',context),actualStageDraft=vm.runInContext('stageDraft',context);
   context.queuedStages=0;context.sent=0;context.prepared=0;context.autoStarts=0;
@@ -21,11 +22,11 @@ function harness(){
     stageDraft=async()=>{queuedStages++;};sendHere=()=>{sent++;};
     renderRedThreshold=()=>{};drawRedExclusionZoneLayer=()=>{};discardCandidatesForFreshRouteGeneration=()=>true;
   `,context);
-  return{context,state,get,panels,timers,actualStageDraft};
+  return{context,state,get,panels,timers,actualStageDraft,mockedEndpointChecks:()=>mockedEndpointChecks};
 }
 
 {
-  const h=harness();h.state.stage='evaluate';h.context.setStage('prepare');
+  const h=harness();h.get('body').dataset.experienceMode='guided';h.state.stage='evaluate';h.context.setStage('prepare');
   assert.equal(h.panels[0].hidden,false);assert.equal(h.panels[1].hidden,true);
   for(let i=0;i<5;i++)h.context.refreshShotgunBatchReadiness();await Promise.resolve();
   assert.equal(h.context.queuedStages,0,'returning to setup and rendering ready gates does not generate routes');
@@ -37,6 +38,24 @@ function harness(){
 }
 {
   const h=harness();h.context.refreshShotgunBatchReadiness();await Promise.resolve();assert.equal(h.context.queuedStages,1,'initial completed gate setup keeps its automatic handoff');
+}
+{
+  const h=harness();h.get('body').dataset.experienceMode='guided';h.context.refreshShotgunBatchReadiness();await Promise.resolve();
+  assert.equal(h.context.queuedStages,0,'Guided Mode leaves completed gates in setup for explicit route review');
+}
+{
+  const h=harness(null);assert.equal(h.get('body').dataset.experienceMode,undefined);
+  h.context.refreshShotgunBatchReadiness();await Promise.resolve();
+  assert.equal(h.context.queuedStages,0,'a present body with no initialized mode defaults to Guided and holds automatic staging');
+}
+{
+  const h=harness(null);h.context.localStorage={getItem:key=>key==='route-screwtiny.experience.v1'?'super':null};
+  h.context.refreshShotgunBatchReadiness();await Promise.resolve();
+  assert.equal(h.context.queuedStages,1,'a persisted Super preference preserves automatic staging when the body mode has not initialized');
+}
+{
+  const h=harness();h.context.refreshShotgunBatchReadiness();h.get('body').dataset.experienceMode='guided';await Promise.resolve();
+  assert.equal(h.context.queuedStages,0,'a Guided mode initialized before the queued readiness callback prevents its automatic handoff');
 }
 {
   const h=harness();h.state.stage='search';h.state.providerStatus.valhalla_ready=true;
@@ -53,15 +72,17 @@ function configureActualPreparation(h){
   vm.runInContext(`refreshAllKnownAvmCellsForRouting=()=>staticCheck();routeOptionsFromForm=()=>({highways:0,tolls:0});drawMap=()=>{};prepareDraft=makePrepared;scheduleAutoHereSend=()=>{autoStarts++;};`,h.context);
 }
 {
-  const h=harness();configureActualPreparation(h);h.state.stage='evaluate';h.context.setStage('prepare');h.context.setExclusionZoneThreshold(150);
+  const h=harness();h.get('body').dataset.experienceMode='guided';configureActualPreparation(h);h.state.stage='evaluate';h.context.setStage('prepare');h.context.setExclusionZoneThreshold(150);
   await vm.runInContext('generateFreshRouteCandidates()',h.context);
+  assert(h.mockedEndpointChecks()>0,'explicit route generation passes both pins through the offline endpoint-check fixture');
   assert.equal(h.context.prepared,1);assert.equal(h.state.draft.exclusion_zones.cutoff_ppsqft,150,'explicit generation freezes the lowered exclusion cutoff');
   assert.equal(h.state.stage,'search');assert.equal(h.context.autoStarts,1,'the prepared batch proceeds after the user explicitly generates it');
+  assert.equal(h.context.queuedStages,0,'explicit Guided generation does not trigger a duplicate automatic stage');
 }
 {
   const h=harness();configureActualPreparation(h);h.state.stage='evaluate';let finish;
   h.context.staticCheck=()=>new Promise(resolve=>{finish=resolve;});
-  const pending=h.actualStageDraft();await Promise.resolve();h.context.setStage('prepare');finish();await pending;
+  const pending=h.actualStageDraft();for(let i=0;i<10&&!finish;i++)await Promise.resolve();assert.equal(typeof finish,'function','the mocked endpoint check completes before the static check begins');h.context.setStage('prepare');finish();await pending;
   assert.equal(h.context.prepared,0);assert.equal(h.context.autoStarts,0);assert.equal(h.state.stage,'prepare','a static check finishing after a return does not pull the user into Search');
 }
 {
@@ -87,4 +108,4 @@ function configureActualPreparation(h){
   assert.equal(exclusions.parentNode,root);assert.equal(button.parentNode,exclusions);assert.equal(help.parentNode.className,'exclusion-help');
   h.context.placeSharedExclusionControls();assert.equal(exclusions.children.length,2,'legacy markup migration is repeatable and keeps existing event targets');
 }
-console.log('Setup review passed: shared exclusion slider, cancelled readiness microtasks and send timers, connection-refresh guard, preserved initial handoff, explicit generation with the revised cutoff, and in-flight static-check cancellation. Live provider calls: 0.');
+console.log('Setup review passed: shared exclusion slider, cancelled readiness microtasks and send timers, connection-refresh guard, preserved initial handoff, explicit generation with the revised cutoff, and in-flight static-check cancellation. Endpoint validation used only the harness mock; no live provider calls.');

@@ -2,7 +2,7 @@
   'use strict';
   const KEY='route-screwtiny.experience.v1';
   const stages={
-    prepare:{number:1,title:'Where are you going?',description:'Place your start and destination using addresses or the map. Check both pins. Then review the suggested Route Gates — the approach points used to find alternatives.',why:'GO looks for roads around both trip ends. After both gate sets are ready, the prepared route batch starts automatically when Valhalla is connected. Limited gate sets need your decision.'},
+    prepare:{number:1,title:'Where are you going?',description:'Place your start and destination using addresses or the map. Check both pins. Then generate Route Gates — points near each end used to find alternatives.',why:'GO looks for roads around both trip ends. In Guided Mode, review both gate sets and the route-search settings before choosing Find routes. Limited gate sets need your decision.'},
     search:{number:2,title:'Let the route search finish',description:'The search tries the reviewed gate combinations. Watch the real progress below. If the connection fails, read the message before deciding to retry.',why:'Your route-time limit and Exclusion Zones apply to this search. No live traffic is included. Hiding zones on the map only hides their drawing.'},
     evaluate:{number:3,title:'Understand your route choices',description:'First, the app checks saved evidence for the whole route pool. Review the ranking and known coverage. For comparison, show route families and check two cards; their map appears automatically.',why:'Orange is a property-value signal, not a safety verdict. Grey means unknown. More evidence is optional after the required pool screen; new lookups need a reviewed plan and your approval.'},
     inspect:{number:4,title:'Take a closer look',description:'Select a route cell or an inspection point, then open available Street View imagery. Use what you see and the evidence coverage to make your own assessment.',why:'Pictures and property values cannot promise safety. Missing or failed lookups remain unknown. You can keep reviewing without requesting more evidence.'},
@@ -52,10 +52,14 @@
       'Find the '+place+' Street address and ZIP code boxes in this section.',
       'Type the house number and street, then the ZIP code. Select "Find address and place '+letter+' on map".',
       'Check that '+letter+' is at the street or driveway where you will '+(start?'begin':'end')+' the drive. Or use "Set '+place+' on map" and click that spot.'
-    ],start?'Once S is placed, we will help you place D.':'Once both pins are placed, select GO to check them and find route options.','S means start. D means destination. A pin marks the exact place your drive begins or ends.','If the address is not found, check the spelling and ZIP. Or zoom in on the map and place the pin yourself.');
+    ],start?'Once S is placed, we will help you place D.':'Once both pins are placed, choose Generate route gates. GO checks them and creates the gate sets first.','S means start. D means destination. A pin marks the exact place your drive begins or ends.','If the address is not found, check the spelling and ZIP. Or zoom in on the map and place the pin yourself.');
+    if(model.mapPinPlaced){guide.heading='Your '+(model.mapPlacementTarget==='origin'?'start':'destination')+' pin is placed';return give(['Look for '+(model.mapPlacementTarget==='origin'?'S':'D')+' where you clicked.','The map stays at the same zoom and position.','When ready, select See my choices to continue.'],'The guide will offer the next decisions when you ask.','Placing a pin does not generate gates or request routes.','If the pin is wrong, use Set start on map or Set destination on map and click again.');}
     if(targetId==='map')return give(['You have turned on pin placement.','Zoom in until you can see the street you want.','Click once on the street or driveway. Check the S or D marker.'],'The pin will be placed where you click. Then the guide will show the next step.','The map is waiting for your click. Placing a pin does not start a route search.','If you click the wrong place, use Set start on map or Set destination on map again.');
-    if(/suggest-shotgun|prepare-shotgun|generate-time-limited|shotgun-settings|generate-fresh/.test(targetId))return give(['Check S and D on the map.','Review the longest drive time you will accept and the Exclusion Zone setting. You can keep the current settings.','Use the highlighted control. GO checks the pins and finds route gates; once both gate sets are ready, the route search can start automatically.'],'Watch the progress. If a decision is needed, we will explain it here.','Route gates are extra points near each end of your trip. The app tries paths through them to find different ways to drive. Exclusion Zones are areas the route search must avoid.','If there are too few gates, you will be asked to accept the smaller set or adjust the settings. Do not keep clicking GO while it is working.');
-    if(/accept-limited/.test(targetId))return give(['The app found fewer route gates than requested.','Read how many were found. Fewer gates mean fewer route options.','Accept this smaller set only if you want to continue with it. Otherwise change the gate settings and try again.'],'After both gate sets are accepted, the prepared route search can start.','A smaller gate set is usable, but explores fewer combinations. This choice belongs to you.');
+    if(/suggest-shotgun|prepare-shotgun|generate-time-limited|shotgun-settings|generate-fresh/.test(targetId)){
+      if(model.gatesReady){guide.heading='Review the route search, then find routes';return give(['Review the generated Start and Destination Route Gates.','Set the longest drive you will accept and review the areas routes must avoid. You can keep the current settings.','Select Generate fresh route candidates when ready. This starts the reviewed route-search process.'],'Watch the route-search progress. Then review the ranked routes.','Route gates are points near each end used to explore different paths. Exclusion Zones apply to the route search even when hidden on the map.','You can review the gates or settings before starting. No route request starts simply by opening these controls.');}
+      guide.heading='Generate your route gates';return give(['Review the inner and outer circle sizes, number of gates, and spacing below. You can keep the defaults.','Select GO — Generate Both Route Gate Sets. It checks both pins and finds roads in those circles.','Wait for both sets. If fewer gates are found, decide whether to accept them or adjust the settings.'],'Once both sets are ready, review the route-search settings before choosing Find routes.','Route gates are extra points near each end of your trip. Generating them comes before requesting routes.','Do not click GO again while it is working. If a road-data or pin check fails, read its message before retrying.');
+    }
+    if(/accept-limited/.test(targetId))return give(['The app found fewer route gates than requested.','Read how many were found. Fewer gates mean fewer route options.','Accept this smaller set only if you want to continue with it. Otherwise change the gate settings and try again.'],'After both gate sets are accepted, review the route-search settings before choosing Find routes.','A smaller gate set is usable, but explores fewer combinations. This choice belongs to you.');
     if(targetId==='check-local-valhalla')return give(['Use the highlighted connection check.','Read the result. If it fails, make sure the desktop road service is running.','When the connection is ready, use GO or the displayed Retry route search control.'],'A successful connection check allows the pin check or route search to continue.','Valhalla is the road service that calculates the route. Your saved trip stays in this session.','Save your session before signing in again or refreshing. A failed connection check does not mean your pins are wrong.');
     if(/red-cutoff|confirm-red/.test(targetId))return give(['Read the dollar amount above the Orange slider.','Keep it or move the slider to the value you want.','Select Apply if the app asks you to confirm it.'],'The existing routes are ranked using this setting. This step does not buy new property estimates.','PPSQFT means estimated home value per square foot. Orange means below your chosen amount. It is a property-value clue, not a safety rating. Grey means the value is unknown.');
     if(targetId==='pool-screening-budget')return give(['Decide whether you want extra property estimates.','Enter 0 to use the evidence already saved. A higher number allows up to that many new unknown cells per included route.','If you want extra estimates, calculate the exact lookup count before approving a round.'],'You will see the exact number of new lookups before they start.','A cell is one hexagon on the map. A lookup asks the property service for an estimate for that cell. New lookups can use paid credits. Shared cells are requested once.','You can keep the current evidence and continue reviewing the routes. More lookups are optional.');
@@ -83,8 +87,13 @@
   function update(){
     scheduled=false;
     const state=root.SurviveDrive?.getState?.()||{},cue=$('next-action');
+    const context=root.SurviveDrive?.getGuidanceContext?.()||{};
     const model=guidanceFor(state,cue&&!cue.hidden?$('next-action-text')?.textContent:'');
-    if(model.tone==='normal'&&model.stage==='prepare'&&!model.busy){const canonical=doc.querySelector('.next-action-target');if(canonical?.id==='pick-origin')model.target='#origin-address';else if(canonical?.id==='pick-destination')model.target='#destination-address';}
+    model.gatesReady=context.gatesReady===true;
+    if(context.mapPlacementHeld){Object.assign(model,{target:'#map',mapPlacementHeld:true,mapPinPlaced:context.mapPinPlaced,mapPlacementTarget:context.mapPlacementTarget,title:context.mapPinPlaced?'Your pin is placed':'Place your pin on the map',next:context.mapPinPlaced?'Look for the pin where you clicked. Select See my choices when ready.':'Click the street or driveway where you want the pin.',description:'Keep the map in view while placing your trip point.'});}
+    else if(model.stage==='prepare'&&!model.busy&&model.tone==='normal'&&context.originReady&&context.destinationReady&&!state.catalogFaults?.start&&!state.catalogFaults?.destination&&!context.startGatesLimited&&!context.destinationGatesLimited){model.target=context.gatesReady?'#generate-time-limited-routes':'#suggest-shotgun';model.title=context.gatesReady?'Review your route-search settings':'Generate your route gates';model.actionLabel=context.gatesReady?'Show route-search settings':'Show gate-generation controls';model.description=context.gatesReady?'Both gate sets are ready. Review them, the drive-time limit, and Exclusion Zones before requesting routes.':'Both pins are placed. Generate gates near each end first; route-search settings come next.';model.next=context.gatesReady?'Review the settings, then select Generate fresh route candidates.':'Review the circle and gate settings, then select GO — Generate Both Route Gate Sets.';}
+    doc.body.dataset.guidedGatesReady=String(context.gatesReady===true);
+    if(!model.mapPlacementHeld&&model.tone==='normal'&&model.stage==='prepare'&&!model.busy){const canonical=doc.querySelector('.next-action-target');if(canonical?.id==='pick-origin')model.target='#origin-address';else if(canonical?.id==='pick-destination')model.target='#destination-address';}
     if(model.target?.startsWith('#pick-')&&doc.querySelector(model.target)?.disabled){const start=model.target==='#pick-origin';model.target=start?'#origin-address':'#destination-address';model.actionLabel='Show '+(start?'start':'destination')+' address';model.next='Map picking is unavailable here. Enter the '+(start?'starting':'destination')+' street address and ZIP, then select Find address and place '+(start?'S':'D')+' on map. Check the resulting pin and select GO.';}
     currentModel=model;$('guided-coach').dataset.tone=model.tone;setText('guided-show-next',model.actionLabel);
     doc.body.dataset.guidedStage=model.stage;
@@ -98,6 +107,7 @@
     root.RouteDecisionTree?.update?.(state,root.SurviveDrive?.getGuidanceContext?.()||{});
     $('guided-show-next').disabled=model.busy||!target;
     $('guided-show-next').hidden=model.busy;
+    root.SurviveDrive?.preserveTripMapView?.();
   }
   let inlineHelp=null,inlineKey='';
   function renderExplanation(model,state,target){
@@ -116,12 +126,12 @@
     if(inlineKey!==key){inlineKey=key;const title=doc.createElement('strong');title.textContent='Do this now: '+heading;const first=doc.createElement('p');first.textContent=help.steps[0];const details=doc.createElement('details'),summary=doc.createElement('summary');summary.textContent='Walk me through it';const steps=doc.createElement('ol');for(const text of help.steps){const li=doc.createElement('li');li.textContent=text;steps.append(li);}const meaning=doc.createElement('p');meaning.textContent=help.meaning;details.append(summary,steps,meaning);const after=doc.createElement('p');after.textContent='Then: '+help.after;inlineHelp.replaceChildren(title,first,details,after);}
     const anchor=doc.querySelector('.next-action-scope')||target?.closest?.('label')||target;
     const safe=anchor&&anchor!==inlineHelp&&!anchor.closest?.('#guided-coach,#guided-inline-help,#guided-dock');
-    inlineHelp.hidden=mode!=='guided'||model.busy||!safe;
-    if(safe&&anchor.parentElement&&(inlineHelp.parentElement!==anchor.parentElement||inlineHelp.nextElementSibling!==anchor))anchor.before(inlineHelp);
+    inlineHelp.hidden=mode!=='guided'||model.busy||model.mapPlacementHeld||!safe;
+    if(!model.mapPlacementHeld&&safe&&anchor.parentElement&&(inlineHelp.parentElement!==anchor.parentElement||inlineHelp.nextElementSibling!==anchor))anchor.before(inlineHelp);
   }
   function schedule(){if(scheduled)return;scheduled=true;root.queueMicrotask(update);}
   function setMode(value){
-    mode=value==='super'?'super':'guided';
+    root.SurviveDrive?.releaseTripMapView?.();mode=value==='super'?'super':'guided';
     doc.body.dataset.experienceMode=mode;doc.body.dataset.guidedAdvanced=String(advanced);
     $('mode-guided').setAttribute('aria-pressed',String(mode==='guided'));
     $('mode-super').setAttribute('aria-pressed',String(mode==='super'));
@@ -140,6 +150,7 @@
     update();root.dispatchEvent(new Event('resize'));
   });
   $('guided-show-next').addEventListener('click',()=>{
+    root.SurviveDrive?.releaseTripMapView?.();
     if(currentModel?.targetStage)root.SurviveDrive?.setStage?.(currentModel.targetStage);
     let target=currentModel?.target?doc.querySelector(currentModel.target):doc.querySelector('.next-action-target');if(target?.disabled&&currentModel?.target?.startsWith('#pick-'))target=$(currentModel.target==='#pick-origin'?'origin-address':'destination-address');if(!target)return;
     for(let parent=target;parent;parent=parent.parentElement)if(parent.localName==='details')parent.open=true;
@@ -150,7 +161,7 @@
     (groupFits?inlineHelp:target).scrollIntoView({behavior:'smooth',block:groupFits?'start':'center'});focus.focus({preventScroll:true});
   });
   $('guided-dock-show')?.addEventListener('click',()=>$('guided-show-next').click());
-  $('guided-dock-explain')?.addEventListener('click',()=>{const panel=$('guided-decisions')||$('guided-coach'),heading=$('guided-decision-title')||$('guided-title');panel.scrollIntoView({behavior:'smooth',block:'start'});heading.focus({preventScroll:true});});
+  $('guided-dock-explain')?.addEventListener('click',()=>{root.SurviveDrive?.releaseTripMapView?.();const panel=$('guided-decisions')||$('guided-coach'),heading=$('guided-decision-title')||$('guided-title');panel.scrollIntoView({behavior:'smooth',block:'start'});heading.focus({preventScroll:true});});
   const lesson=$('guided-lesson'),learned={pair:false,purple:false,uncheck:false,unknown:false};
   function renderLesson(){
     const a=$('lesson-route-a').checked,b=$('lesson-route-b').checked,pair=a&&b;
