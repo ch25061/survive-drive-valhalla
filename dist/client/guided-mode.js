@@ -187,8 +187,8 @@
     const panel=doc.querySelector('.experience-bar'),opacity=$('mode-panel-opacity'),hue=$('mode-panel-color'),ink=$('mode-panel-text');
     if(!panel?.style?.setProperty||!opacity||!hue||!ink)return;
     const preferenceKey='route-screwtiny.mode-panel.v1';
-    // One preference set styles both floating guide panels.
-    const panels=[panel,$('guided-dock')].filter(element=>element?.style?.setProperty);
+    // One preference set styles the shared guide card and its controls.
+    const panels=[doc.querySelector('.guide-panel-stack'),panel,$('guided-dock')].filter(element=>element?.style?.setProperty);
     // Each pair keeps the selected and unselected mode texts coordinated.
     const inks=[['Black','#08060d','#36303f'],['Charcoal','#303038','#15151c'],['Navy','#0c2d5e','#5e3d0c'],['Indigo','#302070','#50601b'],['Purple','#4b1478','#37601b'],['Burgundy','#711d3d','#1d6355'],['Green','#164b32','#4b162f'],['White','#ffffff','#fff0dc']];
     const valid=(value,min,max,fallback)=>Number.isInteger(value)&&value>=min&&value<=max?value:fallback;
