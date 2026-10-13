@@ -192,3 +192,21 @@ body[data-experience-mode="guided"][data-guided-stage="prepare"][data-guided-tri
 .guided-floating-choices .guided-choice-list small{margin-top:4px;font-size:11px;color:#302400}
 .guided-floating-choices button:focus-visible{outline:2px solid hsl(var(--mode-panel-hue),65%,35%);outline-offset:2px}
 @media(max-width:660px){.guided-floating-choices{right:8px;bottom:calc(var(--guide-card-height,202px) + 16px);width:300px;max-width:calc(100vw - 16px);max-height:calc(100dvh - var(--guide-card-height,202px) - 32px)}}
+/* Detailed teaching stays in the compact guide, opened only on request. */
+.guided-more-help{margin-top:8px;border-top:1px solid hsla(var(--mode-panel-hue),45%,35%,.3);padding-top:6px;font-size:12px}
+.guided-more-help>summary{cursor:pointer;font-weight:700;padding:5px 0}
+.guided-more-help>summary:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.guided-floating-choices .guided-coach{display:block;padding:0;margin:8px 0 0;border:0;border-radius:0;background:transparent;color:inherit;scroll-margin:0}
+.guided-floating-choices .guided-coach h2{font-size:14px;margin:6px 0}
+.guided-floating-choices .guided-coach p,.guided-floating-choices .guided-coach li{font-size:12px;line-height:1.4;color:inherit}
+.guided-floating-choices .guided-coach-heading,.guided-floating-choices .guided-coach-footer{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.guided-floating-choices .guided-coach button{min-height:36px;font-size:12px;padding:5px 8px;white-space:normal}
+.guided-floating-choices .guided-decision{background:transparent;border:0;padding:0;margin:8px 0}
+.guided-floating-choices .guided-decision>strong,.guided-floating-choices .guided-explanation strong,.guided-floating-choices .guided-map-help summary,.guided-floating-choices .guided-exact-status summary{color:inherit}
+.guided-floating-choices .guided-decision .primary{min-width:0;width:100%}
+.guided-floating-choices .guided-checklist{display:block;padding-top:6px;margin-top:6px}
+.guided-floating-choices .guided-instructions{padding-left:20px;margin:6px 0}
+.guided-floating-choices .guided-explanation{display:block;margin-top:8px}
+.guided-floating-choices .guided-explanation>div,.guided-floating-choices .guided-explanation>details{padding:6px 0;border:0;border-top:1px solid hsla(var(--mode-panel-hue),45%,35%,.2);border-radius:0;background:transparent}
+.guided-floating-choices .guided-map-help{padding-top:6px;margin-top:8px;font-size:12px}
+#guided-decision-feedback:empty{display:none}

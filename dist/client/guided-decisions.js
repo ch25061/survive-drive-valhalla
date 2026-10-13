@@ -50,8 +50,8 @@
     add('change-trip','Change the trip or search settings','Return to Set the trip. Changing pins, time or exclusions can discard these candidates and require a fresh search.',null,{kind:'stage',stage:'prepare'});save();return result;
   }
   root.RouteDecisionTree={decisionsFor};
-  const doc=root.document;if(!doc?.getElementById('guided-decisions'))return;
-  let renderKey='',latestTree=null,routeMenu=null,descriptionNumber=0;
+  const doc=root.document;if(!doc?.getElementById('guided-floating-choices'))return;
+  let latestTree=null,descriptionNumber=0;
   const $=id=>doc.getElementById(id);
   function closeFloatingChoices(returnFocus=false){
     const panel=$('guided-floating-choices');if(!panel)return;
@@ -85,7 +85,7 @@
     for(const node of doc.querySelectorAll('.guided-choice-revealed'))node.classList.remove('guided-choice-revealed');
     if(choice.kind==='display')app.setCandidateDisplayMode(choice.displayMode);
     else if(choice.kind==='stage')app.setStage(choice.stage);
-    else {if(choice.stage&&choice.stage!==state.stage)app.setStage(choice.stage);if(!focusControl(choice.selector))$('guided-decision-feedback').textContent='That control is not ready yet. Follow the current step and its status message.';}
+    else {if(choice.stage&&choice.stage!==state.stage)app.setStage(choice.stage);if(!focusControl(choice.selector)){toggleFloatingChoices();$('guided-decision-feedback').textContent='That control is not ready yet. Follow the current step and its status message.';}}
     root.RouteGuidance?.schedule();
   }
   function cards(tree,compact=false){
@@ -95,13 +95,8 @@
   }
   function update(state,context){
     latestTree=decisionsFor(state,context);const key=JSON.stringify(latestTree),guided=root.RouteGuidance?.getMode?.()!=='super';
-    $('guided-decisions').hidden=!guided;
     if(!guided)closeFloatingChoices();
-    if(key!==renderKey){renderKey=key;$('guided-decision-path').textContent='You are here: '+latestTree.path.join(' → ');$('guided-decision-title').textContent=latestTree.title;$('guided-decision-description').textContent=latestTree.description;$('guided-decision-list').replaceChildren(cards(latestTree));$('guided-decision-feedback').textContent='';}
-    if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-title').textContent=latestTree.title;$('guided-floating-description').textContent=latestTree.description;$('guided-floating-list').replaceChildren(cards(latestTree,true));}
-    const ranking=doc.getElementById('primary-ranking');
-    if(!routeMenu&&ranking){routeMenu=doc.createElement('section');routeMenu.id='guided-route-decisions';routeMenu.className='guided-route-decisions';ranking.before(routeMenu);}
-    if(routeMenu){routeMenu.hidden=!guided||!latestTree.node.startsWith('ranked-');if(routeMenu.dataset.key!==key){routeMenu.dataset.key=key;const title=doc.createElement('h3');title.textContent='Your choices for these ranked routes';const path=doc.createElement('p');path.textContent=latestTree.path.slice(2).join(' → ');const details=doc.createElement('details'),summary=doc.createElement('summary');summary.textContent='Show all choices';const primary=latestTree.choices.filter(c=>['display','compare','comparison-map','inspect','choose','phone','plan'].includes(c.id)),other=latestTree.choices.filter(c=>!primary.includes(c));details.append(summary,cards({...latestTree,choices:other},true));routeMenu.replaceChildren(title,path,cards({...latestTree,choices:primary},true),details);}}
+    if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-title').textContent=latestTree.title;$('guided-floating-description').textContent=latestTree.description;$('guided-floating-list').replaceChildren(cards(latestTree,true));$('guided-decision-feedback').textContent='';}
   }
   root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices};
 })(typeof window==='undefined'?globalThis:window);

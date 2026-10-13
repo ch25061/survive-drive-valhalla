@@ -153,6 +153,7 @@
     root.SurviveDrive?.releaseTripMapView?.();
     if(currentModel?.targetStage)root.SurviveDrive?.setStage?.(currentModel.targetStage);
     let target=currentModel?.target?doc.querySelector(currentModel.target):doc.querySelector('.next-action-target');if(target?.disabled&&currentModel?.target?.startsWith('#pick-'))target=$(currentModel.target==='#pick-origin'?'origin-address':'destination-address');if(!target)return;
+    root.RouteDecisionTree?.closeFloatingChoices?.();
     for(let parent=target;parent;parent=parent.parentElement)if(parent.localName==='details')parent.open=true;
     const focus=target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary')||target;
     if(!focus.hasAttribute('tabindex')&&!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
