@@ -34,7 +34,40 @@
     if(stage==='evaluate'&&state?.poolScreening?.plan)model.why='Read the exact lookup count and cost before you approve. More evidence is optional. Grey cells stay unknown until usable evidence arrives; they do not become favorable just because they are unmeasured.';
     return model;
   }
-  root.RouteGuidance={guidanceFor};
+  // Explain the canonical next action. This layer never starts work or grants approval.
+  function explainAction(model,state,targetId=''){
+    const guide={steps:[model.next],after:'The help will change when this step is complete.',meaning:model.why,stuck:'Use "Show this control" to find the next control. You can switch to Super User Mode at any time.'};
+    if(!model.busy&&model.tone!=='attention'){
+      const headings=[[/origin|pick-origin/,'Enter your starting address'],[/destination|pick-destination/,'Enter your destination address'],[/^map$/,'Click the place for your pin'],[/red-cutoff|confirm-red/,'Choose what Orange means'],[/pool-screening-budget/,'Choose how many extra estimates you want'],[/approve-pool|send-avm|pool-screening-summary|prepare-pool-evolution/,state?.poolScreening?.plan||state?.avmPlan?'Review the lookup count before you approve':'Calculate the extra lookup count'],[/primary-ranking|candidate-list/,'Read the ranking and compare paths'],[/suggest-shotgun|prepare-shotgun|generate-time-limited|shotgun-settings|generate-fresh/,'Check your trip, then find routes'],[/accept-limited/,'Decide whether to use fewer route options'],[/review-cell|inspection-coords|streetview|assessment|save-note/,'Look at a place along this route'],[/choose-ranked|export-choice|navigate-osmand/,'Record your choice and set up your phone']];
+      guide.heading=headings.find(([pattern])=>pattern.test(targetId))?.[1];
+    }
+    const give=(steps,after,meaning,stuck)=>Object.assign(guide,{steps,after,meaning:meaning||guide.meaning,stuck:stuck||guide.stuck});
+    const start=/origin|pick-origin/.test(targetId),place=start?'start':'destination',letter=start?'S':'D';
+    if(model.busy)return give(['Wait while this task finishes.','Watch the progress message below. You do not need to click again.'],'You will see either the next step or a message explaining what needs fixing.','The app is still working. Clicking again will not make it faster.','If progress stops, read the status message. Keep this session open so you do not lose the report.');
+    if(model.tone==='attention'){
+      if(state?.endpointCheck?.status==='blocked'&&model.target?.startsWith('#pick-'))return give(['Select Set '+place+' on map.','Zoom in. Click the street or driveway where you want '+letter+' to be.','Check the new pin. Then select GO to check both pins again.'],'The app will check the pins again. Both must be within 100 metres of a suitable driving road.',model.why,'If the pin still fails, try the street next to the driveway. The app will not move the pin for you.');
+      return give([model.next],'The app will check again only when you use the indicated control.',model.why,'Read the message above first. Keep your current session. Use "Show this control" to find the place to fix it.');
+    }
+    if(/pick-origin|pick-destination|find-origin|find-destination|^origin-address$|^destination-address$/.test(targetId))return give([
+      'Find the '+place+' Street address and ZIP code boxes in this section.',
+      'Type the house number and street, then the ZIP code. Select "Find address and place '+letter+' on map".',
+      'Check that '+letter+' is at the street or driveway where you will '+(start?'begin':'end')+' the drive. Or use "Set '+place+' on map" and click that spot.'
+    ],start?'Once S is placed, we will help you place D.':'Once both pins are placed, select GO to check them and find route options.','S means start. D means destination. A pin marks the exact place your drive begins or ends.','If the address is not found, check the spelling and ZIP. Or zoom in on the map and place the pin yourself.');
+    if(targetId==='map')return give(['You have turned on pin placement.','Zoom in until you can see the street you want.','Click once on the street or driveway. Check the S or D marker.'],'The pin will be placed where you click. Then the guide will show the next step.','The map is waiting for your click. Placing a pin does not start a route search.','If you click the wrong place, use Set start on map or Set destination on map again.');
+    if(/suggest-shotgun|prepare-shotgun|generate-time-limited|shotgun-settings|generate-fresh/.test(targetId))return give(['Check S and D on the map.','Review the longest drive time you will accept and the Exclusion Zone setting. You can keep the current settings.','Use the highlighted control. GO checks the pins and finds route gates; once both gate sets are ready, the route search can start automatically.'],'Watch the progress. If a decision is needed, we will explain it here.','Route gates are extra points near each end of your trip. The app tries paths through them to find different ways to drive. Exclusion Zones are areas the route search must avoid.','If there are too few gates, you will be asked to accept the smaller set or adjust the settings. Do not keep clicking GO while it is working.');
+    if(/accept-limited/.test(targetId))return give(['The app found fewer route gates than requested.','Read how many were found. Fewer gates mean fewer route options.','Accept this smaller set only if you want to continue with it. Otherwise change the gate settings and try again.'],'After both gate sets are accepted, the prepared route search can start.','A smaller gate set is usable, but explores fewer combinations. This choice belongs to you.');
+    if(targetId==='check-local-valhalla')return give(['Use the highlighted connection check.','Read the result. If it fails, make sure the desktop road service is running.','When the connection is ready, use GO or the displayed Retry route search control.'],'A successful connection check allows the pin check or route search to continue.','Valhalla is the road service that calculates the route. Your saved trip stays in this session.','Save your session before signing in again or refreshing. A failed connection check does not mean your pins are wrong.');
+    if(/red-cutoff|confirm-red/.test(targetId))return give(['Read the dollar amount above the Orange slider.','Keep it or move the slider to the value you want.','Select Apply if the app asks you to confirm it.'],'The existing routes are ranked using this setting. This step does not buy new property estimates.','PPSQFT means estimated home value per square foot. Orange means below your chosen amount. It is a property-value clue, not a safety rating. Grey means the value is unknown.');
+    if(targetId==='pool-screening-budget')return give(['Decide whether you want extra property estimates.','Enter 0 to use the evidence already saved. A higher number allows up to that many new unknown cells per included route.','If you want extra estimates, calculate the exact lookup count before approving a round.'],'You will see the exact number of new lookups before they start.','A cell is one hexagon on the map. A lookup asks the property service for an estimate for that cell. New lookups can use paid credits. Shared cells are requested once.','You can keep the current evidence and continue reviewing the routes. More lookups are optional.');
+    const paid=!!state?.avmPlan||!!state?.poolScreening?.plan;
+    if(/approve-pool|send-avm|pool-screening-summary|prepare-pool-evolution/.test(targetId))return give(paid?['Read the exact new-lookup count and the routes included in this round.','If you want those lookups, use the approval control. This spends up to the displayed number of attempts.','If you do not want them, keep reviewing your routes. Do not approve.']:['Review the route ranking and decide whether extra evidence would help.','Use Calculate exact One Round lookups to check saved evidence and calculate the new-lookup count.','Read the resulting plan. It waits for your approval before any new property lookup.'],paid?'If you approve, this one round runs and the ranking updates. Failed attempts still count.':'The exact plan appears. Calculation alone does not approve the new lookups.','An evidence round gathers more property estimates. It does not guarantee safety. Unknown cells stay unknown until usable evidence arrives.','There are no automatic retries. If a round stops, keep the report and read its explanation before deciding what to do.');
+    if(/primary-ranking|candidate-list|ranking-mode/.test(targetId))return give(['Look at the route with the lowest rank number first. Rank 1 has the best score under your settings.','Read its drive time and known coverage. Coverage tells you how much of the route has usable property evidence.','To compare paths, select the route families display and check two route cards. The map shows the pair automatically.'],'Select a route card to look at that route. Use Look around to inspect places along it.','A route family is a group of similar paths. Purple means exact shared route segments. Grey hexagons have unknown values. A high rank is advice, not a safety promise.','A comparison checkmark compares a route. It does not record your choice for navigation. Uncheck one card to end the comparison.');
+    if(/review-cell|inspection-coords|streetview|assessment|save-note/.test(targetId))return give(['Select a hexagon along the route or an inspection point on the map.','Open Street View when it is available. Look at the street and surroundings.','Add an observation or assessment if you wish, then save the review.'],'Your review stays with this session. When ready, open Choose or adjust to record your route.','Street View is a photograph from a particular date. It helps you look around, but does not tell you current conditions or promise safety.','If there is no image, choose another point. Missing information stays unknown.');
+    if(/choose-ranked|export-choice|navigate-osmand/.test(targetId))return give(['Check that the selected route is the one you want. Comparison checkmarks do not choose it.','Use Choose selected route to record your decision if you have not done that yet.','Use the displayed OsmAnd handoff. Open Android setup for the phone installation and transfer instructions.'],'Your recorded choice is the route used for the phone handoff. Export your session to keep your work.','OsmAnd is the phone navigation app. The RS Android companion transfers the chosen route to it.','If the phone is not set up yet, open Android setup. You can save your session and return to this step later.');
+    if(model.stage==='search')guide.after='When candidates are ready, open Evaluate to see their ranking and evidence.';
+    return guide;
+  }
+  root.RouteGuidance={guidanceFor,explainAction};
   if(!root.document)return;
   const doc=root.document,$=id=>doc.getElementById(id);
   if(!$('mode-guided'))return;
@@ -51,6 +84,7 @@
     scheduled=false;
     const state=root.SurviveDrive?.getState?.()||{},cue=$('next-action');
     const model=guidanceFor(state,cue&&!cue.hidden?$('next-action-text')?.textContent:'');
+    if(model.tone==='normal'&&model.stage==='prepare'&&!model.busy){const canonical=doc.querySelector('.next-action-target');if(canonical?.id==='pick-origin')model.target='#origin-address';else if(canonical?.id==='pick-destination')model.target='#destination-address';}
     if(model.target?.startsWith('#pick-')&&doc.querySelector(model.target)?.disabled){const start=model.target==='#pick-origin';model.target=start?'#origin-address':'#destination-address';model.actionLabel='Show '+(start?'start':'destination')+' address';model.next='Map picking is unavailable here. Enter the '+(start?'starting':'destination')+' street address and ZIP, then select Find address and place '+(start?'S':'D')+' on map. Check the resulting pin and select GO.';}
     currentModel=model;$('guided-coach').dataset.tone=model.tone;setText('guided-show-next',model.actionLabel);
     doc.body.dataset.guidedStage=model.stage;
@@ -60,8 +94,29 @@
     for(const [id,complete,label]of progress){const node=$('guided-check-'+id);if(node){node.textContent=(complete?'✓ ':'○ ')+label;node.dataset.complete=String(complete);}}
     classify();setText('guided-step','STEP '+model.number+' OF 5');setText('guided-title',model.title);setText('guided-description',model.description);setText('guided-next',model.next);setText('guided-why',model.why);
     const target=model.target?doc.querySelector(model.target):doc.querySelector('.next-action-target');
+    renderExplanation(model,state,target);
     $('guided-show-next').disabled=model.busy||!target;
     $('guided-show-next').hidden=model.busy;
+  }
+  let inlineHelp=null,inlineKey='';
+  function renderExplanation(model,state,target){
+    const targetId=target?.id||target?.querySelector?.('input,select,textarea')?.id||(target?.localName==='summary'?target.parentElement?.id:'')||'';
+    const help=explainAction(model,state,targetId),list=$('guided-instructions');
+    const heading=help.heading||model.title;if($('guided-title'))setText('guided-title',heading);
+    if(list&&typeof doc.createElement==='function'){
+      const key=JSON.stringify(help.steps);if(list.dataset.steps!==key){list.replaceChildren(...help.steps.map(text=>{const li=doc.createElement('li');li.textContent=text;return li;}));list.dataset.steps=key;}
+    }
+    for(const [id,text]of [['guided-after',help.after],['guided-meaning',help.meaning],['guided-stuck',help.stuck],['guided-dock-text',model.busy?'Please wait. '+heading:heading]])if($(id))setText(id,text);
+    const dock=$('guided-dock');if(dock)dock.hidden=mode!=='guided';
+    const jump=$('guided-dock-show');if(jump){jump.hidden=model.busy;jump.disabled=!target||model.busy;}
+    if(typeof doc.createElement!=='function')return;
+    if(!inlineHelp){inlineHelp=doc.createElement('aside');inlineHelp.id='guided-inline-help';inlineHelp.className='guided-inline-help';inlineHelp.setAttribute('aria-label','Help for this control');}
+    const key=JSON.stringify([heading,help]);
+    if(inlineKey!==key){inlineKey=key;const title=doc.createElement('strong');title.textContent='Do this now: '+heading;const first=doc.createElement('p');first.textContent=help.steps[0];const details=doc.createElement('details'),summary=doc.createElement('summary');summary.textContent='Walk me through it';const steps=doc.createElement('ol');for(const text of help.steps){const li=doc.createElement('li');li.textContent=text;steps.append(li);}const meaning=doc.createElement('p');meaning.textContent=help.meaning;details.append(summary,steps,meaning);const after=doc.createElement('p');after.textContent='Then: '+help.after;inlineHelp.replaceChildren(title,first,details,after);}
+    const anchor=doc.querySelector('.next-action-scope')||target?.closest?.('label')||target;
+    const safe=anchor&&anchor!==inlineHelp&&!anchor.closest?.('#guided-coach,#guided-inline-help,#guided-dock');
+    inlineHelp.hidden=mode!=='guided'||model.busy||!safe;
+    if(safe&&anchor.parentElement&&(inlineHelp.parentElement!==anchor.parentElement||inlineHelp.nextElementSibling!==anchor))anchor.before(inlineHelp);
   }
   function schedule(){if(scheduled)return;scheduled=true;root.queueMicrotask(update);}
   function setMode(value){
@@ -71,7 +126,7 @@
     $('mode-super').setAttribute('aria-pressed',String(mode==='super'));
     $('guided-coach').hidden=mode!=='guided';
     for(const details of doc.querySelectorAll('.guided-explainer'))details.open=mode==='super';
-    setText('experience-description',mode==='guided'?'Guided Mode explains one decision at a time. Switch modes whenever you like.':'Super User Mode shows every control. Your trip, evidence, and selections are retained.');
+    setText('experience-description',mode==='guided'?'I will explain each step and point to the control you need. No technical knowledge needed.':'Super User Mode shows every control. Your trip, evidence, and selections are retained.');
     try{root.localStorage.setItem(KEY,mode);}catch{}
     update();root.dispatchEvent(new Event('resize'));
   }
@@ -89,8 +144,12 @@
     for(let parent=target;parent;parent=parent.parentElement)if(parent.localName==='details')parent.open=true;
     const focus=target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary')||target;
     if(!focus.hasAttribute('tabindex')&&!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
-    target.scrollIntoView({behavior:'smooth',block:'center'});focus.focus({preventScroll:true});
+    const room=(root.innerHeight||0)-160-($('guided-dock')?.getBoundingClientRect?.().height||0)-10;
+    const groupFits=mode==='guided'&&inlineHelp&&!inlineHelp.hidden&&inlineHelp.getBoundingClientRect?.().height+(target.getBoundingClientRect?.().height||0)+24<=room;
+    (groupFits?inlineHelp:target).scrollIntoView({behavior:'smooth',block:groupFits?'start':'center'});focus.focus({preventScroll:true});
   });
+  $('guided-dock-show')?.addEventListener('click',()=>$('guided-show-next').click());
+  $('guided-dock-explain')?.addEventListener('click',()=>{$('guided-coach').scrollIntoView({behavior:'smooth',block:'start'});$('guided-title').focus({preventScroll:true});});
   const lesson=$('guided-lesson'),learned={pair:false,purple:false,uncheck:false,unknown:false};
   function renderLesson(){
     const a=$('lesson-route-a').checked,b=$('lesson-route-b').checked,pair=a&&b;
@@ -115,6 +174,6 @@
   // Input listeners also cover address editing; no routing or approval handler is called here.
   doc.addEventListener('input',event=>{if(!event.target.closest('#guided-lesson'))schedule();});
   doc.addEventListener('change',event=>{if(!event.target.closest('#guided-lesson'))schedule();});
-  root.RouteGuidance={guidanceFor,schedule,update,setMode,getMode:()=>mode};
+  root.RouteGuidance={guidanceFor,explainAction,schedule,update,setMode,getMode:()=>mode};
   resetLesson();setMode(mode);
 })(typeof window==='undefined'?globalThis:window);
