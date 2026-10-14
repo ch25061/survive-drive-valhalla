@@ -71,7 +71,8 @@
 <label><span>Minimum spacing · miles</span><input id="shotgun-spacing" type="number" min="0.25" max="50" step="0.25" value="0.75"></label>
 </div>
 <p class="shotgun-quick-help hint">Applies at both ends. Outer radius must exceed inner radius. Adjust settings, then GO.</p>
-<button id="suggest-shotgun" type="button" class="secondary" disabled>GO — Generate Both Gate Sets</button>
+<button id="suggest-shotgun" type="button" class="primary" disabled>GO — Generate Both Gate Sets</button>
+<p id="gate-generation-feedback" class="hint" role="status" aria-live="polite">Another GO tries a different valid set. The same radius and spacing rules still apply.</p>
 <button id="show-gate-text-list" type="button" class="quiet" aria-expanded="false" aria-controls="guided-gate-text-lists">Show route gate text lists</button>
 </div>
 <p id="shotgun-search-budget" class="hint" role="status">24 small circles per trip end — up to 48 Census requests for both ends. Saved circles reduce that number. Nothing starts until GO.</p>
@@ -254,6 +255,7 @@
 <p>This keeps gate suggestions from bunching together. With the default of 0.75 miles, a suggestion closer than that to a gate already kept is skipped. Increasing the spacing spreads gates farther apart and may leave fewer of them. Decreasing it allows gates closer together.</p>
 </details><details class="guided-help-section"><summary>GO: generate the gates first</summary>
 <p>GO checks both pins against suitable driving roads and gathers the road data needed for both rings. It suggests Start Route Gates and Destination Approach Gates. In Guided Mode, review the completed gates, time limit, and Exclusion Zones before choosing Find routes. Generating gates makes no Valhalla route request or property-value lookup.</p>
+<p>Not satisfied with the positions? Select GO again, even with the same settings, to try a different valid set. Recent gate sets are avoided when enough suitable alternatives exist. Some gates may need to be reused to preserve the count, spacing and geographic spread. The completion message tells you if no different set could be found. Saved road data is reused.</p>
 </details><details class="guided-help-section"><summary>Why the number of requests changes</summary>
 <p>The ring is covered with overlapping small circles. The estimate below the controls shows the maximum Census road-data requests for both ends; saved circles reduce new requests. Later, the route search tries every ordered Start × Destination combination, also including a route with no extra gate at either end. Six gates at each end give 7 × 7 = 49 route combinations; sixteen give 17 × 17 = 289.</p>
 <p>A selected gate becomes a through point with a 200-metre road-search radius. That radius does not guarantee a suitable road is present. Gate settings explore alternatives; they do not promise a faster or safer route.</p>
