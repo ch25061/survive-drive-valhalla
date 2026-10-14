@@ -8,8 +8,8 @@ function fixture(saved=null,storageFails=false,appearanceSaved=null){
   const node=id=>{if(!nodes.has(id))nodes.set(id,element(id));return nodes.get(id);};
   const state={stage:'evaluate',routes:[{id:'real-route',geometry:[[1,2],[3,4]]}],active:0,choice:{candidate_id:'real-route'},notes:{real:'keep me'},providerCalls:{RentCast:12,Valhalla:42},poolScreening:{plan:{status:'prepared',maximum_attempts:5,selected_cells:[{cell_id:'real-cell'}]},enabled_route_ids:['real-route']}};
   const advanced=node('advanced'),target=node('paid-approval'),disabled=node('disabled');disabled.disabled=true;disabled.hidden=true;
-  const routeColor=node('route-line-color-picker'),legacyRouteColor=node('route-line-color-settings'),upperColor=node('color-scale-setting'),familyParams=node('route-family-parameters');
-  const selectorResults=new Map([['.route-line-color-picker',[routeColor]],['#route-line-color-settings',[legacyRouteColor]],['.color-scale-setting',[upperColor]],['#route-family-parameters',[familyParams]],['#avoid-settings',[advanced]]]);
+  const routeColor=node('route-line-color-picker'),legacyRouteColor=node('route-line-color-settings'),upperColor=node('color-scale-setting'),familyParams=node('route-family-parameters'),roadPrefs=node('avoid-settings');
+  const selectorResults=new Map([['.route-line-color-picker',[routeColor]],['#route-line-color-settings',[legacyRouteColor]],['.color-scale-setting',[upperColor]],['#route-family-parameters',[familyParams]],['#avoid-settings',[roadPrefs]],['#download-request',[advanced]]]);
   node('next-action-text').textContent='Review the exact 5 requests and approve only if you want more evidence.';
   const panel=node('experience-bar'),guideStack=node('guide-panel-stack');
   for(const id of ['mode-panel-opacity','mode-panel-color','mode-panel-text','mode-panel-opacity-value','mode-panel-color-value','mode-panel-text-value','guided-dock','guided-floating-choices'])node(id);
@@ -18,7 +18,7 @@ function fixture(saved=null,storageFails=false,appearanceSaved=null){
   const initialEntries=saved?[['route-screwtiny.experience.v1',saved]]:[];if(appearanceSaved)initialEntries.push(['route-screwtiny.mode-panel.v1',JSON.stringify(appearanceSaved)]);const storage=new Map(initialEntries);
   const env={document:doc,SurviveDrive:{getState:()=>state},Event:class{},queueMicrotask(fn){microtasks.push(fn);},dispatchEvent(){},localStorage:{getItem(k){if(storageFails)throw Error('Unavailable');return storage.get(k);},setItem(k,v){if(storageFails)throw Error('Unavailable');storage.set(k,v);}},fetch(){requests++;throw Error('No requests permitted');}};env.window=env;
   vm.createContext(env);vm.runInContext(source,env);
-  return {env,state,node,advanced,disabled,target,panel,guideStack,routeColor,legacyRouteColor,upperColor,familyParams,storage,events,flush(){while(microtasks.length)microtasks.shift()();},act(id,event='click'){node(id).listeners[event]?.({target:node(id)});},setTarget(v){targetPresent=v;},counts:()=>({requests,submissions})};
+  return {env,state,node,advanced,disabled,target,panel,guideStack,routeColor,legacyRouteColor,upperColor,familyParams,roadPrefs,storage,events,flush(){while(microtasks.length)microtasks.shift()();},act(id,event='click'){node(id).listeners[event]?.({target:node(id)});},setTarget(v){targetPresent=v;},counts:()=>({requests,submissions})};
 }
 const f=fixture(),before=JSON.stringify(f.state);
 assert.equal(f.env.RouteGuidance.getMode(),'guided');
@@ -28,7 +28,7 @@ assert.equal(f.node('mode-panel-color').value,'180','first-run appearance uses t
 assert.equal(f.node('mode-panel-text').value,'4','first-run appearance retains purple text');
 assert.equal(f.node('mode-panel-opacity-value').textContent,'85%');assert.equal(f.node('mode-panel-color-value').textContent,'Teal');assert.equal(f.node('mode-panel-text-value').textContent,'Purple');
 for(const surface of [f.guideStack,f.panel,f.node('guided-dock'),f.node('guided-floating-choices')]){assert.equal(surface.style.getPropertyValue('--mode-panel-hue'),'180');assert.equal(surface.style.getPropertyValue('--mode-panel-opacity'),'0.85');assert.equal(surface.style.getPropertyValue('--mode-panel-text'),'#4b1478','the appearance default keeps purple ink');}
-for(const control of [f.routeColor,f.legacyRouteColor,f.upperColor,f.familyParams])assert.equal(control.classList.contains('guided-advanced-control'),false,control.id+' is a display or contextual control, not operational advanced UI');
+for(const control of [f.routeColor,f.legacyRouteColor,f.upperColor,f.familyParams,f.roadPrefs])assert.equal(control.classList.contains('guided-advanced-control'),false,control.id+' is a display or contextual control, not operational advanced UI');
 assert.equal(f.advanced.classList.contains('guided-advanced-control'),true,'operational controls remain tagged advanced');
 assert.match(f.node('guided-next').textContent,/exact 5 requests/,'prepared plans use the canonical approval instruction');
 for(const mode of ['super','guided','super','guided'])f.env.RouteGuidance.setMode(mode);
@@ -38,7 +38,7 @@ f.act('guided-show-next');assert.equal(f.target.focused,true);assert.deepEqual(f
 f.state.busy=true;f.env.RouteGuidance.schedule();f.env.RouteGuidance.schedule();f.flush();assert.equal(f.node('guided-show-next').hidden,true);assert.match(f.node('guided-next').textContent,/progress/);
 f.state.busy=false;f.state.catalogBusy={destination:true};f.env.RouteGuidance.update();assert.equal(f.node('guided-show-next').disabled,true,'Census ring work is also a wait state');
 f.state.catalogBusy={};
-for(const [stage,number] of [['prepare',1],['search',2],['evaluate',3],['inspect',4],['choose',5]]){f.state.stage=stage;f.env.RouteGuidance.update();assert.equal(f.node('guided-step').textContent,'STEP '+number+' OF 5');}
+for(const [stage,number] of [['prepare',1],['search',2],['evaluate',3],['inspect',4],['choose',5]]){f.state.stage=stage;f.env.RouteGuidance.update();assert.equal(f.node('guided-step').textContent,'STEP '+number+' OF 5');assert.equal(f.roadPrefs.classList.contains('guided-advanced-control'),false,'road preferences must not be hidden behind advanced controls');}
 f.state.stage='prepare';f.node('next-action-text').textContent='Explicitly accept the limited Destination gate set, or retry.';f.env.RouteGuidance.update();assert.match(f.node('guided-next').textContent,/limited Destination/,'partial gate decisions are not replaced with a success instruction');
 f.setTarget(false);f.env.RouteGuidance.update();assert.equal(f.node('guided-show-next').disabled,true,'no invented action when the canonical cue is absent');
 f.node('next-action').hidden=true;f.env.RouteGuidance.update();assert.doesNotMatch(f.node('guided-next').textContent,/limited Destination/,'hidden old cues are not reused');
