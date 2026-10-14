@@ -37,7 +37,7 @@ t=tree({stage:'search',draft:{shotgun:{batch:{status:'stopped_unknown'}}}},ctx);
 t=tree(base,{...ctx,rankingReady:false});assert.equal(t.node,'before-ranking');assert.ok(!choice(t,'choose'));assert.ok(!choice(t,'inspect'));assert.ok(choice(t,'orange'));assert.equal(choice(t,'rank').stage,'evaluate');
 assert.equal(choice(t,'appearance'),undefined,'route appearance stays a map-wide presentation control, not a guided-menu branch');
 t=tree({...base,poolScreening:{plan:{maximum_attempts:3}}},{...ctx,rankingReady:false,approvalTarget:'#approve-pool-screening'});assert.equal(choice(t,'plan').selector,'#approve-pool-screening');assert.equal(choice(t,'plan').kind,'focus');assert.ok(!choice(t,'choose'));
-t=tree(base,ctx);assert.equal(choice(t,'display').displayMode,'families');assert.ok(!choice(t,'compare'));assert.match(choice(t,'display').description,/Rankings do not change/);
+t=tree(base,ctx);assert.equal(choice(t,'display').displayMode,'families');assert.equal(choice(t,'compare').selector,'#toggle-route-family-display');assert.match(choice(t,'compare').description,/For easier comparison.*Route Family presentation/);assert.match(choice(t,'display').description,/Rankings do not change/);
 assert.equal(choice(t,'appearance'),undefined,'ranking does not create a separate appearance action in the guided menu');
 t=tree(base,{...ctx,displayMode:'families'});assert.equal(choice(t,'display').displayMode,'ranked');assert.ok(choice(t,'family-rules'));assert.match(choice(t,'compare').label,/two routes/);
 t=tree(base,{...ctx,displayMode:'families',comparisonCount:1});assert.match(choice(t,'compare').label,/second route/);assert.match(t.path.join(' '),/One comparison/);
@@ -46,7 +46,13 @@ t=tree(base,{...ctx,displayMode:'families',comparisonCount:2,turnBubblesVisible:
 t=tree(base,{...ctx,displayMode:'families',comparableRouteCount:1});assert.equal(choice(t,'compare').enabled,false);
 t=tree(base,{...ctx,selectedRouteId:null});assert.equal(choice(t,'choose').enabled,false);assert.equal(choice(t,'inspect').enabled,false);
 t=tree(base,{...ctx,selectedRouteValid:false});assert.equal(choice(t,'choose').enabled,false);
-t=tree({...base,poolScreening:{...base.poolScreening,plan:{maximum_attempts:5}}},{...ctx,approvalTarget:'#prepare-pool-evolution-ranking'});assert.equal(t.choices[0].id,'plan');assert.equal(choice(t,'plan').kind,'focus');assert.equal(choice(t,'plan').selector,'#prepare-pool-evolution-ranking');assert.ok(!choice(t,'evidence-plan'));assert.match(choice(t,'plan').description,/does not approve/);
+t=tree({...base,poolScreening:{...base.poolScreening,plan:{maximum_attempts:5}}},{...ctx,approvalTarget:'#prepare-pool-evolution-ranking'});assert.equal(t.choices[0].id,'select');assert.equal(choice(t,'plan').kind,'focus');assert.equal(choice(t,'plan').selector,'#prepare-pool-evolution-ranking');assert.ok(!choice(t,'evidence-plan'));assert.match(choice(t,'plan').description,/does not approve/);
+for(const displayMode of ['ranked','families'])for(const inspection of [false,true])for(const pending of [false,true]){
+  const menu=tree({...base,stage:inspection?'inspect':'evaluate',cell:inspection?'cell':null,inspection:inspection?{}:null,poolScreening:{...base.poolScreening,plan:pending?{maximum_attempts:5}:null}},{...ctx,displayMode});
+  assert.equal(menu.choices[0].id,'select','Examine routes stays first as contextual choices change');assert.equal(menu.choices[0].label,'Examine routes');
+  assert.equal(menu.choices.filter(c=>c.id==='select').length,1);assert.equal(menu.choices[0].description,'Click a route card to select it. A comparison checkmark and a recorded navigation choice are separate decisions.');
+  assert.equal(choice(menu,'undo-cull').selector,'#pool-ranking-baseline-included');assert.match(choice(menu,'undo-cull').description,/Opening these controls makes no change/);
+}
 t=tree({...base,stage:'inspect',cell:'abc',inspection:{}},ctx);assert.ok(choice(t,'review-cell'));assert.equal(choice(t,'street-view').enabled,false);
 t=tree({...base,stage:'inspect',inspection:{}},{...ctx,streetViewReady:true});assert.equal(choice(t,'street-view').enabled,true);
 t=tree({...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:true});assert.ok(!choice(t,'choose'));assert.equal(choice(t,'phone').enabled,true);
