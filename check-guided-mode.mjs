@@ -7,9 +7,28 @@ function fixture(saved=null,storageFails=false,appearanceSaved=null){
   const element=id=>({id,textContent:'',hidden:false,disabled:false,checked:false,value:'',style:{values:{},setProperty(k,v){this.values[k]=String(v);},getPropertyValue(k){return this.values[k]||'';}},dataset:{},attributes:{},listeners:{},parentElement:null,localName:'button',classList:{set:new Set(),add(c){this.set.add(c);},contains(c){return this.set.has(c);},toggle(c,on){if(on)this.set.add(c);else this.set.delete(c);}},addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(n,v){this.attributes[n]=v;},hasAttribute(n){return n in this.attributes;},matches(){return this.localName==='button';},querySelector(){return null;},scrollIntoView(){this.scrolled=true;},focus(){this.focused=true;},click(){submissions++;},showModal(){this.open=true;},close(){this.open=false;this.listeners.close?.();}});
   const node=id=>{if(!nodes.has(id))nodes.set(id,element(id));return nodes.get(id);};
   const state={stage:'evaluate',routes:[{id:'real-route',geometry:[[1,2],[3,4]]}],active:0,choice:{candidate_id:'real-route'},notes:{real:'keep me'},providerCalls:{RentCast:12,Valhalla:42},poolScreening:{plan:{status:'prepared',maximum_attempts:5,selected_cells:[{cell_id:'real-cell'}]},enabled_route_ids:['real-route']}};
-  const advanced=node('advanced'),target=node('paid-approval'),disabled=node('disabled');disabled.disabled=true;disabled.hidden=true;
+  const target=node('paid-approval'),disabled=node('disabled');disabled.disabled=true;disabled.hidden=true;
   const routeColor=node('route-line-color-picker'),legacyRouteColor=node('route-line-color-settings'),upperColor=node('color-scale-setting'),familyParams=node('route-family-parameters'),roadPrefs=node('avoid-settings');
-  const selectorResults=new Map([['.route-line-color-picker',[routeColor]],['#route-line-color-settings',[legacyRouteColor]],['.color-scale-setting',[upperColor]],['#route-family-parameters',[familyParams]],['#avoid-settings',[roadPrefs]],['#download-request',[advanced]]]);
+  const restoredControls=new Map([
+    ['#trip-endpoints label:has(> #origin-name)',node('origin-name-label')],['#trip-endpoints label:has(> #destination-name)',node('destination-name-label')],
+    ['#trip-endpoints label:has(> #origin)',node('origin-coordinate-label')],['#trip-endpoints label:has(> #destination)',node('destination-coordinate-label')],
+    ['#trip-form > .form-pair',node('trip-form-pair')],['#trip-form > .form-pair + .hint',node('trip-form-pair-help')],
+    ['#pool-ranking-baseline-control',node('pool-ranking-baseline-control')],['label:has(> #pool-ranking-cull-percent)',node('pool-ranking-cull-label')],
+    ['#pool-ranking-cull-help',node('pool-ranking-cull-help')],['#pool-ranking-cull-preview',node('pool-ranking-cull-preview')],
+    ['#pool-screening-route-allocation-details',node('pool-screening-route-allocation-details')],['#pool-screening-ledger-details',node('pool-screening-ledger-details')],['.round-history',node('round-history')]
+  ]);
+  const rawTechnical=new Map([
+    ['#here-approval-panel details:has(#request-preview)',node('exact-request-settings')],['#download-request',node('download-request')],
+    ['#download-response',node('download-response')],['#here-approval-panel > details:has(#paste-valhalla-request)',node('paste-valhalla-request-details')],
+    ['#download-example',node('download-example')],['#pool-screening-plan-details details:has(#pool-screening-plan)',node('exact-plan-data')]
+  ]);
+  for(const id of ['download-request','download-response'])node(id).disabled=true;
+  for(const id of ['approve-pool-screening','pool-screening-plan-details'])node(id).hidden=true;
+  node('approve-pool-screening').disabled=true;
+  const selectorResults=new Map([
+    ['.route-line-color-picker',[routeColor]],['#route-line-color-settings',[legacyRouteColor]],['.color-scale-setting',[upperColor]],['#route-family-parameters',[familyParams]],['#avoid-settings',[roadPrefs]],
+    ...[...restoredControls,...rawTechnical].map(([selector,el])=>[selector,[el]])
+  ]);
   node('next-action-text').textContent='Review the exact 5 requests and approve only if you want more evidence.';
   const panel=node('experience-bar'),guideStack=node('guide-panel-stack');
   for(const id of ['mode-panel-opacity','mode-panel-color','mode-panel-text','mode-panel-opacity-value','mode-panel-color-value','mode-panel-text-value','guided-dock','guided-floating-choices'])node(id);
@@ -18,7 +37,7 @@ function fixture(saved=null,storageFails=false,appearanceSaved=null){
   const initialEntries=saved?[['route-screwtiny.experience.v1',saved]]:[];if(appearanceSaved)initialEntries.push(['route-screwtiny.mode-panel.v1',JSON.stringify(appearanceSaved)]);const storage=new Map(initialEntries);
   const env={document:doc,SurviveDrive:{getState:()=>state},Event:class{},queueMicrotask(fn){microtasks.push(fn);},dispatchEvent(){},localStorage:{getItem(k){if(storageFails)throw Error('Unavailable');return storage.get(k);},setItem(k,v){if(storageFails)throw Error('Unavailable');storage.set(k,v);}},fetch(){requests++;throw Error('No requests permitted');}};env.window=env;
   vm.createContext(env);vm.runInContext(source,env);
-  return {env,state,node,advanced,disabled,target,panel,guideStack,routeColor,legacyRouteColor,upperColor,familyParams,roadPrefs,storage,events,flush(){while(microtasks.length)microtasks.shift()();},act(id,event='click'){node(id).listeners[event]?.({target:node(id)});},setTarget(v){targetPresent=v;},counts:()=>({requests,submissions})};
+  return {env,state,node,disabled,target,panel,guideStack,routeColor,legacyRouteColor,upperColor,familyParams,roadPrefs,restoredControls,rawTechnical,storage,events,flush(){while(microtasks.length)microtasks.shift()();},act(id,event='click'){node(id).listeners[event]?.({target:node(id)});},setTarget(v){targetPresent=v;},counts:()=>({requests,submissions})};
 }
 const f=fixture(),before=JSON.stringify(f.state);
 assert.equal(f.env.RouteGuidance.getMode(),'guided');
@@ -29,16 +48,20 @@ assert.equal(f.node('mode-panel-text').value,'4','first-run appearance retains p
 assert.equal(f.node('mode-panel-opacity-value').textContent,'85%');assert.equal(f.node('mode-panel-color-value').textContent,'Teal');assert.equal(f.node('mode-panel-text-value').textContent,'Purple');
 for(const surface of [f.guideStack,f.panel,f.node('guided-dock'),f.node('guided-floating-choices')]){assert.equal(surface.style.getPropertyValue('--mode-panel-hue'),'180');assert.equal(surface.style.getPropertyValue('--mode-panel-opacity'),'0.85');assert.equal(surface.style.getPropertyValue('--mode-panel-text'),'#4b1478','the appearance default keeps purple ink');}
 for(const control of [f.routeColor,f.legacyRouteColor,f.upperColor,f.familyParams,f.roadPrefs])assert.equal(control.classList.contains('guided-advanced-control'),false,control.id+' is a display or contextual control, not operational advanced UI');
-assert.equal(f.advanced.classList.contains('guided-advanced-control'),true,'operational controls remain tagged advanced');
+for(const [selector,control] of f.restoredControls)assert.equal(control.classList.contains('guided-advanced-control'),false,selector+' remains available in Guided Mode');
+for(const [selector,control] of f.rawTechnical)assert.equal(control.classList.contains('guided-advanced-control'),true,selector+' remains under Advanced as raw technical detail');
 assert.match(f.node('guided-next').textContent,/exact 5 requests/,'prepared plans use the canonical approval instruction');
 for(const mode of ['super','guided','super','guided'])f.env.RouteGuidance.setMode(mode);
 assert.equal(JSON.stringify(f.state),before,'switching modes preserves routes, rankings, choices, evidence plans and attempts');
 assert.equal(f.disabled.disabled,true);assert.equal(f.disabled.hidden,true,'native workflow gates remain unchanged');
+for(const id of ['download-request','download-response','approve-pool-screening'])assert.equal(f.node(id).disabled,true,id+' retains its native disabled/approval boundary');
+for(const id of ['approve-pool-screening','pool-screening-plan-details'])assert.equal(f.node(id).hidden,true,id+' retains its native hidden state');
 f.act('guided-show-next');assert.equal(f.target.focused,true);assert.deepEqual(f.counts(),{requests:0,submissions:0},'Show me focuses, never submits an approval');
 f.state.busy=true;f.env.RouteGuidance.schedule();f.env.RouteGuidance.schedule();f.flush();assert.equal(f.node('guided-show-next').hidden,true);assert.match(f.node('guided-next').textContent,/progress/);
 f.state.busy=false;f.state.catalogBusy={destination:true};f.env.RouteGuidance.update();assert.equal(f.node('guided-show-next').disabled,true,'Census ring work is also a wait state');
 f.state.catalogBusy={};
 for(const [stage,number] of [['prepare',1],['search',2],['evaluate',3],['inspect',4],['choose',5]]){f.state.stage=stage;f.env.RouteGuidance.update();assert.equal(f.node('guided-step').textContent,'STEP '+number+' OF 5');assert.equal(f.roadPrefs.classList.contains('guided-advanced-control'),false,'road preferences must not be hidden behind advanced controls');}
+for(const mode of ['super','guided']){f.env.RouteGuidance.setMode(mode);for(const [selector,control] of f.restoredControls)assert.equal(control.classList.contains('guided-advanced-control'),false,selector+' stays outside Advanced in '+mode+' mode');for(const [selector,control] of f.rawTechnical)assert.equal(control.classList.contains('guided-advanced-control'),true,selector+' remains raw technical detail in '+mode+' mode');}
 f.state.stage='prepare';f.node('next-action-text').textContent='Explicitly accept the limited Destination gate set, or retry.';f.env.RouteGuidance.update();assert.match(f.node('guided-next').textContent,/limited Destination/,'partial gate decisions are not replaced with a success instruction');
 f.setTarget(false);f.env.RouteGuidance.update();assert.equal(f.node('guided-show-next').disabled,true,'no invented action when the canonical cue is absent');
 f.node('next-action').hidden=true;f.env.RouteGuidance.update();assert.doesNotMatch(f.node('guided-next').textContent,/limited Destination/,'hidden old cues are not reused');
@@ -57,7 +80,11 @@ f.act('lesson-unknown');assert.match(f.node('lesson-status').textContent,/Practi
 f.act('lesson-close');assert.equal(f.node('practice-launcher').focused,true);
 assert.equal(JSON.stringify(f.state),realState,'practice does not insert example routes or evidence into the real trip');
 assert.deepEqual(f.counts(),{requests:0,submissions:0});
-const html=readFileSync('dist/index.html','utf8'),build=readFileSync('build.mjs','utf8');
+const html=readFileSync('dist/index.html','utf8'),build=readFileSync('build.mjs','utf8'),styles=readFileSync('dist/style.css','utf8');
+for(const href of ['/tutorial.html','/android.html'])assert(html.includes(`href="${href}"`),`${href} help remains available from the masthead`);
+assert.match(html,/<span id="provider-status">/,'live provider connection status remains in the masthead');
+const hiddenMastheadFunctions=styles.split('}').filter(rule=>{const brace=rule.lastIndexOf('{');if(brace<0)return false;const selectors=rule.slice(0,brace),declarations=rule.slice(brace+1);return /display\s*:\s*none/.test(declarations)&&/(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?\.masthead\s+\.mode\b|(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?\.masthead\s+\.tutorial-link\b|(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?#provider-status\b/.test(selectors);});
+assert.deepEqual(hiddenMastheadFunctions,[],'mobile tutorial/Android links and live provider connection status are not CSS-hidden in Guided Mode');
 const mapControlsStart=html.indexOf('<div id="map-display-controls"'),mapControlsEnd=html.indexOf('<div class="route-comparison-map-controls">',mapControlsStart),mapWorkspaceStart=html.indexOf('<section class="map-workspace"');
 assert(mapWorkspaceStart>=0&&mapControlsStart>mapWorkspaceStart&&mapControlsEnd>mapControlsStart,'map display controls live in the map workspace outside workflow stage panels');
 const mapControlsMarkup=html.slice(mapControlsStart,mapControlsEnd);
