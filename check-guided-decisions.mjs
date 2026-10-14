@@ -58,6 +58,18 @@ t=tree({...base,stage:'inspect',inspection:{}},{...ctx,streetViewReady:true});as
 t=tree({...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:true});assert.ok(!choice(t,'choose'));assert.equal(choice(t,'phone').enabled,true);
 t=tree({...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:false});assert.equal(choice(t,'phone').enabled,false);
 t=tree({...base,choice:{candidate_id:'b'}},{...ctx,phoneReady:true});assert.ok(choice(t,'choose'));assert.ok(!choice(t,'phone'),'selected route must match the recorded choice');
+for(const [state,context,ids] of [
+  [base,ctx,['choose','save']],
+  [{...base,stage:'inspect',cell:'cell',inspection:{}},{...ctx,reviewSaveReady:true,streetViewReady:true},['save-review','street-view','choose','save']],
+  [base,{...ctx,comparisonCount:2,displayMode:'families'},['end-comparison','turns','choose','save']],
+  [{...base,choice:{candidate_id:'a'}},{...ctx,phoneReady:true},['phone','android','save']],
+  [{stage:'prepare'},{originReady:true,destinationReady:true,startGatesLimited:true,destinationGatesLimited:true},['limited-start','limited-destination']]
+])for(const id of ids)assert.equal(choice(tree(state,context),id).kind,'activate',id+' directly executes the existing guarded control');
+assert.equal(choice(tree({...base,stage:'inspect',cell:'cell'},{...ctx,reviewSaveReady:false}),'save-review').enabled,false,'an unentered review cannot be saved through the menu');
+assert.equal(choice(tree(base,ctx),'evidence-plan').kind,'activate');assert.equal(choice(tree(base,{...ctx,evidenceCalculationReady:false}),'evidence-plan').enabled,false);
+assert.equal(choice(tree({stage:'search',routes:[]},{}),'connection').kind,'activate');
+assert.equal(choice(tree({...base,poolScreening:{...base.poolScreening,plan:{maximum_attempts:5}}},ctx),'plan').kind,'focus','prepared paid lookups retain review and approval');
+for(const id of ['search','regenerate-gates','time','zones'])assert.equal(choice(tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:true,gatesReady:true}),id).kind,'focus',id+' retains settings review before activation');
 const before=JSON.stringify(base);tree(base,ctx);assert.equal(JSON.stringify(base),before);
 
 // Read the new context through the real app, including its existing ranking guard.
@@ -87,4 +99,8 @@ pinEnv.SurviveDrive.handleMapClick([41.88,-87.64]);
 assert.equal(scrollCorrection,40,'map position is corrected after the pin click shifts page layout');assert.equal(pinMapElement.top,180,'the map stays at the placement position');
 assert.deepEqual(pinMap.getCenter(),center);assert.equal(pinMap.getZoom(),12);assert.equal(mapChanges,0,'pin placement preserves map center and zoom');
 assert.equal(pinRequests,0,'pin placement and map-view correction make no provider requests');
+// An explicit connection-check action must not resume pending route work.
+vm.runInContext("beginWorking=()=>()=>{};checkValhallaConnection=async()=>({local_valhalla_ready:true,rentcast_server_key:true});window.__autoResumeCount=0;scheduleAutoHereSend=()=>{window.__autoResumeCount++;};",appEnv);
+await vm.runInContext('loadProviders({resumePending:false})',appEnv);assert.equal(appEnv.__autoResumeCount,0,'explicit connection check never resumes route submission');
+await vm.runInContext('loadProviders()',appEnv);assert.equal(appEnv.__autoResumeCount,1,'normal startup retains its existing authorized auto-resume path');
 console.log('Decision tree passed: pins, limited gates, waiting, connection recovery, unknown outcomes, ranking guard, families, 0/1/2 comparison checks, turn visibility, inspection, pending-plan boundaries, selected/chosen distinction, phone prerequisites and read-only native context. Provider calls: 0.');
