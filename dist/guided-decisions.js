@@ -24,8 +24,8 @@
       if(!gatesReady&&!hasGates&&!state.catalogFaults?.start&&!state.catalogFaults?.destination&&!context.startGatesLimited&&!context.destinationGatesLimited)add('generate-gates','Generate route gates','Review the circle sizes, gate count, and spacing, then use GO to generate both gate sets. Opening these controls sends no request.','#suggest-shotgun');
       if(state.catalogFaults?.start||state.catalogFaults?.destination)add('gate-retry','Review the paused gate search','Read the failed-circle report before choosing the displayed Retry control.',state.catalogFaults.start?'#suggest-shotgun':'#suggest-destination-shotgun');
       for(const side of ['start','destination'])if(context[side+'GatesLimited'])add('limited-'+side,'Use the smaller '+side+' gate set','Fewer gates explore fewer route options. Accept only if you want to continue with this smaller set.',side==='start'?'#accept-limited-shotgun':'#accept-limited-shotgun-destination');
-      if(gatesReady){add('search','Find routes','Generate fresh route candidates using your selected gates, time limit, and Exclusion Zones. You may want to review these settings first. This choice opens the search button; press it to begin.','#generate-time-limited-routes');add('gates','Review route gates','Look at the generated gates near each trip end and their selected combinations.','#shotgun-gate-list');add('time','Set the longest drive I will accept','Set the maximum trip length before finding routes. Routes above this time are discarded.','#maximum-route-minutes');}
-      else if(hasGates){add('generate-gates','Generate route gates again','Adjust gate settings and use GO if you want another gate search.','#suggest-shotgun');add('gates','Review generated route gates','Review the available gates and resolve any smaller gate set before finding routes.',context.startGatesGenerated?'#shotgun-gate-list':'#shotgun-gate-list-destination');}
+      if(gatesReady){add('search','Find routes','Generate fresh route candidates using your selected gates, time limit, and Exclusion Zones. You may want to review these settings first. This choice opens the search button; press it to begin.','#generate-time-limited-routes');add('gates','Review route gates','Look at the generated gates near each trip end on the map.','#map');add('regenerate-gates','Regenerate route gates','Not satisfied with the gates? Adjust the four gate settings, then press GO to generate both sets again. Opening the settings sends no request.','#suggest-shotgun');add('time','Set the longest drive I will accept','Set the maximum trip length before finding routes. Routes above this time are discarded.','#maximum-route-minutes');}
+      else if(hasGates){add('generate-gates','Regenerate route gates','Adjust gate settings and use GO if you want another gate search.','#suggest-shotgun');add('gates','Review generated route gates','Look at the available gates on the map. Resolve any smaller gate set before finding routes.','#map');}
       add('zones','Review the areas routes must avoid','Changing the exclusion cutoff requires fresh route candidates. Hiding zones on the map only changes their visibility.','#exclusion-zone-level');
       return result;
     }
@@ -57,17 +57,30 @@
     const panel=$('guided-floating-choices');if(!panel)return;
     panel.hidden=true;$('guided-dock-explain')?.setAttribute('aria-expanded','false');
     $('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');
+    $('show-gate-text-list')?.setAttribute('aria-expanded','false');
     if(returnFocus)(returnTarget?.id==='guided-more-help'?$('guided-dock-explain'):returnTarget||$('guided-dock-explain'))?.focus({preventScroll:true});
   }
   function renderPanelView(){
-    const help=panelView==='help';
-    $('guided-floating-list').hidden=help;$('guided-more-help').hidden=help;$('guided-help-menu').hidden=!help;$('guided-help-back').hidden=!help;
+    const help=panelView==='help',gates=panelView==='gate-list';
+    $('guided-floating-list').hidden=help||gates;$('guided-more-help').hidden=help||gates;$('guided-help-menu').hidden=!help;$('guided-help-back').hidden=!help||root.RouteGuidance?.getMode?.()==='super';
+    if($('guided-gate-text-lists'))$('guided-gate-text-lists').hidden=!gates;
     $('guided-help-menu').dataset.topic=helpTopic;
-    $('guided-floating-title').textContent=help?(helpTopic==='gates'?'Understand your route gates':'Understand this step'):latestTree?.title||'Your choices';
-    $('guided-floating-description').textContent=help?'Read the overview, then open any topic for details and the reason behind it.':latestTree?.description||'';
+    $('guided-floating-title').textContent=gates?'Route gate text lists':help?(helpTopic==='gates'?'Understand your route gates':'Understand this step'):latestTree?.title||'Your choices';
+    $('guided-floating-description').textContent=gates?'The map is the main gate view. Use these lists to read gate details or change which gates are selected. Changing a selection sends no request; review the batch before searching.':help?'Read the overview, then open any topic for details and the reason behind it.':latestTree?.description||'';
+    $('guided-floating-close')?.setAttribute('aria-label',gates?'Close gate text lists':'Close choices');
+  }
+  function toggleGateTextLists(){
+    const panel=$('guided-floating-choices'),trigger=$('show-gate-text-list');if(!panel||!$('guided-gate-text-lists'))return;
+    if(!panel.hidden&&panelView==='gate-list'){closeFloatingChoices(true);return;}
+    panelView='gate-list';returnTarget=trigger;
+    $('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');
+    update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
+    panel.hidden=false;panel.scrollTop=0;trigger?.setAttribute('aria-expanded','true');$('guided-dock-explain')?.setAttribute('aria-expanded','false');
+    $('guided-floating-title')?.focus({preventScroll:true});
   }
   function openHelp(topic='step',trigger=$('guided-more-help')){
     panelView='help';helpTopic=topic;returnTarget=trigger;
+    $('show-gate-text-list')?.setAttribute('aria-expanded','false');
     update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
     if(topic==='gates')$('shotgun-help').open=true;
     $('guided-floating-choices').hidden=false;$('guided-dock-explain')?.setAttribute('aria-expanded','true');
@@ -78,12 +91,14 @@
     const panel=$('guided-floating-choices');if(!panel||root.RouteGuidance?.getMode?.()==='super')return;
     if(!panel.hidden&&panelView==='choices'){closeFloatingChoices(true);return;}
     panelView='choices';returnTarget=$('guided-dock-explain');
+    $('show-gate-text-list')?.setAttribute('aria-expanded','false');
     $('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');
     update(root.SurviveDrive?.getState?.()||{},root.SurviveDrive?.getGuidanceContext?.()||{});
     panel.hidden=false;$('guided-dock-explain')?.setAttribute('aria-expanded','true');
     $('guided-floating-title')?.focus({preventScroll:true});
   }
   $('guided-more-help')?.addEventListener('click',()=>openHelp());
+  $('show-gate-text-list')?.addEventListener('click',toggleGateTextLists);
   $('guided-gate-help')?.addEventListener('click',()=>{if(!$('guided-floating-choices').hidden&&panelView==='help'&&helpTopic==='gates')closeFloatingChoices(true);else openHelp('gates',$('guided-gate-help'));});
   $('guided-help-back')?.addEventListener('click',()=>{panelView='choices';returnTarget=$('guided-dock-explain');$('guided-gate-help')?.setAttribute('aria-expanded','false');$('guided-more-help')?.setAttribute('aria-expanded','false');renderPanelView();$('guided-floating-title')?.focus({preventScroll:true});});
   $('guided-floating-close')?.addEventListener('click',()=>closeFloatingChoices(true));
@@ -92,14 +107,18 @@
   if(guideCard&&floatingPanel&&typeof root.ResizeObserver==='function')new root.ResizeObserver(()=>floatingPanel.style.setProperty('--guide-card-height',Math.ceil(guideCard.getBoundingClientRect().height)+'px')).observe(guideCard);
   function focusControl(selector){
     const target=doc.querySelector(selector);if(!target)return false;
-    if(target.disabled||target.getAttribute('aria-disabled')==='true')return false;
-    for(let p=target;p;p=p.parentElement){if(p.localName==='details')p.open=true;if(p.classList.contains('guided-advanced-control'))p.classList.add('guided-choice-revealed');}
-    const focus=target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary,a[href]')||target;
-    if(!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
+    // Gate settings can be reviewed even while GO itself is unavailable.
     const gateControls=target.id==='suggest-shotgun'?$('shotgun-parameter-controls'):null;
+    if((target.disabled||target.getAttribute('aria-disabled')==='true')&&!gateControls)return false;
+    if(['pick-origin','pick-destination'].includes(target.id)&&typeof root.SurviveDrive?.armMapPick==='function'){
+      if(!root.SurviveDrive.armMapPick(target.id==='pick-origin'?'origin':'destination'))return false;
+      const map=$('map');map?.setAttribute('tabindex','-1');map?.focus({preventScroll:true});return true;
+    }
+    for(let p=target;p;p=p.parentElement){if(p.localName==='details')p.open=true;if(p.classList.contains('guided-advanced-control'))p.classList.add('guided-choice-revealed');}
+    const focus=gateControls&&target.disabled?gateControls.querySelector('input:not(:disabled),select:not(:disabled)')||gateControls:target.matches('button,input,select,textarea,summary,a[href]')?target:target.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary,a[href]')||target;
+    if(!focus.matches('button,input,select,textarea,summary,a[href]'))focus.setAttribute('tabindex','-1');
     const gateHeading=gateControls?doc.querySelector('#shotgun-settings > summary'):null;
-    const gateReview=['shotgun-gate-list','shotgun-gate-list-destination'].includes(target.id),gateStatus=gateReview?$(target.id==='shotgun-gate-list'?'shotgun-status':'shotgun-status-destination'):null;
-    (gateStatus||gateHeading||gateControls||target).scrollIntoView({behavior:'smooth',block:gateControls||gateReview?'start':'center'});focus.focus({preventScroll:true});return true;
+    (gateHeading||gateControls||target).scrollIntoView({behavior:'smooth',block:gateControls?'start':'center'});focus.focus({preventScroll:true});return true;
   }
   function chooseBranch(id){
     const app=root.SurviveDrive,state=app?.getState?.()||{},context=app?.getGuidanceContext?.()||{};
@@ -119,9 +138,9 @@
   }
   function update(state,context){
     latestTree=decisionsFor(state,context);const key=JSON.stringify(latestTree),guided=root.RouteGuidance?.getMode?.()!=='super';
-    if(!guided&&panelView!=='help')closeFloatingChoices();
+    if(!guided&&panelView==='choices')closeFloatingChoices();
     if(floatingPanel&&floatingPanel.dataset.key!==key){floatingPanel.dataset.key=key;$('guided-floating-list').replaceChildren(cards(latestTree,true));$('guided-decision-feedback').textContent='';}
     renderPanelView();
   }
-  root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices,openHelp};
+  root.RouteDecisionTree={decisionsFor,update,chooseBranch,toggleFloatingChoices,closeFloatingChoices,openHelp,toggleGateTextLists};
 })(typeof window==='undefined'?globalThis:window);

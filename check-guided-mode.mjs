@@ -80,11 +80,25 @@ f.act('lesson-unknown');assert.match(f.node('lesson-status').textContent,/Practi
 f.act('lesson-close');assert.equal(f.node('practice-launcher').focused,true);
 assert.equal(JSON.stringify(f.state),realState,'practice does not insert example routes or evidence into the real trip');
 assert.deepEqual(f.counts(),{requests:0,submissions:0});
-const html=readFileSync('dist/index.html','utf8'),build=readFileSync('build.mjs','utf8'),styles=readFileSync('dist/style.css','utf8');
+const html=readFileSync('dist/index.html','utf8'),build=readFileSync('build.mjs','utf8'),styles=readFileSync('dist/style.css','utf8'),appSource=readFileSync('dist/app.js','utf8');
 for(const href of ['/tutorial.html','/android.html'])assert(html.includes(`href="${href}"`),`${href} help remains available from the masthead`);
 assert.match(html,/<span id="provider-status">/,'live provider connection status remains in the masthead');
 const hiddenMastheadFunctions=styles.split('}').filter(rule=>{const brace=rule.lastIndexOf('{');if(brace<0)return false;const selectors=rule.slice(0,brace),declarations=rule.slice(brace+1);return /display\s*:\s*none/.test(declarations)&&/(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?\.masthead\s+\.mode\b|(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?\.masthead\s+\.tutorial-link\b|(?:^|[,{}\s])(?:body\[data-experience-mode="guided"\]\s+)?#provider-status\b/.test(selectors);});
 assert.deepEqual(hiddenMastheadFunctions,[],'mobile tutorial/Android links and live provider connection status are not CSS-hidden in Guided Mode');
+const gateSettingsStart=html.indexOf('<details id="shotgun-settings">'),gateSettingsEnd=html.indexOf('</details>',gateSettingsStart),gateSettingsMarkup=html.slice(gateSettingsStart,gateSettingsEnd);
+const refreshBatchIndex=gateSettingsMarkup.indexOf('id="prepare-shotgun-batch"'),gateGoIndex=gateSettingsMarkup.indexOf('id="suggest-shotgun"');
+assert(refreshBatchIndex>=0&&gateSettingsMarkup.slice(refreshBatchIndex).match(/^id="prepare-shotgun-batch"[^>]*>Refresh exact Valhalla batch<\/button>\s*<button id="suggest-shotgun"/),'Refresh exact Valhalla batch appears immediately above GO');
+assert.equal((html.match(/\bid="prepare-shotgun-batch"/g)||[]).length,1,'the existing Refresh exact Valhalla batch ID remains unique');
+assert.match(gateSettingsMarkup,/<button id="prepare-shotgun-batch"[^>]*type="submit"[^>]*disabled>Refresh exact Valhalla batch<\/button>/,'batch refresh remains a disabled form submit until gates are ready');
+assert.match(gateSettingsMarkup,/<button id="suggest-shotgun" type="button"[^>]*disabled>GO — Generate Both Gate Sets<\/button>/,'GO remains the separate gate-generation action');
+assert.match(appSource,/\$\('trip-form'\)\.addEventListener\('submit',async e=>\{e\.preventDefault\(\);try\{await stageDraft\(\);/,'batch refresh retains the existing exact-batch submit handler');
+assert.match(appSource,/const batchButton=\$\('prepare-shotgun-batch'\);batchButton\.disabled=!ready/,'the existing batch button remains gated by current route-gate readiness');
+assert.ok(appSource.includes("$('suggest-shotgun').addEventListener('click'")&&appSource.includes("scheduleEscapeGateGeneration(['start','destination']"),'gate GO keeps its separate Census gate-generation handler');
+const textPullout=html.slice(html.indexOf('<aside id="guided-floating-choices"'),html.indexOf('</aside>',html.indexOf('<aside id="guided-floating-choices"')));
+assert.match(gateSettingsMarkup,/<button id="show-gate-text-list"[^>]*aria-expanded="false"[^>]*aria-controls="guided-gate-text-lists">Show route gate text lists<\/button>/,'gate text lists have a discoverable, initially closed opener');
+assert.match(textPullout,/<div id="guided-gate-text-lists" class="guided-gate-text-lists" hidden>/,'gate text lists live in the initially hidden shared panel');
+for(const id of ['shotgun-gate-list','shotgun-gate-list-destination']){assert(textPullout.includes(`id="${id}"`),`${id} is available only in the optional pull-out`);assert.equal((html.match(new RegExp(`\\bid="${id}"`,'g'))||[]).length,1,`${id} remains unique`);assert(!gateSettingsMarkup.includes(`id="${id}"`),`${id} is not shown inline beside the map-first workflow`);}
+assert.match(styles,/\.guided-gate-text-lists \.gate-option\{[^}]*hsla\(var\(--mode-panel-hue\)/,'the gate-list pull-out shares the guide appearance');
 const mapControlsStart=html.indexOf('<div id="map-display-controls"'),mapControlsEnd=html.indexOf('<div class="route-comparison-map-controls">',mapControlsStart),mapWorkspaceStart=html.indexOf('<section class="map-workspace"');
 assert(mapWorkspaceStart>=0&&mapControlsStart>mapWorkspaceStart&&mapControlsEnd>mapControlsStart,'map display controls live in the map workspace outside workflow stage panels');
 const mapControlsMarkup=html.slice(mapControlsStart,mapControlsEnd);

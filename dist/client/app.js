@@ -419,7 +419,7 @@ function armMapPick(target){
   if(!['origin','destination'].includes(target))throw Error('Choose a trip point.');
   if(state.busy){notice('Wait for the active request to finish before changing trip points.');return false;}
   if(!map||!window.L){notice('The street map is unavailable. Enter coordinates in Set the trip.');return false;}
-  holdTripMapView();tripMapPlacedTarget=null;mapPick=target;mapPickGuardUntil=0;setStage('prepare');renderMapPickControls();updateNextAction();window.RouteGuidance?.update?.();const rect=$('map')?.getBoundingClientRect?.();if(!rect||rect.bottom<=0||rect.top>=window.innerHeight)$('map').scrollIntoView?.({behavior:'auto',block:'center'});holdTripMapView();return true;
+  holdTripMapView();tripMapPlacedTarget=null;mapPick=target;mapPickGuardUntil=0;setStage('prepare');renderMapPickControls();updateNextAction();window.RouteGuidance?.update?.();const rect=$('map')?.getBoundingClientRect?.();if(!rect||rect.top<0||rect.bottom>window.innerHeight)$('map').scrollIntoView?.({behavior:'auto',block:'center'});holdTripMapView();return true;
 }
 let autoValhallaSendTimer=null;
 const autoValhallaAttempted=new WeakSet();

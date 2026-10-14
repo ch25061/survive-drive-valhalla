@@ -20,14 +20,15 @@ assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'gates'));assert.ok(!
 assert.ok(choice(setup,'zones'),'the exclusion-zone review stays available before gate generation');
 setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:true,gatesReady:true});
 assert.equal(setup.node,'gates-ready');assert.ok(choice(setup,'search'));assert.ok(choice(setup,'gates'));assert.ok(choice(setup,'time'));
-assert.equal(choice(setup,'search').label,'Find routes');assert.match(choice(setup,'search').description,/^Generate fresh route candidates/,'the main search action is named before optional settings review');assert.match(choice(setup,'search').description,/review these settings first/);assert.match(choice(setup,'gates').label,/Review route gates/);assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list');
+assert.equal(choice(setup,'search').label,'Find routes');assert.match(choice(setup,'search').description,/^Generate fresh route candidates/,'the main search action is named before optional settings review');assert.match(choice(setup,'search').description,/review these settings first/);assert.match(choice(setup,'gates').label,/Review route gates/);assert.equal(choice(setup,'gates').selector,'#map','gate review puts the map first');
+assert.equal(choice(setup,'regenerate-gates').label,'Regenerate route gates');assert.equal(choice(setup,'regenerate-gates').selector,'#suggest-shotgun');assert.equal(choice(setup,'regenerate-gates').kind,'focus');assert.match(choice(setup,'regenerate-gates').description,/Opening the settings sends no request/,'regeneration settings are separate from GO');
 setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:true,destinationGatesGenerated:false,gatesReady:false});
 assert.ok(choice(setup,'gates'),'a partially generated trip can review its actual available gates');
-assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list');
+assert.equal(choice(setup,'gates').selector,'#map','partial Start gate review also goes to the map');
 assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'time'));
 assert.ok(!choice(setup,'limited-destination'),'no smaller destination set is invented without a recorded limited set');
 setup=tree({stage:'prepare'},{originReady:true,destinationReady:true,startGatesGenerated:false,destinationGatesGenerated:true,gatesReady:false});
-assert.equal(choice(setup,'gates').selector,'#shotgun-gate-list-destination','destination-only recovery targets the gate list that actually exists');
+assert.equal(choice(setup,'gates').selector,'#map','destination-only gate review also goes to the map');
 assert.ok(!choice(setup,'search'));assert.ok(!choice(setup,'time'));
 for(const busy of [{busy:true},{catalogBusy:{start:true}},{gateGenerationPending:true},{poolScreening:{status:'running'}}]){const t=tree({...base,...busy},ctx);assert.equal(t.node,'working');assert.ok(!choice(t,'display'));assert.ok(!choice(t,'choose'));}
 let t=tree({stage:'prepare',endpointCheck:{status:'blocked',points:[{pin:'origin',within_limit:false}]}},ctx);assert.equal(t.node,'repair-pin');assert.equal(choice(t,'repair-map').selector,'#pick-origin');assert.match(t.description,/100 metres/);
@@ -55,7 +56,8 @@ const before=JSON.stringify(base);tree(base,ctx);assert.equal(JSON.stringify(bas
 
 // Read the new context through the real app, including its existing ranking guard.
 const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',attributes:{},addEventListener(){},getAttribute(n){return this.attributes[n]??null;}});return nodes.get(id);};
-const appEnv={document:{getElementById:get},fetch:env.fetch};appEnv.window=appEnv;vm.createContext(appEnv);vm.runInContext(readFileSync('dist/app.js','utf8').replace(/\ninit\(\);\s*$/,''),appEnv);
+const appSource=readFileSync('dist/app.js','utf8');
+const appEnv={document:{getElementById:get},fetch:env.fetch};appEnv.window=appEnv;vm.createContext(appEnv);vm.runInContext(appSource.replace(/\ninit\(\);\s*$/,''),appEnv);
 const app=appEnv.SurviveDrive,state=app.getState();state.routes=[{id:'actual',geometry:[[-87.8,41.8],[-87.7,41.9]],cells:[],endpoint_validation:{valid:true}}];state.active=0;state.poolScreening.results=[{route_id:'actual',rank:1}];state.poolScreening.status='cache_only';get('origin').value='41.8, -87.8';get('destination').value='41.9, -87.7';
 const snapshot=JSON.stringify(state),context=app.getGuidanceContext();assert.equal(context.rankingReady,true);assert.equal(context.comparableRouteCount,1);assert.equal(context.originReady,true);assert.equal(context.destinationReady,true);assert.equal(context.selectedRouteId,'actual');assert.equal(context.selectedRouteValid,true);assert.equal(JSON.stringify(state),snapshot,'context reading must preserve evidence and route state');
 assert.equal(context.startGatesGenerated,false);assert.equal(context.destinationGatesGenerated,false);assert.equal(context.gatesReady,false,'typed origins alone never mean current gates exist');
@@ -63,4 +65,20 @@ state.poolScreening.status='interrupted';state.poolScreening.generation=0;assert
 state.routes[0].endpoint_validation.valid=false;assert.equal(app.getGuidanceContext().selectedRouteValid,false);
 state.avmPlan={maximum_attempts:1};assert.equal(app.getGuidanceContext().approvalTarget,'#send-avm');state.avmPlan=null;state.poolScreening.plan={selection_policy:{mode:'additional_known_anchor_gap_round'}};assert.equal(app.getGuidanceContext().approvalTarget,'#prepare-pool-evolution-ranking');
 assert.equal(requests,0);
+
+// Exercise the actual pin-map path: reveal the map when it is out of view, then correct page-layout shift after a click without changing map center or zoom.
+const pinNodes=new Map(),pinMapElement={top:920,scrollCalls:0,lastScrollOptions:null,getBoundingClientRect(){return{top:this.top,bottom:this.top+280};},scrollIntoView(options){this.scrollCalls++;this.lastScrollOptions=options;this.top=180;}};
+const pinNode=id=>{if(id==='map')return pinMapElement;if(!pinNodes.has(id))pinNodes.set(id,{value:'',hidden:false,dataset:{},attributes:{},addEventListener(){},classList:{toggle(){}},setAttribute(){},removeAttribute(){},getAttribute(){return null;}});return pinNodes.get(id);};
+const center={lat:41.88,lng:-87.64};let scrollCorrection=0,mapChanges=0,pinRequests=0;
+const pinMap={getCenter:()=>center,getZoom:()=>12,setView(){mapChanges++;},fitBounds(){mapChanges++;},flyTo(){mapChanges++;}};
+const pinEnv={document:{getElementById:pinNode,querySelectorAll(){return[];}},fetch(){pinRequests++;throw Error('pin placement must make no provider calls');},innerHeight:700,scrollBy(change){scrollCorrection+=change.top;pinMapElement.top-=change.top;},RouteGuidance:{update(){}}};
+pinEnv.window=pinEnv;pinEnv.L={};pinEnv.__pinMapElement=pinMapElement;
+const instrumentedApp=appSource.replace(/\ninit\(\);\s*$/,'').replace('window.SurviveDrive={exactRouteOverlap','updateNextAction=()=>{};renderMapPickControls=()=>{};notice=()=>{};setStage=stage=>{state.stage=stage;};setTripPoint=()=>{window.__pinMapElement.top+=40;return true;};window.SurviveDrive={__setMapForPinTest(value){map=value;},exactRouteOverlap');
+vm.createContext(pinEnv);vm.runInContext(instrumentedApp,pinEnv);pinEnv.SurviveDrive.__setMapForPinTest(pinMap);
+assert.equal(pinEnv.SurviveDrive.armMapPick('origin'),true,'start-pin placement arms on the existing map');
+assert.equal(pinMapElement.scrollCalls,1,'off-screen map is brought into view before pin placement');assert.equal(pinMapElement.lastScrollOptions.behavior,'auto');assert.equal(pinMapElement.lastScrollOptions.block,'center');
+pinEnv.SurviveDrive.handleMapClick([41.88,-87.64]);
+assert.equal(scrollCorrection,40,'map position is corrected after the pin click shifts page layout');assert.equal(pinMapElement.top,180,'the map stays at the placement position');
+assert.deepEqual(pinMap.getCenter(),center);assert.equal(pinMap.getZoom(),12);assert.equal(mapChanges,0,'pin placement preserves map center and zoom');
+assert.equal(pinRequests,0,'pin placement and map-view correction make no provider requests');
 console.log('Decision tree passed: pins, limited gates, waiting, connection recovery, unknown outcomes, ranking guard, families, 0/1/2 comparison checks, turn visibility, inspection, pending-plan boundaries, selected/chosen distinction, phone prerequisites and read-only native context. Provider calls: 0.');
