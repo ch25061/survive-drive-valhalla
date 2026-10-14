@@ -71,7 +71,6 @@
 <label><span>Minimum spacing · miles</span><input id="shotgun-spacing" type="number" min="0.25" max="50" step="0.25" value="0.75"></label>
 </div>
 <p class="shotgun-quick-help hint">Applies at both ends. Outer radius must exceed inner radius. Adjust settings, then GO.</p>
-<button id="prepare-shotgun-batch" class="primary" type="submit" disabled>Refresh exact Valhalla batch</button>
 <button id="suggest-shotgun" type="button" class="secondary" disabled>GO — Generate Both Gate Sets</button>
 <button id="show-gate-text-list" type="button" class="quiet" aria-expanded="false" aria-controls="guided-gate-text-lists">Show route gate text lists</button>
 </div>
@@ -80,6 +79,7 @@
 <button id="suggest-destination-shotgun" type="button" class="secondary" disabled>Retry Destination Census lookup if needed</button>
 <div id="shotgun-status-destination" class="inset" role="status">Destination approach gates have not been suggested.</div><div id="shotgun-resolution-destination" class="gate-resolution" role="status" aria-live="polite" hidden><strong id="shotgun-resolution-title-destination">Destination Approach Gate set needs your decision</strong><p id="shotgun-resolution-text-destination"></p><button id="accept-limited-shotgun-destination" type="button" class="primary">Accept limited Destination Approach Gate set</button></div>
 </details>
+<fieldset id="route-search-actions" class="route-search-actions"><legend>Find routes using your gates</legend><p class="hint">This starts a route search using the selected gates, road preferences, time limit and Exclusion Zones. It does not regenerate gates.</p><button id="prepare-shotgun-batch" class="primary" type="submit" disabled>Generate routes from current gates</button></fieldset>
 </form>
 </section>
 <section data-panel="search" hidden>
